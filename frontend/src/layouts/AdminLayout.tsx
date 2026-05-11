@@ -1,6 +1,6 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd'
-import { DashboardOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons'
+import { DashboardOutlined, LogoutOutlined, UserOutlined, ShopOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -12,6 +12,7 @@ export default function AdminLayout() {
 
   const menuItems: MenuProps['items'] = [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
+    { key: '/admin/shops', icon: <ShopOutlined />, label: '店铺审核' },
   ]
 
   const userMenuItems: MenuProps['items'] = [

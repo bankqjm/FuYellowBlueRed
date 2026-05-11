@@ -9,7 +9,7 @@ import os
 
 from app.config import settings
 from app.database import init_db
-from app.api import auth, users, upload
+from app.api import auth, users, upload, shop, admin
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -57,6 +57,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
+app.include_router(shop.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 
 @app.get("/")

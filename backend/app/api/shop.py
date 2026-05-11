@@ -1,0 +1,335 @@
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from typing import List
+from app.database import get_db
+from app.models.models import Shop, Category, Product, ShopStatus, ProductStatus, User
+from app.schemas.shop import (
+    ShopCreate, ShopUpdate, ShopInfo, ShopDetail,
+    CategoryCreate, CategoryUpdate, CategoryInfo,
+    ProductCreate, ProductUpdate, ProductInfo,
+    ShopListQuery, ProductListQuery
+)
+from app.schemas.base import ResponseSchema, PageResponse
+from app.deps.auth import get_current_user
+from app.utils.exceptions import BadRequestException, UnauthorizedException, ForbiddenException
+
+router = APIRouter(prefix="/shop", tags=["商家"])
+
+
+@router.post("/apply", response_model=ResponseSchema[ShopInfo])
+async def apply_shop(
+    request: ShopCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    existing_shop = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    if existing_shop.scalar_one_or_none():
+        raise BadRequestException("您已申请过店铺")
+
+    shop = Shop(
+        user_id=current_user.id,
+        name=request.name,
+        logo=request.logo,
+        address=request.address,
+        latitude=request.latitude,
+        longitude=request.longitude,
+        business_hours=request.business_hours,
+        notice=request.notice,
+        status=ShopStatus.PENDING.value,
+        rating=5.0
+    )
+    db.add(shop)
+    await db.commit()
+    await db.refresh(shop)
+
+    return ResponseSchema(
+        code=0,
+        message="申请成功，等待审核",
+        data=ShopInfo.model_validate(shop)
+    )
+
+
+@router.get("/my", response_model=ResponseSchema[ShopInfo])
+async def get_my_shop(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有申请店铺")
+    return ResponseSchema(code=0, data=ShopInfo.model_validate(shop))
+
+
+@router.put("/my", response_model=ResponseSchema[ShopInfo])
+async def update_my_shop(
+    request: ShopUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有申请店铺")
+
+    update_data = request.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(shop, field, value)
+
+    await db.commit()
+    await db.refresh(shop)
+    return ResponseSchema(code=0, message="更新成功", data=ShopInfo.model_validate(shop))
+
+
+@router.get("/list", response_model=ResponseSchema[PageResponse[ShopInfo]])
+async def list_shops(
+    query: ShopListQuery = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Shop)
+    count_stmt = select(func.count(Shop.id))
+
+    if query.keyword:
+        stmt = stmt.where(Shop.name.contains(query.keyword))
+        count_stmt = count_stmt.where(Shop.name.contains(query.keyword))
+    if query.status is not None:
+        stmt = stmt.where(Shop.status == query.status)
+        count_stmt = count_stmt.where(Shop.status == query.status)
+
+    total = await db.execute(count_stmt)
+    total = total.scalar()
+
+    stmt = stmt.offset((query.page - 1) * query.page_size).limit(query.page_size)
+    result = await db.execute(stmt)
+    shops = result.scalars().all()
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=[ShopInfo.model_validate(shop) for shop in shops],
+            total=total,
+            page=query.page,
+            page_size=query.page_size
+        )
+    )
+
+
+@router.get("/{shop_id}", response_model=ResponseSchema[ShopDetail])
+async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+
+    categories_result = await db.execute(
+        select(Category).where(Category.shop_id == shop_id).order_by(Category.sort_order)
+    )
+    categories = categories_result.scalars().all()
+
+    shop_data = ShopDetail.model_validate(shop)
+    shop_data.categories = [CategoryInfo.model_validate(cat) for cat in categories]
+
+    for cat in shop_data.categories:
+        products_result = await db.execute(
+            select(Product).where(Product.category_id == cat.id, Product.status == ProductStatus.ON.value)
+        )
+        cat.products = [ProductInfo.model_validate(p) for p in products_result.scalars().all()]
+
+    return ResponseSchema(code=0, data=shop_data)
+
+
+@router.post("/category", response_model=ResponseSchema[CategoryInfo])
+async def create_category(
+    request: CategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Shop).where(Shop.id == request.shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+    if shop.user_id != current_user.id:
+        raise ForbiddenException("无权操作该店铺")
+
+    category = Category(**request.model_dump())
+    db.add(category)
+    await db.commit()
+    await db.refresh(category)
+
+    return ResponseSchema(code=0, message="创建成功", data=CategoryInfo.model_validate(category))
+
+
+@router.get("/category/{shop_id}", response_model=ResponseSchema[List[CategoryInfo]])
+async def list_categories(shop_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Category).where(Category.shop_id == shop_id).order_by(Category.sort_order)
+    )
+    categories = result.scalars().all()
+    return ResponseSchema(
+        code=0,
+        data=[CategoryInfo.model_validate(cat) for cat in categories]
+    )
+
+
+@router.put("/category/{category_id}", response_model=ResponseSchema[CategoryInfo])
+async def update_category(
+    category_id: int,
+    request: CategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise BadRequestException("分类不存在")
+
+    shop_result = await db.execute(select(Shop).where(Shop.id == category.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop.user_id != current_user.id:
+        raise ForbiddenException("无权操作该分类")
+
+    update_data = request.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(category, field, value)
+
+    await db.commit()
+    await db.refresh(category)
+    return ResponseSchema(code=0, message="更新成功", data=CategoryInfo.model_validate(category))
+
+
+@router.delete("/category/{category_id}", response_model=ResponseSchema)
+async def delete_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Category).where(Category.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise BadRequestException("分类不存在")
+
+    shop_result = await db.execute(select(Shop).where(Shop.id == category.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop.user_id != current_user.id:
+        raise ForbiddenException("无权操作该分类")
+
+    await db.delete(category)
+    await db.commit()
+    return ResponseSchema(code=0, message="删除成功")
+
+
+@router.post("/product", response_model=ResponseSchema[ProductInfo])
+async def create_product(
+    request: ProductCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Shop).where(Shop.id == request.shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+    if shop.user_id != current_user.id:
+        raise ForbiddenException("无权操作该店铺")
+
+    product = Product(**request.model_dump())
+    db.add(product)
+    await db.commit()
+    await db.refresh(product)
+
+    return ResponseSchema(code=0, message="创建成功", data=ProductInfo.model_validate(product))
+
+
+@router.get("/product/{shop_id}", response_model=ResponseSchema[PageResponse[ProductInfo]])
+async def list_products(
+    shop_id: int,
+    query: ProductListQuery = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(Product).where(Product.shop_id == shop_id)
+    count_stmt = select(func.count(Product.id)).where(Product.shop_id == shop_id)
+
+    if query.keyword:
+        stmt = stmt.where(Product.name.contains(query.keyword))
+        count_stmt = count_stmt.where(Product.name.contains(query.keyword))
+    if query.category_id:
+        stmt = stmt.where(Product.category_id == query.category_id)
+        count_stmt = count_stmt.where(Product.category_id == query.category_id)
+    if query.status is not None:
+        stmt = stmt.where(Product.status == query.status)
+        count_stmt = count_stmt.where(Product.status == query.status)
+
+    total = await db.execute(count_stmt)
+    total = total.scalar()
+
+    stmt = stmt.offset((query.page - 1) * query.page_size).limit(query.page_size)
+    result = await db.execute(stmt)
+    products = result.scalars().all()
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=[ProductInfo.model_validate(p) for p in products],
+            total=total,
+            page=query.page,
+            page_size=query.page_size
+        )
+    )
+
+
+@router.get("/product/detail/{product_id}", response_model=ResponseSchema[ProductInfo])
+async def get_product_detail(product_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise BadRequestException("商品不存在")
+    return ResponseSchema(code=0, data=ProductInfo.model_validate(product))
+
+
+@router.put("/product/{product_id}", response_model=ResponseSchema[ProductInfo])
+async def update_product(
+    product_id: int,
+    request: ProductUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise BadRequestException("商品不存在")
+
+    shop_result = await db.execute(select(Shop).where(Shop.id == product.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop.user_id != current_user.id:
+        raise ForbiddenException("无权操作该商品")
+
+    update_data = request.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(product, field, value)
+
+    await db.commit()
+    await db.refresh(product)
+    return ResponseSchema(code=0, message="更新成功", data=ProductInfo.model_validate(product))
+
+
+@router.delete("/product/{product_id}", response_model=ResponseSchema)
+async def delete_product(
+    product_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise BadRequestException("商品不存在")
+
+    shop_result = await db.execute(select(Shop).where(Shop.id == product.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop.user_id != current_user.id:
+        raise ForbiddenException("无权操作该商品")
+
+    await db.delete(product)
+    await db.commit()
+    return ResponseSchema(code=0, message="删除成功")
+

@@ -1,6 +1,6 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd'
-import { InboxOutlined, LogoutOutlined, ShopOutlined } from '@ant-design/icons'
+import { InboxOutlined, LogoutOutlined, ShopOutlined, AppstoreOutlined, ShoppingOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -11,6 +11,8 @@ export default function ShopLayout() {
   const { userInfo, logout } = useAuthStore()
 
   const menuItems: MenuProps['items'] = [
+    { key: '/shop/info', icon: <ShopOutlined />, label: '店铺信息' },
+    { key: '/shop/products', icon: <ShoppingOutlined />, label: '商品管理' },
     { key: '/shop/orders', icon: <InboxOutlined />, label: '订单管理' },
   ]
 
