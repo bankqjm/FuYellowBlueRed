@@ -14,7 +14,7 @@ export interface AddressInfo {
 }
 
 export const addressApi = {
-  getAddresses: () =&gt; api.get&lt;AddressInfo[]&gt;('/users/addresses'),
+  getAddresses: () => api.get<AddressInfo[]>('/users/addresses'),
 
   createAddress: (data: {
     contact_name: string
@@ -23,7 +23,7 @@ export const addressApi = {
     latitude?: number
     longitude?: number
     is_default?: number
-  }) =&gt; api.post&lt;AddressInfo&gt;('/users/addresses', data),
+  }) => api.post<AddressInfo>('/users/addresses', data),
 
   updateAddress: (addressId: number, data: {
     contact_name?: string
@@ -32,8 +32,7 @@ export const addressApi = {
     latitude?: number
     longitude?: number
     is_default?: number
-  }) =&gt; api.put&lt;AddressInfo&gt;(`/users/addresses/${addressId}`, data),
+  }) => api.put<AddressInfo>(`/users/addresses/${addressId}`, data),
 
-  deleteAddress: (addressId: number) =&gt; api.delete(`/users/addresses/${addressId}`),
+  deleteAddress: (addressId: number) => api.delete(`/users/addresses/${addressId}`),
 }
-

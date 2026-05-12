@@ -8,10 +8,10 @@ const { Title, Text } = Typography
 
 export default function ShopOrders() {
   const [loading, setLoading] = useState(false)
-  const [orders, setOrders] = useState&lt;OrderInfo[]&gt;([])
-  const [status, setStatus] = useState&lt;string&gt;('')
+  const [orders, setOrders] = useState<OrderInfo[]>([])
+  const [status, setStatus] = useState<string>('')
 
-  const fetchOrders = async () =&gt; {
+  const fetchOrders = async () => {
     try {
       setLoading(true)
       const res = await shopApi.getShopOrders(status)
@@ -23,11 +23,11 @@ export default function ShopOrders() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchOrders()
   }, [status])
 
-  const handleAccept = async (id: number) =&gt; {
+  const handleAccept = async (id: number) => {
     try {
       await shopApi.acceptOrder(id)
       message.success('接单成功')
@@ -37,7 +37,7 @@ export default function ShopOrders() {
     }
   }
 
-  const handleReject = async (id: number) =&gt; {
+  const handleReject = async (id: number) => {
     try {
       await shopApi.rejectOrder(id)
       message.success('拒单成功')
@@ -47,7 +47,7 @@ export default function ShopOrders() {
     }
   }
 
-  const handleReady = async (id: number) =&gt; {
+  const handleReady = async (id: number) => {
     try {
       await shopApi.orderReady(id)
       message.success('备餐完成')
@@ -57,8 +57,8 @@ export default function ShopOrders() {
     }
   }
 
-  const getStatusText = (status: string) =&gt; {
-    const statusMap: Record&lt;string, { text: string; color: string }&gt; = {
+  const getStatusText = (status: string) => {
+    const statusMap: Record<string, { text: string; color: string }> = {
       PENDING_PAYMENT: { text: '待支付', color: 'blue' },
       PENDING_ACCEPT: { text: '待接单', color: 'orange' },
       ACCEPTED: { text: '备餐中', color: 'cyan' },
@@ -79,83 +79,83 @@ export default function ShopOrders() {
 
   if (loading) {
     return (
-      &lt;div style={{ textAlign: 'center', padding: 50 }}&gt;
-        &lt;Spin size="large" /&gt;
-      &lt;/div&gt;
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   return (
-    &lt;Card&gt;
-      &lt;Title level={4}&gt;订单管理&lt;/Title&gt;
-      &lt;Tabs
+    <Card>
+      <Title level={4}>订单管理</Title>
+      <Tabs
         activeKey={status}
         onChange={setStatus}
         items={tabItems}
-      /&gt;
+      />
 
       {orders.length === 0 ? (
-        &lt;Empty description="暂无订单" style={{ marginTop: 50 }} /&gt;
+        <Empty description="暂无订单" style={{ marginTop: 50 }} />
       ) : (
-        &lt;List
+        <List
           dataSource={orders}
-          renderItem={(order) =&gt; {
+          renderItem={(order) => {
             const statusInfo = getStatusText(order.status)
             return (
-              &lt;List.Item
+              <List.Item
                 key={order.id}
                 style={{ borderBottom: '1px solid #f0f0f0', padding: '16px 0' }}
                 actions={
                   order.status === 'PENDING_ACCEPT'
                     ? [
-                        &lt;Button key="reject" danger icon={&lt;CloseCircleOutlined /&gt;} onClick={() =&gt; handleReject(order.id)}&gt;
+                        <Button key="reject" danger icon={<CloseCircleOutlined />} onClick={() => handleReject(order.id)}>
                           拒单
-                        &lt;/Button&gt;,
-                        &lt;Button key="accept" type="primary" icon={&lt;CheckCircleOutlined /&gt;} onClick={() =&gt; handleAccept(order.id)}&gt;
+                        </Button>,
+                        <Button key="accept" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleAccept(order.id)}>
                           接单
-                        &lt;/Button&gt;
+                        </Button>
                       ]
                     : order.status === 'ACCEPTED'
                     ? [
-                        &lt;Button key="ready" type="primary" icon={&lt;ClockCircleOutlined /&gt;} onClick={() =&gt; handleReady(order.id)}&gt;
+                        <Button key="ready" type="primary" icon={<ClockCircleOutlined />} onClick={() => handleReady(order.id)}>
                           备餐完成
-                        &lt;/Button&gt;
+                        </Button>
                       ]
                     : []
                 }
-              &gt;
-                &lt;List.Item.Meta
+              >
+                <List.Item.Meta
                   title={
-                    &lt;Space&gt;
-                      &lt;Text strong&gt;订单号：{order.order_no}&lt;/Text&gt;
-                      &lt;Tag color={statusInfo.color}&gt;{statusInfo.text}&lt;/Tag&gt;
-                    &lt;/Space&gt;
+                    <Space>
+                      <Text strong>订单号：{order.order_no}</Text>
+                      <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+                    </Space>
                   }
                   description={
-                    &lt;div&gt;
-                      &lt;Text&gt;
+                    <div>
+                      <Text>
                         收货人：{order.address.contact_name} {order.address.contact_phone}
-                        &lt;br /&gt;
+                        <br />
                         地址：{order.address.address}
-                        &lt;br /&gt;
-                      &lt;/Text&gt;
-                      {order.items.map((item) =&gt; (
-                        &lt;Text key={item.id} type="secondary"&gt;
+                        <br />
+                      </Text>
+                      {order.items.map((item) => (
+                        <Text key={item.id} type="secondary">
                           {item.product_name} × {item.quantity}
-                          &lt;br /&gt;
-                        &lt;/Text&gt;
+                          <br />
+                        </Text>
                       ))}
-                      &lt;br /&gt;
-                      &lt;Text type="danger" strong&gt;¥{order.total_amount.toFixed(2)}&lt;/Text&gt;
-                    &lt;/div&gt;
+                      <br />
+                      <Text type="danger" strong>¥{order.total_amount.toFixed(2)}</Text>
+                    </div>
                   }
-                /&gt;
-              &lt;/List.Item&gt;
+                />
+              </List.Item>
             )
           }}
-        /&gt;
+        />
       )}
-    &lt;/Card&gt;
+    </Card>
   )
 }
 

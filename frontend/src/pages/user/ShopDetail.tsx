@@ -10,13 +10,13 @@ const { Title, Text } = Typography
 const { TabPane } = Tabs
 
 export default function ShopDetail() {
-  const { id } = useParams&lt;{ id: string }&gt;()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [shop, setShop] = useState&lt;ShopDetail | null&gt;(null)
-  const [cart, setCart] = useState&lt;CartItemInfo[]&gt;([])
+  const [shop, setShop] = useState<ShopDetail | null>(null)
+  const [cart, setCart] = useState<CartItemInfo[]>([])
 
-  const fetchShopDetail = async () =&gt; {
+  const fetchShopDetail = async () => {
     if (!id) return
     try {
       setLoading(true)
@@ -29,7 +29,7 @@ export default function ShopDetail() {
     }
   }
 
-  const fetchCart = async () =&gt; {
+  const fetchCart = async () => {
     try {
       const res = await cartApi.getCart()
       setCart(res.data)
@@ -38,18 +38,18 @@ export default function ShopDetail() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchShopDetail()
     fetchCart()
   }, [id])
 
-  const getProductCountInCart = (productId: number) =&gt; {
+  const getProductCountInCart = (productId: number) => {
     if (!id) return 0
-    const cartItem = cart.find(item =&gt; item.shop_id === parseInt(id) &amp;&amp; item.product_id === productId)
+    const cartItem = cart.find(item => item.shop_id === parseInt(id) && item.product_id === productId)
     return cartItem?.quantity || 0
   }
 
-  const addToCart = async (product: ProductInfo) =&gt; {
+  const addToCart = async (product: ProductInfo) => {
     if (!id) return
     try {
       await cartApi.addToCart({
@@ -64,13 +64,13 @@ export default function ShopDetail() {
     }
   }
 
-  const updateCartItem = async (product: ProductInfo, quantity: number) =&gt; {
+  const updateCartItem = async (product: ProductInfo, quantity: number) => {
     if (!id) return
-    const cartItem = cart.find(item =&gt; item.shop_id === parseInt(id) &amp;&amp; item.product_id === product.id)
+    const cartItem = cart.find(item => item.shop_id === parseInt(id) && item.product_id === product.id)
     if (!cartItem) return
 
     try {
-      if (quantity &lt;= 0) {
+      if (quantity <= 0) {
         await cartApi.deleteCartItem(cartItem.id)
       } else {
         await cartApi.updateCartItem(cartItem.id, { quantity })
@@ -82,12 +82,12 @@ export default function ShopDetail() {
     }
   }
 
-  const getCartTotalForShop = () =&gt; {
+  const getCartTotalForShop = () => {
     if (!id) return { quantity: 0, price: 0 }
-    const shopCart = cart.filter(item =&gt; item.shop_id === parseInt(id))
+    const shopCart = cart.filter(item => item.shop_id === parseInt(id))
     return {
-      quantity: shopCart.reduce((sum, item) =&gt; sum + item.quantity, 0),
-      price: shopCart.reduce((sum, item) =&gt; sum + (item.product_price || 0) * item.quantity, 0),
+      quantity: shopCart.reduce((sum, item) => sum + item.quantity, 0),
+      price: shopCart.reduce((sum, item) => sum + (item.product_price || 0) * item.quantity, 0),
     }
   }
 
@@ -95,110 +95,110 @@ export default function ShopDetail() {
 
   if (loading) {
     return (
-      &lt;div style={{ textAlign: 'center', padding: 50 }}&gt;
-        &lt;Spin size="large" /&gt;
-      &lt;/div&gt;
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   if (!shop) {
-    return &lt;div&gt;店铺不存在&lt;/div&gt;
+    return <div>店铺不存在</div>
   }
 
   return (
-    &lt;div&gt;
-      &lt;Card&gt;
-        &lt;Space direction="vertical" style={{ width: '100%' }}&gt;
-          &lt;Space&gt;
+    <div>
+      <Card>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space>
             {shop.logo ? (
-              &lt;Image src={shop.logo} alt="" width={80} height={80} /&gt;
+              <Image src={shop.logo} alt="" width={80} height={80} />
             ) : (
-              &lt;div style={{ width: 80, height: 80, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}&gt;
-                &lt;span style={{ color: '#999' }}&gt;店铺&lt;/span&gt;
-              &lt;/div&gt;
+              <div style={{ width: 80, height: 80, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#999' }}>店铺</span>
+              </div>
             )}
-            &lt;div&gt;
-              &lt;Title level={4} style={{ margin: 0 }}&gt;{shop.name}&lt;/Title&gt;
-              &lt;Text&gt;&lt;StarOutlined style={{ color: '#faad14' }} /&gt; {shop.rating}&lt;/Text&gt;
-            &lt;/div&gt;
-          &lt;/Space&gt;
-          {shop.notice &amp;&amp; (
-            &lt;div&gt;
-              &lt;Text type="secondary"&gt;店铺公告：&lt;/Text&gt;
-              &lt;Text&gt;{shop.notice}&lt;/Text&gt;
-            &lt;/div&gt;
+            <div>
+              <Title level={4} style={{ margin: 0 }}>{shop.name}</Title>
+              <Text><StarOutlined style={{ color: '#faad14' }} /> {shop.rating}</Text>
+            </div>
+          </Space>
+          {shop.notice && (
+            <div>
+              <Text type="secondary">店铺公告：</Text>
+              <Text>{shop.notice}</Text>
+            </div>
           )}
-        &lt;/Space&gt;
-      &lt;/Card&gt;
+        </Space>
+      </Card>
 
-      &lt;Card style={{ marginTop: 16 }}&gt;
-        &lt;Tabs defaultActiveKey={shop.categories?.[0]?.id?.toString() || '0'}&gt;
-          {shop.categories?.map(category =&gt; (
-            &lt;TabPane tab={category.name} key={category.id.toString()}&gt;
-              &lt;List
-                dataSource={category.products?.filter(p =&gt; p.status === 1)}
-                renderItem={product =&gt; {
+      <Card style={{ marginTop: 16 }}>
+        <Tabs defaultActiveKey={shop.categories?.[0]?.id?.toString() || '0'}>
+          {shop.categories?.map(category => (
+            <TabPane tab={category.name} key={category.id.toString()}>
+              <List
+                dataSource={category.products?.filter(p => p.status === 1)}
+                renderItem={product => {
                   const count = getProductCountInCart(product.id)
                   return (
-                    &lt;List.Item&gt;
-                      &lt;Space style={{ width: '100%' }}&gt;
+                    <List.Item>
+                      <Space style={{ width: '100%' }}>
                         {product.image ? (
-                          &lt;Image src={product.image} alt="" width={80} height={80} /&gt;
+                          <Image src={product.image} alt="" width={80} height={80} />
                         ) : (
-                          &lt;div style={{ width: 80, height: 80, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}&gt;
-                            &lt;span style={{ color: '#999' }}&gt;商品&lt;/span&gt;
-                          &lt;/div&gt;
+                          <div style={{ width: 80, height: 80, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ color: '#999' }}>商品</span>
+                          </div>
                         )}
-                        &lt;div style={{ flex: 1 }}&gt;
-                          &lt;Title level={5} style={{ margin: 0 }}&gt;{product.name}&lt;/Title&gt;
-                          {product.description &amp;&amp; &lt;Text type="secondary"&gt;{product.description}&lt;/Text&gt;}
-                          &lt;div style={{ marginTop: 8 }}&gt;
-                            &lt;Text type="danger" strong style={{ fontSize: 18 }}&gt;¥{product.price.toFixed(2)}&lt;/Text&gt;
-                            {product.original_price &amp;&amp; product.original_price &gt; product.price &amp;&amp; (
-                              &lt;Text delete style={{ marginLeft: 8 }}&gt;¥{product.original_price.toFixed(2)}&lt;/Text&gt;
+                        <div style={{ flex: 1 }}>
+                          <Title level={5} style={{ margin: 0 }}>{product.name}</Title>
+                          {product.description && <Text type="secondary">{product.description}</Text>}
+                          <div style={{ marginTop: 8 }}>
+                            <Text type="danger" strong style={{ fontSize: 18 }}>¥{product.price.toFixed(2)}</Text>
+                            {product.original_price && product.original_price > product.price && (
+                              <Text delete style={{ marginLeft: 8 }}>¥{product.original_price.toFixed(2)}</Text>
                             )}
-                          &lt;/div&gt;
-                        &lt;/div&gt;
-                        &lt;Space&gt;
-                          {count &gt; 0 ? (
-                            &lt;&gt;
-                              &lt;Button
+                          </div>
+                        </div>
+                        <Space>
+                          {count > 0 ? (
+                            <>
+                              <Button
                                 size="small"
                                 shape="circle"
-                                icon={&lt;MinusOutlined /&gt;}
-                                onClick={() =&gt; updateCartItem(product, count - 1)}
-                              /&gt;
-                              &lt;Text&gt;{count}&lt;/Text&gt;
-                              &lt;Button
+                                icon={<MinusOutlined />}
+                                onClick={() => updateCartItem(product, count - 1)}
+                              />
+                              <Text>{count}</Text>
+                              <Button
                                 size="small"
                                 shape="circle"
-                                icon={&lt;PlusOutlined /&gt;}
-                                onClick={() =&gt; updateCartItem(product, count + 1)}
-                              /&gt;
-                            &lt;/&gt;
+                                icon={<PlusOutlined />}
+                                onClick={() => updateCartItem(product, count + 1)}
+                              />
+                            </>
                           ) : (
-                            &lt;Button
+                            <Button
                               type="primary"
                               size="small"
-                              icon={&lt;PlusOutlined /&gt;}
-                              onClick={() =&gt; addToCart(product)}
-                            &gt;
+                              icon={<PlusOutlined />}
+                              onClick={() => addToCart(product)}
+                            >
                               加入购物车
-                            &lt;/Button&gt;
+                            </Button>
                           )}
-                        &lt;/Space&gt;
-                      &lt;/Space&gt;
-                    &lt;/List.Item&gt;
+                        </Space>
+                      </Space>
+                    </List.Item>
                   )
                 }}
-              /&gt;
-            &lt;/TabPane&gt;
+              />
+            </TabPane>
           ))}
-        &lt;/Tabs&gt;
-      &lt;/Card&gt;
+        </Tabs>
+      </Card>
 
-      {cartTotal.quantity &gt; 0 &amp;&amp; (
-        &lt;Card
+      {cartTotal.quantity > 0 && (
+        <Card
           style={{
             position: 'fixed',
             bottom: 0,
@@ -206,28 +206,28 @@ export default function ShopDetail() {
             right: 0,
             boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
           }}
-        &gt;
-          &lt;Space style={{ width: '100%', justifyContent: 'space-between' }}&gt;
-            &lt;Space&gt;
-              &lt;ShoppingCartOutlined style={{ fontSize: 24, color: '#1890ff' }} /&gt;
-              &lt;div&gt;
-                &lt;div&gt;
-                  &lt;Text type="danger" strong style={{ fontSize: 18 }}&gt;¥{cartTotal.price.toFixed(2)}&lt;/Text&gt;
-                  &lt;Text type="secondary" style={{ marginLeft: 8 }}&gt;共{cartTotal.quantity}件&lt;/Text&gt;
-                &lt;/div&gt;
-              &lt;/div&gt;
-            &lt;/Space&gt;
-            &lt;Button
+        >
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Space>
+              <ShoppingCartOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+              <div>
+                <div>
+                  <Text type="danger" strong style={{ fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
+                  <Text type="secondary" style={{ marginLeft: 8 }}>共{cartTotal.quantity}件</Text>
+                </div>
+              </div>
+            </Space>
+            <Button
               type="primary"
               size="large"
-              onClick={() =&gt; navigate(`/user/cart`)}
-            &gt;
+              onClick={() => navigate(`/user/cart`)}
+            >
               去购物车
-            &lt;/Button&gt;
-          &lt;/Space&gt;
-        &lt;/Card&gt;
+            </Button>
+          </Space>
+        </Card>
       )}
-    &lt;/div&gt;
+    </div>
   )
 }
 

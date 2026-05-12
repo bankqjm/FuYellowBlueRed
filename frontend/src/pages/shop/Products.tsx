@@ -30,20 +30,20 @@ const { Option } = Select
 const { TabPane } = Tabs
 
 export default function Products() {
-  const [shop, setShop] = useState&lt;ShopInfo | null&gt;(null)
-  const [categories, setCategories] = useState&lt;CategoryInfo[]&gt;([])
-  const [products, setProducts] = useState&lt;ProductInfo[]&gt;([])
+  const [shop, setShop] = useState<ShopInfo | null>(null)
+  const [categories, setCategories] = useState<CategoryInfo[]>([])
+  const [products, setProducts] = useState<ProductInfo[]>([])
   const [loading, setLoading] = useState(true)
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false)
   const [productModalVisible, setProductModalVisible] = useState(false)
-  const [editingCategory, setEditingCategory] = useState&lt;CategoryInfo | null&gt;(null)
-  const [editingProduct, setEditingProduct] = useState&lt;ProductInfo | null&gt;(null)
+  const [editingCategory, setEditingCategory] = useState<CategoryInfo | null>(null)
+  const [editingProduct, setEditingProduct] = useState<ProductInfo | null>(null)
 
   const [categoryForm] = Form.useForm()
   const [productForm] = Form.useForm()
 
-  const fetchData = async () =&gt; {
+  const fetchData = async () => {
     try {
       setLoading(true)
       const shopRes = await shopApi.getMyShop()
@@ -63,23 +63,23 @@ export default function Products() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchData()
   }, [])
 
-  const handleAddCategory = () =&gt; {
+  const handleAddCategory = () => {
     setEditingCategory(null)
     categoryForm.resetFields()
     setCategoryModalVisible(true)
   }
 
-  const handleEditCategory = (category: CategoryInfo) =&gt; {
+  const handleEditCategory = (category: CategoryInfo) => {
     setEditingCategory(category)
     categoryForm.setFieldsValue(category)
     setCategoryModalVisible(true)
   }
 
-  const handleSaveCategory = async (values: any) =&gt; {
+  const handleSaveCategory = async (values: any) => {
     try {
       if (!shop) return
 
@@ -97,7 +97,7 @@ export default function Products() {
     }
   }
 
-  const handleDeleteCategory = async (categoryId: number) =&gt; {
+  const handleDeleteCategory = async (categoryId: number) => {
     try {
       await shopApi.deleteCategory(categoryId)
       message.success('删除成功')
@@ -107,19 +107,19 @@ export default function Products() {
     }
   }
 
-  const handleAddProduct = () =&gt; {
+  const handleAddProduct = () => {
     setEditingProduct(null)
     productForm.resetFields()
     setProductModalVisible(true)
   }
 
-  const handleEditProduct = (product: ProductInfo) =&gt; {
+  const handleEditProduct = (product: ProductInfo) => {
     setEditingProduct(product)
     productForm.setFieldsValue(product)
     setProductModalVisible(true)
   }
 
-  const handleSaveProduct = async (values: any) =&gt; {
+  const handleSaveProduct = async (values: any) => {
     try {
       if (!shop) return
 
@@ -137,7 +137,7 @@ export default function Products() {
     }
   }
 
-  const handleDeleteProduct = async (productId: number) =&gt; {
+  const handleDeleteProduct = async (productId: number) => {
     try {
       await shopApi.deleteProduct(productId)
       message.success('删除成功')
@@ -147,8 +147,8 @@ export default function Products() {
     }
   }
 
-  const getStatusText = (status: number) =&gt; {
-    return status === 1 ? &lt;Tag color="green"&gt;上架&lt;/Tag&gt; : &lt;Tag color="gray"&gt;下架&lt;/Tag&gt;
+  const getStatusText = (status: number) => {
+    return status === 1 ? <Tag color="green">上架</Tag> : <Tag color="gray">下架</Tag>
   }
 
   const categoryColumns = [
@@ -165,22 +165,22 @@ export default function Products() {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: CategoryInfo) =&gt; (
-        &lt;Space size="small"&gt;
-          &lt;Button type="link" icon={&lt;EditOutlined /&gt;} onClick={() =&gt; handleEditCategory(record)}&gt;
+      render: (_: any, record: CategoryInfo) => (
+        <Space size="small">
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEditCategory(record)}>
             编辑
-          &lt;/Button&gt;
-          &lt;Popconfirm
+          </Button>
+          <Popconfirm
             title="确定删除这个分类？"
-            onConfirm={() =&gt; handleDeleteCategory(record.id)}
+            onConfirm={() => handleDeleteCategory(record.id)}
             okText="确定"
             cancelText="取消"
-          &gt;
-            &lt;Button type="link" danger icon={&lt;DeleteOutlined /&gt;}&gt;
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
               删除
-            &lt;/Button&gt;
-          &lt;/Popconfirm&gt;
-        &lt;/Space&gt;
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ]
@@ -190,7 +190,7 @@ export default function Products() {
       title: '商品图片',
       dataIndex: 'image',
       key: 'image',
-      render: (image: string) =&gt; image ? &lt;Image src={image} width={60} height={60} /&gt; : '-',
+      render: (image: string) => image ? <Image src={image} width={60} height={60} /> : '-',
     },
     {
       title: '商品名称',
@@ -201,8 +201,8 @@ export default function Products() {
       title: '分类',
       dataIndex: 'category_id',
       key: 'category_id',
-      render: (categoryId: number) =&gt; {
-        const category = categories.find(c =&gt; c.id === categoryId)
+      render: (categoryId: number) => {
+        const category = categories.find(c => c.id === categoryId)
         return category?.name || '-'
       },
     },
@@ -210,7 +210,7 @@ export default function Products() {
       title: '价格',
       dataIndex: 'price',
       key: 'price',
-      render: (price: number) =&gt; `¥${price.toFixed(2)}`,
+      render: (price: number) => `¥${price.toFixed(2)}`,
     },
     {
       title: '库存',
@@ -226,166 +226,166 @@ export default function Products() {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: number) =&gt; getStatusText(status),
+      render: (status: number) => getStatusText(status),
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: ProductInfo) =&gt; (
-        &lt;Space size="small"&gt;
-          &lt;Button type="link" icon={&lt;EditOutlined /&gt;} onClick={() =&gt; handleEditProduct(record)}&gt;
+      render: (_: any, record: ProductInfo) => (
+        <Space size="small">
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEditProduct(record)}>
             编辑
-          &lt;/Button&gt;
-          &lt;Popconfirm
+          </Button>
+          <Popconfirm
             title="确定删除这个商品？"
-            onConfirm={() =&gt; handleDeleteProduct(record.id)}
+            onConfirm={() => handleDeleteProduct(record.id)}
             okText="确定"
             cancelText="取消"
-          &gt;
-            &lt;Button type="link" danger icon={&lt;DeleteOutlined /&gt;}&gt;
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
               删除
-            &lt;/Button&gt;
-          &lt;/Popconfirm&gt;
-        &lt;/Space&gt;
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ]
 
   return (
-    &lt;Card&gt;
-      &lt;Tabs defaultActiveKey="products"&gt;
-        &lt;TabPane
+    <Card>
+      <Tabs defaultActiveKey="products">
+        <TabPane
           tab={
-            &lt;span&gt;
-              &lt;ShoppingOutlined /&gt;
+            <span>
+              <ShoppingOutlined />
               商品管理
-            &lt;/span&gt;
+            </span>
           }
           key="products"
-        &gt;
-          &lt;div style={{ marginBottom: 16, textAlign: 'right' }}&gt;
-            &lt;Button type="primary" icon={&lt;PlusOutlined /&gt;} onClick={handleAddProduct}&gt;
+        >
+          <div style={{ marginBottom: 16, textAlign: 'right' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProduct}>
               添加商品
-            &lt;/Button&gt;
-          &lt;/div&gt;
-          &lt;Table
+            </Button>
+          </div>
+          <Table
             columns={productColumns}
             dataSource={products}
             rowKey="id"
             loading={loading}
-          /&gt;
-        &lt;/TabPane&gt;
-        &lt;TabPane
+          />
+        </TabPane>
+        <TabPane
           tab={
-            &lt;span&gt;
-              &lt;AppstoreOutlined /&gt;
+            <span>
+              <AppstoreOutlined />
               分类管理
-            &lt;/span&gt;
+            </span>
           }
           key="categories"
-        &gt;
-          &lt;div style={{ marginBottom: 16, textAlign: 'right' }}&gt;
-            &lt;Button type="primary" icon={&lt;PlusOutlined /&gt;} onClick={handleAddCategory}&gt;
+        >
+          <div style={{ marginBottom: 16, textAlign: 'right' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCategory}>
               添加分类
-            &lt;/Button&gt;
-          &lt;/div&gt;
-          &lt;Table
+            </Button>
+          </div>
+          <Table
             columns={categoryColumns}
             dataSource={categories}
             rowKey="id"
             loading={loading}
-          /&gt;
-        &lt;/TabPane&gt;
-      &lt;/Tabs&gt;
+          />
+        </TabPane>
+      </Tabs>
 
-      &lt;Modal
+      <Modal
         title={editingCategory ? '编辑分类' : '添加分类'}
         visible={categoryModalVisible}
-        onCancel={() =&gt; setCategoryModalVisible(false)}
+        onCancel={() => setCategoryModalVisible(false)}
         footer={null}
-      &gt;
-        &lt;Form form={categoryForm} onFinish={handleSaveCategory} layout="vertical"&gt;
-          &lt;Form.Item
+      >
+        <Form form={categoryForm} onFinish={handleSaveCategory} layout="vertical">
+          <Form.Item
             label="分类名称"
             name="name"
             rules={[{ required: true, message: '请输入分类名称' }]}
-          &gt;
-            &lt;Input /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="排序" name="sort_order" initialValue={0}&gt;
-            &lt;InputNumber /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item&gt;
-            &lt;Space&gt;
-              &lt;Button type="primary" htmlType="submit"&gt;
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item label="排序" name="sort_order" initialValue={0}>
+            <InputNumber />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
                 保存
-              &lt;/Button&gt;
-              &lt;Button onClick={() =&gt; setCategoryModalVisible(false)}&gt;取消&lt;/Button&gt;
-            &lt;/Space&gt;
-          &lt;/Form.Item&gt;
-        &lt;/Form&gt;
-      &lt;/Modal&gt;
+              </Button>
+              <Button onClick={() => setCategoryModalVisible(false)}>取消</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
 
-      &lt;Modal
+      <Modal
         title={editingProduct ? '编辑商品' : '添加商品'}
         visible={productModalVisible}
-        onCancel={() =&gt; setProductModalVisible(false)}
+        onCancel={() => setProductModalVisible(false)}
         footer={null}
         width={600}
-      &gt;
-        &lt;Form form={productForm} onFinish={handleSaveProduct} layout="vertical"&gt;
-          &lt;Form.Item
+      >
+        <Form form={productForm} onFinish={handleSaveProduct} layout="vertical">
+          <Form.Item
             label="商品名称"
             name="name"
             rules={[{ required: true, message: '请输入商品名称' }]}
-          &gt;
-            &lt;Input /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="商品分类" name="category_id"&gt;
-            &lt;Select placeholder="请选择分类"&gt;
-              {categories.map(cat =&gt; (
-                &lt;Option key={cat.id} value={cat.id}&gt;
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item label="商品分类" name="category_id">
+            <Select placeholder="请选择分类">
+              {categories.map(cat => (
+                <Option key={cat.id} value={cat.id}>
                   {cat.name}
-                &lt;/Option&gt;
+                </Option>
               ))}
-            &lt;/Select&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="商品图片" name="image"&gt;
-            &lt;Input placeholder="请输入图片链接" /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item
+            </Select>
+          </Form.Item>
+          <Form.Item label="商品图片" name="image">
+            <Input placeholder="请输入图片链接" />
+          </Form.Item>
+          <Form.Item
             label="价格"
             name="price"
             rules={[{ required: true, message: '请输入价格' }]}
-          &gt;
-            &lt;InputNumber min={0} precision={2} style={{ width: '100%' }} /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="原价" name="original_price"&gt;
-            &lt;InputNumber min={0} precision={2} style={{ width: '100%' }} /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="库存" name="stock" initialValue={0}&gt;
-            &lt;InputNumber min={0} style={{ width: '100%' }} /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="状态" name="status" initialValue={1}&gt;
-            &lt;Select&gt;
-              &lt;Option value={1}&gt;上架&lt;/Option&gt;
-              &lt;Option value={0}&gt;下架&lt;/Option&gt;
-            &lt;/Select&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="商品描述" name="description"&gt;
-            &lt;TextArea rows={4} /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item&gt;
-            &lt;Space&gt;
-              &lt;Button type="primary" htmlType="submit"&gt;
+          >
+            <InputNumber min={0} precision={2} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="原价" name="original_price">
+            <InputNumber min={0} precision={2} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="库存" name="stock" initialValue={0}>
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="状态" name="status" initialValue={1}>
+            <Select>
+              <Option value={1}>上架</Option>
+              <Option value={0}>下架</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item label="商品描述" name="description">
+            <TextArea rows={4} />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit">
                 保存
-              &lt;/Button&gt;
-              &lt;Button onClick={() =&gt; setProductModalVisible(false)}&gt;取消&lt;/Button&gt;
-            &lt;/Space&gt;
-          &lt;/Form.Item&gt;
-        &lt;/Form&gt;
-      &lt;/Modal&gt;
-    &lt;/Card&gt;
+              </Button>
+              <Button onClick={() => setProductModalVisible(false)}>取消</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </Card>
   )
 }
 

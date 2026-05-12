@@ -16,20 +16,20 @@ export interface CartItemInfo {
 }
 
 export const cartApi = {
-  getCart: () =&gt; api.get&lt;CartItemInfo[]&gt;('/orders/cart'),
+  getCart: () => api.get<CartItemInfo[]>('/orders/cart'),
 
   addToCart: (data: {
     shop_id: number
     product_id: number
     quantity: number
-  }) =&gt; api.post&lt;CartItemInfo&gt;('/orders/cart', data),
+  }) => api.post<CartItemInfo>('/orders/cart', data),
 
-  updateCartItem: (itemId: number, data: { quantity?: number }) =&gt;
-    api.put&lt;CartItemInfo&gt;(`/orders/cart/${itemId}`, data),
+  updateCartItem: (itemId: number, data: { quantity?: number }) =>
+    api.put<CartItemInfo>(`/orders/cart/${itemId}`, data),
 
-  deleteCartItem: (itemId: number) =&gt; api.delete(`/orders/cart/${itemId}`),
+  deleteCartItem: (itemId: number) => api.delete(`/orders/cart/${itemId}`),
 
-  clearShopCart: (shopId: number) =&gt; api.delete(`/orders/cart/shop/${shopId}`),
+  clearShopCart: (shopId: number) => api.delete(`/orders/cart/shop/${shopId}`),
 }
 
 export const orderApi = {
@@ -37,18 +37,17 @@ export const orderApi = {
     address_id: number
     shop_id: number
     remark?: string
-  }) =&gt; api.post&lt;OrderInfo&gt;('/orders/create', data),
+  }) => api.post<OrderInfo>('/orders/create', data),
 
-  payOrder: (orderId: number) =&gt; api.post&lt;OrderInfo&gt;(`/orders/${orderId}/pay`),
+  payOrder: (orderId: number) => api.post<OrderInfo>(`/orders/${orderId}/pay`),
 
   listOrders: (params?: {
     page?: number
     page_size?: number
     status?: string
-  }) =&gt; api.get&lt;PageResponse&lt;OrderInfo&gt;&gt;('/orders', { params }),
+  }) => api.get<PageResponse<OrderInfo>>('/orders', { params }),
 
-  getOrderDetail: (orderId: number) =&gt; api.get&lt;OrderInfo&gt;(`/orders/${orderId}`),
+  getOrderDetail: (orderId: number) => api.get<OrderInfo>(`/orders/${orderId}`),
 
-  confirmReceipt: (orderId: number) =&gt; api.put&lt;OrderInfo&gt;(`/orders/${orderId}/confirm`),
+  confirmReceipt: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/confirm`),
 }
-

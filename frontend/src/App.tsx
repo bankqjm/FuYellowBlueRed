@@ -30,85 +30,85 @@ function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: str
   const { token, role } = useAuthStore()
 
   if (!token) {
-    return &lt;Navigate to="/login" replace /&gt;
+    return <Navigate to="/login" replace />
   }
 
-  if (roles &amp;&amp; !roles.includes(role || '')) {
-    return &lt;Navigate to="/" replace /&gt;
+  if (roles && !roles.includes(role || '')) {
+    return <Navigate to="/" replace />
   }
 
-  return &lt;&gt;{children}&lt;/&gt;
+  return <>{children}</>
 }
 
 function App() {
   return (
-    &lt;ConfigProvider locale={zhCN}&gt;
-      &lt;BrowserRouter&gt;
-        &lt;Routes&gt;
-          &lt;Route path="/login" element={&lt;Login /&gt;} /&gt;
-          &lt;Route path="/register" element={&lt;Register /&gt;} /&gt;
-          &lt;Route
+    <ConfigProvider locale={zhCN}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
             path="/user"
             element={
-              &lt;AuthGuard roles={['USER', 'SHOP_OWNER', 'RIDER']}&gt;
-                &lt;UserLayout /&gt;
-              &lt;/AuthGuard&gt;
+              <AuthGuard roles={['USER', 'SHOP_OWNER', 'RIDER']}>
+                <UserLayout />
+              </AuthGuard>
             }
-          &gt;
-            &lt;Route index element={&lt;UserHome /&gt;} /&gt;
-            &lt;Route path="home" element={&lt;UserHome /&gt;} /&gt;
-            &lt;Route path="shop/:id" element={&lt;ShopDetail /&gt;} /&gt;
-            &lt;Route path="cart" element={&lt;Cart /&gt;} /&gt;
-            &lt;Route path="orders" element={&lt;Orders /&gt;} /&gt;
-            &lt;Route path="orders/:id/pay" element={&lt;Orders /&gt;} /&gt;
-            &lt;Route path="profile" element={&lt;Profile /&gt;} /&gt;
-            &lt;Route path="addresses" element={&lt;Addresses /&gt;} /&gt;
-            &lt;Route path="review/:id" element={&lt;ReviewPage /&gt;} /&gt;
-          &lt;/Route&gt;
-          &lt;Route
+          >
+            <Route index element={<UserHome />} />
+            <Route path="home" element={<UserHome />} />
+            <Route path="shop/:id" element={<ShopDetail />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="orders/:id/pay" element={<Orders />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="addresses" element={<Addresses />} />
+            <Route path="review/:id" element={<ReviewPage />} />
+          </Route>
+          <Route
             path="/shop"
             element={
-              &lt;AuthGuard roles={['SHOP_OWNER']}&gt;
-                &lt;ShopLayout /&gt;
-              &lt;/AuthGuard&gt;
+              <AuthGuard roles={['SHOP_OWNER']}>
+                <ShopLayout />
+              </AuthGuard>
             }
-          &gt;
-            &lt;Route index element={&lt;ShopInfo /&gt;} /&gt;
-            &lt;Route path="info" element={&lt;ShopInfo /&gt;} /&gt;
-            &lt;Route path="products" element={&lt;Products /&gt;} /&gt;
-            &lt;Route path="orders" element={&lt;ShopOrders /&gt;} /&gt;
-          &lt;/Route&gt;
-          &lt;Route
+          >
+            <Route index element={<ShopInfo />} />
+            <Route path="info" element={<ShopInfo />} />
+            <Route path="products" element={<Products />} />
+            <Route path="orders" element={<ShopOrders />} />
+          </Route>
+          <Route
             path="/rider"
             element={
-              &lt;AuthGuard roles={['RIDER']}&gt;
-                &lt;RiderLayout /&gt;
-              &lt;/AuthGuard&gt;
+              <AuthGuard roles={['RIDER']}>
+                <RiderLayout />
+              </AuthGuard>
             }
-          &gt;
-            &lt;Route index element={&lt;RiderOrders /&gt;} /&gt;
-            &lt;Route path="orders" element={&lt;RiderOrders /&gt;} /&gt;
-            &lt;Route path="earnings" element={&lt;RiderEarnings /&gt;} /&gt;
-            &lt;Route path="withdraw" element={&lt;RiderWithdraw /&gt;} /&gt;
-          &lt;/Route&gt;
-          &lt;Route
+          >
+            <Route index element={<RiderOrders />} />
+            <Route path="orders" element={<RiderOrders />} />
+            <Route path="earnings" element={<RiderEarnings />} />
+            <Route path="withdraw" element={<RiderWithdraw />} />
+          </Route>
+          <Route
             path="/admin"
             element={
-              &lt;AuthGuard roles={['ADMIN']}&gt;
-                &lt;AdminLayout /&gt;
-              &lt;/AuthGuard&gt;
+              <AuthGuard roles={['ADMIN']}>
+                <AdminLayout />
+              </AuthGuard>
             }
-          &gt;
-            &lt;Route index element={&lt;AdminDashboard /&gt;} /&gt;
-            &lt;Route path="dashboard" element={&lt;AdminDashboard /&gt;} /&gt;
-            &lt;Route path="shops" element={&lt;AdminShops /&gt;} /&gt;
-            &lt;Route path="users" element={&lt;AdminUsers /&gt;} /&gt;
-          &lt;/Route&gt;
-          &lt;Route path="/" element={&lt;Navigate to="/login" replace /&gt;} /&gt;
-          &lt;Route path="*" element={&lt;Navigate to="/login" replace /&gt;} /&gt;
-        &lt;/Routes&gt;
-      &lt;/BrowserRouter&gt;
-    &lt;/ConfigProvider&gt;
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="shops" element={<AdminShops />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ConfigProvider>
   )
 }
 

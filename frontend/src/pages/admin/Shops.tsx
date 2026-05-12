@@ -4,12 +4,12 @@ import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
 import { shopApi, adminApi, ShopInfo } from '@/services/shop'
 
 export default function Shops() {
-  const [shops, setShops] = useState&lt;ShopInfo[]&gt;([])
+  const [shops, setShops] = useState<ShopInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [detailVisible, setDetailVisible] = useState(false)
-  const [selectedShop, setSelectedShop] = useState&lt;ShopInfo | null&gt;(null)
+  const [selectedShop, setSelectedShop] = useState<ShopInfo | null>(null)
 
-  const fetchShops = async () =&gt; {
+  const fetchShops = async () => {
     try {
       setLoading(true)
       const res = await adminApi.listPendingShops()
@@ -21,11 +21,11 @@ export default function Shops() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchShops()
   }, [])
 
-  const handleApprove = async (shopId: number) =&gt; {
+  const handleApprove = async (shopId: number) => {
     try {
       await adminApi.approveShop(shopId)
       message.success('审核通过')
@@ -35,7 +35,7 @@ export default function Shops() {
     }
   }
 
-  const handleReject = async (shopId: number) =&gt; {
+  const handleReject = async (shopId: number) => {
     try {
       await adminApi.rejectShop(shopId)
       message.success('已拒绝')
@@ -45,16 +45,16 @@ export default function Shops() {
     }
   }
 
-  const getStatusText = (status: number) =&gt; {
+  const getStatusText = (status: number) => {
     switch (status) {
       case 0:
-        return &lt;Tag color="orange"&gt;待审核&lt;/Tag&gt;
+        return <Tag color="orange">待审核</Tag>
       case 1:
-        return &lt;Tag color="green"&gt;已通过&lt;/Tag&gt;
+        return <Tag color="green">已通过</Tag>
       case -1:
-        return &lt;Tag color="red"&gt;已拒绝&lt;/Tag&gt;
+        return <Tag color="red">已拒绝</Tag>
       default:
-        return &lt;Tag&gt;未知&lt;/Tag&gt;
+        return <Tag>未知</Tag>
     }
   }
 
@@ -68,7 +68,7 @@ export default function Shops() {
       title: '店铺Logo',
       dataIndex: 'logo',
       key: 'logo',
-      render: (logo: string) =&gt; logo ? &lt;Image src={logo} width={60} height={60} /&gt; : '-',
+      render: (logo: string) => logo ? <Image src={logo} width={60} height={60} /> : '-',
     },
     {
       title: '地址',
@@ -79,7 +79,7 @@ export default function Shops() {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: number) =&gt; getStatusText(status),
+      render: (status: number) => getStatusText(status),
     },
     {
       title: '评分',
@@ -89,77 +89,77 @@ export default function Shops() {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: ShopInfo) =&gt; (
-        &lt;Space size="small"&gt;
-          &lt;Button
+      render: (_: any, record: ShopInfo) => (
+        <Space size="small">
+          <Button
             type="link"
-            icon={&lt;EyeOutlined /&gt;}
-            onClick={() =&gt; {
+            icon={<EyeOutlined />}
+            onClick={() => {
               setSelectedShop(record)
               setDetailVisible(true)
             }}
-          &gt;
+          >
             查看
-          &lt;/Button&gt;
-          {record.status === 0 &amp;&amp; (
-            &lt;&gt;
-              &lt;Button
+          </Button>
+          {record.status === 0 && (
+            <>
+              <Button
                 type="primary"
                 size="small"
-                icon={&lt;CheckOutlined /&gt;}
-                onClick={() =&gt; handleApprove(record.id)}
-              &gt;
+                icon={<CheckOutlined />}
+                onClick={() => handleApprove(record.id)}
+              >
                 通过
-              &lt;/Button&gt;
-              &lt;Button
+              </Button>
+              <Button
                 danger
                 size="small"
-                icon={&lt;CloseOutlined /&gt;}
-                onClick={() =&gt; handleReject(record.id)}
-              &gt;
+                icon={<CloseOutlined />}
+                onClick={() => handleReject(record.id)}
+              >
                 拒绝
-              &lt;/Button&gt;
-            &lt;/&gt;
+              </Button>
+            </>
           )}
-        &lt;/Space&gt;
+        </Space>
       ),
     },
   ]
 
   return (
-    &lt;Card title="店铺审核"&gt;
-      &lt;Table
+    <Card title="店铺审核">
+      <Table
         columns={columns}
         dataSource={shops}
         rowKey="id"
         loading={loading}
-      /&gt;
-      &lt;Modal
+      />
+      <Modal
         title="店铺详情"
         visible={detailVisible}
-        onCancel={() =&gt; setDetailVisible(false)}
+        onCancel={() => setDetailVisible(false)}
         footer={null}
         width={600}
-      &gt;
-        {selectedShop &amp;&amp; (
-          &lt;Descriptions column={1}&gt;
-            &lt;Descriptions.Item label="店铺名称"&gt;{selectedShop.name}&lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="店铺Logo"&gt;
+      >
+        {selectedShop && (
+          <Descriptions column={1}>
+            <Descriptions.Item label="店铺名称">{selectedShop.name}</Descriptions.Item>
+            <Descriptions.Item label="店铺Logo">
               {selectedShop.logo ? (
-                &lt;Image src={selectedShop.logo} width={200} /&gt;
+                <Image src={selectedShop.logo} width={200} />
               ) : (
                 '未设置'
               )}
-            &lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="店铺地址"&gt;{selectedShop.address}&lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="营业时间"&gt;{selectedShop.business_hours || '未设置'}&lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="店铺公告"&gt;{selectedShop.notice || '未设置'}&lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="店铺评分"&gt;{selectedShop.rating}&lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="状态"&gt;{getStatusText(selectedShop.status)}&lt;/Descriptions.Item&gt;
-            &lt;Descriptions.Item label="创建时间"&gt;{selectedShop.created_at}&lt;/Descriptions.Item&gt;
-          &lt;/Descriptions&gt;
+            </Descriptions.Item>
+            <Descriptions.Item label="店铺地址">{selectedShop.address}</Descriptions.Item>
+            <Descriptions.Item label="营业时间">{selectedShop.business_hours || '未设置'}</Descriptions.Item>
+            <Descriptions.Item label="店铺公告">{selectedShop.notice || '未设置'}</Descriptions.Item>
+            <Descriptions.Item label="店铺评分">{selectedShop.rating}</Descriptions.Item>
+            <Descriptions.Item label="状态">{getStatusText(selectedShop.status)}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{selectedShop.created_at}</Descriptions.Item>
+          </Descriptions>
         )}
-      &lt;/Modal&gt;
-    &lt;/Card&gt;
+      </Modal>
+    </Card>
   )
 }

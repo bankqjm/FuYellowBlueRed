@@ -13,14 +13,14 @@ const { TextArea } = Input
 export default function Cart() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [cart, setCart] = useState&lt;CartItemInfo[]&gt;([])
-  const [addresses, setAddresses] = useState&lt;AddressInfo[]&gt;([])
+  const [cart, setCart] = useState<CartItemInfo[]>([])
+  const [addresses, setAddresses] = useState<AddressInfo[]>([])
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false)
-  const [selectedAddress, setSelectedAddress] = useState&lt;number | undefined&gt;()
+  const [selectedAddress, setSelectedAddress] = useState<number | undefined>()
   const [remark, setRemark] = useState('')
   const [form] = Form.useForm()
 
-  const fetchCart = async () =&gt; {
+  const fetchCart = async () => {
     try {
       setLoading(true)
       const res = await cartApi.getCart()
@@ -32,12 +32,12 @@ export default function Cart() {
     }
   }
 
-  const fetchAddresses = async () =&gt; {
+  const fetchAddresses = async () => {
     try {
       const res = await addressApi.getAddresses()
       setAddresses(res.data)
-      if (res.data.length &gt; 0) {
-        const defaultAddr = res.data.find(a =&gt; a.is_default === 1)
+      if (res.data.length > 0) {
+        const defaultAddr = res.data.find(a => a.is_default === 1)
         setSelectedAddress(defaultAddr?.id || res.data[0].id)
       }
     } catch (error) {
@@ -45,14 +45,14 @@ export default function Cart() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchCart()
     fetchAddresses()
   }, [])
 
-  const updateCartItem = async (item: CartItemInfo, quantity: number) =&gt; {
+  const updateCartItem = async (item: CartItemInfo, quantity: number) => {
     try {
-      if (quantity &lt;= 0) {
+      if (quantity <= 0) {
         await cartApi.deleteCartItem(item.id)
       } else {
         await cartApi.updateCartItem(item.id, { quantity })
@@ -64,7 +64,7 @@ export default function Cart() {
     }
   }
 
-  const deleteCartItem = async (item: CartItemInfo) =&gt; {
+  const deleteCartItem = async (item: CartItemInfo) => {
     try {
       await cartApi.deleteCartItem(item.id)
       message.success('已删除')
@@ -74,7 +74,7 @@ export default function Cart() {
     }
   }
 
-  const handleCheckout = async () =&gt; {
+  const handleCheckout = async () => {
     if (!selectedAddress) {
       message.error('请选择收货地址')
       return
@@ -100,105 +100,105 @@ export default function Cart() {
     }
   }
 
-  const getCartTotal = () =&gt; {
+  const getCartTotal = () => {
     return {
-      quantity: cart.reduce((sum, item) =&gt; sum + item.quantity, 0),
-      price: cart.reduce((sum, item) =&gt; sum + (item.product_price || 0) * item.quantity, 0),
+      quantity: cart.reduce((sum, item) => sum + item.quantity, 0),
+      price: cart.reduce((sum, item) => sum + (item.product_price || 0) * item.quantity, 0),
     }
   }
 
   const cartTotal = getCartTotal()
 
   // 按店铺分组
-  const groupedCart = cart.reduce((acc, item) =&gt; {
+  const groupedCart = cart.reduce((acc, item) => {
     if (!acc[item.shop_id]) {
       acc[item.shop_id] = []
     }
     acc[item.shop_id].push(item)
     return acc
-  }, {} as Record&lt;number, CartItemInfo[]&gt;)
+  }, {} as Record<number, CartItemInfo[]>)
 
   if (loading) {
     return (
-      &lt;div style={{ textAlign: 'center', padding: 50 }}&gt;
-        &lt;Spin size="large" /&gt;
-      &lt;/div&gt;
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   if (cart.length === 0) {
     return (
-      &lt;Card&gt;
-        &lt;Empty description="购物车为空" /&gt;
-        &lt;div style={{ marginTop: 16, textAlign: 'center' }}&gt;
-          &lt;Button type="primary" onClick={() =&gt; navigate('/user/home')}&gt;
+      <Card>
+        <Empty description="购物车为空" />
+        <div style={{ marginTop: 16, textAlign: 'center' }}>
+          <Button type="primary" onClick={() => navigate('/user/home')}>
             去逛一逛
-          &lt;/Button&gt;
-        &lt;/div&gt;
-      &lt;/Card&gt;
+          </Button>
+        </div>
+      </Card>
     )
   }
 
   return (
-    &lt;div&gt;
-      &lt;Card&gt;
-        &lt;Title level={4}&gt;购物车&lt;/Title&gt;
-      &lt;/Card&gt;
+    <div>
+      <Card>
+        <Title level={4}>购物车</Title>
+      </Card>
 
-      {Object.entries(groupedCart).map(([shopId, items]) =&gt; (
-        &lt;Card key={shopId} style={{ marginTop: 16 }} title={items[0].shop_name}&gt;
-          &lt;List
+      {Object.entries(groupedCart).map(([shopId, items]) => (
+        <Card key={shopId} style={{ marginTop: 16 }} title={items[0].shop_name}>
+          <List
             dataSource={items}
-            renderItem={(item) =&gt; (
-              &lt;List.Item
+            renderItem={(item) => (
+              <List.Item
                 actions={[
-                  &lt;Space key="actions"&gt;
-                    &lt;Button
+                  <Space key="actions">
+                    <Button
                       size="small"
                       shape="circle"
-                      icon={&lt;MinusOutlined /&gt;}
-                      onClick={() =&gt; updateCartItem(item, item.quantity - 1)}
-                    /&gt;
-                    &lt;Text&gt;{item.quantity}&lt;/Text&gt;
-                    &lt;Button
+                      icon={<MinusOutlined />}
+                      onClick={() => updateCartItem(item, item.quantity - 1)}
+                    />
+                    <Text>{item.quantity}</Text>
+                    <Button
                       size="small"
                       shape="circle"
-                      icon={&lt;PlusOutlined /&gt;}
-                      onClick={() =&gt; updateCartItem(item, item.quantity + 1)}
-                    /&gt;
-                    &lt;Button
+                      icon={<PlusOutlined />}
+                      onClick={() => updateCartItem(item, item.quantity + 1)}
+                    />
+                    <Button
                       type="text"
                       danger
-                      icon={&lt;DeleteOutlined /&gt;}
-                      onClick={() =&gt; deleteCartItem(item)}
-                    /&gt;
-                  &lt;/Space&gt;
+                      icon={<DeleteOutlined />}
+                      onClick={() => deleteCartItem(item)}
+                    />
+                  </Space>
                 ]}
-              &gt;
-                &lt;List.Item.Meta
+              >
+                <List.Item.Meta
                   avatar={
                     item.product_image ? (
-                      &lt;Image src={item.product_image} alt="" width={60} height={60} /&gt;
+                      <Image src={item.product_image} alt="" width={60} height={60} />
                     ) : (
-                      &lt;div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}&gt;
-                        &lt;span style={{ color: '#999' }}&gt;商品&lt;/span&gt;
-                      &lt;/div&gt;
+                      <div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ color: '#999' }}>商品</span>
+                      </div>
                     )
                   }
                   title={item.product_name}
                   description={
-                    &lt;div&gt;
-                      &lt;Text type="danger"&gt;¥{item.product_price?.toFixed(2)}&lt;/Text&gt;
-                    &lt;/div&gt;
+                    <div>
+                      <Text type="danger">¥{item.product_price?.toFixed(2)}</Text>
+                    </div>
                   }
-                /&gt;
-              &lt;/List.Item&gt;
+                />
+              </List.Item>
             )}
-          /&gt;
-        &lt;/Card&gt;
+          />
+        </Card>
       ))}
 
-      &lt;Card
+      <Card
         style={{
           position: 'fixed',
           bottom: 0,
@@ -206,65 +206,65 @@ export default function Cart() {
           right: 0,
           boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
         }}
-      &gt;
-        &lt;Space style={{ width: '100%', justifyContent: 'space-between' }}&gt;
-          &lt;div&gt;
-            &lt;Text&gt;共&lt;/Text&gt;
-            &lt;Text strong style={{ marginLeft: 4, marginRight: 4 }}&gt;{cartTotal.quantity}&lt;/Text&gt;
-            &lt;Text&gt;件商品，合计：&lt;/Text&gt;
-            &lt;Text type="danger" strong style={{ fontSize: 18 }}&gt;¥{cartTotal.price.toFixed(2)}&lt;/Text&gt;
-          &lt;/div&gt;
-          &lt;Space&gt;
-            &lt;Button icon={&lt;ArrowLeftOutlined /&gt;} onClick={() =&gt; navigate('/user/home')}&gt;
+      >
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <div>
+            <Text>共</Text>
+            <Text strong style={{ marginLeft: 4, marginRight: 4 }}>{cartTotal.quantity}</Text>
+            <Text>件商品，合计：</Text>
+            <Text type="danger" strong style={{ fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
+          </div>
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/user/home')}>
               继续购物
-            &lt;/Button&gt;
-            &lt;Button type="primary" size="large" onClick={() =&gt; setCheckoutModalVisible(true)}&gt;
+            </Button>
+            <Button type="primary" size="large" onClick={() => setCheckoutModalVisible(true)}>
               去结算
-            &lt;/Button&gt;
-          &lt;/Space&gt;
-        &lt;/Space&gt;
-      &lt;/Card&gt;
+            </Button>
+          </Space>
+        </Space>
+      </Card>
 
-      &lt;Modal
+      <Modal
         title="确认订单"
         open={checkoutModalVisible}
-        onCancel={() =&gt; setCheckoutModalVisible(false)}
+        onCancel={() => setCheckoutModalVisible(false)}
         onOk={handleCheckout}
         width={600}
-      &gt;
-        &lt;Form form={form} layout="vertical"&gt;
-          &lt;Form.Item label="收货地址" name="address" rules={[{ required: true, message: '请选择收货地址' }]}&gt;
-            &lt;Select
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item label="收货地址" name="address" rules={[{ required: true, message: '请选择收货地址' }]}>
+            <Select
               placeholder="请选择收货地址"
               value={selectedAddress}
               onChange={setSelectedAddress}
               style={{ width: '100%' }}
-            &gt;
-              {addresses.map(address =&gt; (
-                &lt;Option key={address.id} value={address.id}&gt;
+            >
+              {addresses.map(address => (
+                <Option key={address.id} value={address.id}>
                   {address.contact_name} {address.contact_phone} - {address.address}
-                &lt;/Option&gt;
+                </Option>
               ))}
-            &lt;/Select&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="订单备注"&gt;
-            &lt;TextArea
+            </Select>
+          </Form.Item>
+          <Form.Item label="订单备注">
+            <TextArea
               value={remark}
-              onChange={(e) =&gt; setRemark(e.target.value)}
+              onChange={(e) => setRemark(e.target.value)}
               placeholder="请输入备注（选填）"
               rows={3}
-            /&gt;
-          &lt;/Form.Item&gt;
-        &lt;/Form&gt;
+            />
+          </Form.Item>
+        </Form>
 
-        &lt;div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}&gt;
-          &lt;Space direction="vertical" style={{ width: '100%' }}&gt;
-            &lt;Text type="secondary"&gt;共{cartTotal.quantity}件商品，总计：&lt;/Text&gt;
-            &lt;Text type="danger" strong style={{ fontSize: 24 }}&gt;¥{cartTotal.price.toFixed(2)}&lt;/Text&gt;
-          &lt;/Space&gt;
-        &lt;/div&gt;
-      &lt;/Modal&gt;
-    &lt;/div&gt;
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text type="secondary">共{cartTotal.quantity}件商品，总计：</Text>
+            <Text type="danger" strong style={{ fontSize: 24 }}>¥{cartTotal.price.toFixed(2)}</Text>
+          </Space>
+        </div>
+      </Modal>
+    </div>
   )
 }
 

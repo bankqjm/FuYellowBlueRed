@@ -10,10 +10,10 @@ const { Title, Text } = Typography
 export default function UserHome() {
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
-  const [shops, setShops] = useState&lt;ShopInfo[]&gt;([])
+  const [shops, setShops] = useState<ShopInfo[]>([])
   const navigate = useNavigate()
 
-  const fetchShops = async (keyword?: string) =&gt; {
+  const fetchShops = async (keyword?: string) => {
     try {
       setLoading(true)
       const res = await shopApi.listShops({ keyword, status: 1 })
@@ -25,74 +25,74 @@ export default function UserHome() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchShops()
   }, [])
 
-  const getStatusText = (status: number) =&gt; {
+  const getStatusText = (status: number) => {
     switch (status) {
       case 0:
-        return &lt;Tag color="orange"&gt;待审核&lt;/Tag&gt;
+        return <Tag color="orange">待审核</Tag>
       case 1:
-        return &lt;Tag color="green"&gt;营业中&lt;/Tag&gt;
+        return <Tag color="green">营业中</Tag>
       case 2:
-        return &lt;Tag color="blue"&gt;休息中&lt;/Tag&gt;
+        return <Tag color="blue">休息中</Tag>
       default:
-        return &lt;Tag&gt;未知&lt;/Tag&gt;
+        return <Tag>未知</Tag>
     }
   }
 
   return (
-    &lt;div&gt;
-      &lt;Card style={{ marginBottom: 16 }}&gt;
-        &lt;Input
+    <div>
+      <Card style={{ marginBottom: 16 }}>
+        <Input
           size="large"
           placeholder="搜索商家..."
-          prefix={&lt;SearchOutlined /&gt;}
+          prefix={<SearchOutlined />}
           value={searchText}
-          onChange={(e) =&gt; {
+          onChange={(e) => {
             setSearchText(e.target.value)
             fetchShops(e.target.value)
           }}
-        /&gt;
-      &lt;/Card&gt;
+        />
+      </Card>
 
-      &lt;Spin spinning={loading}&gt;
-        &lt;List
-          locale={{ emptyText: &lt;Empty description="暂无商家信息" /&gt; }}
-          renderItem={(shop) =&gt; (
-            &lt;List.Item&gt;
-              &lt;Card
+      <Spin spinning={loading}>
+        <List
+          locale={{ emptyText: <Empty description="暂无商家信息" /> }}
+          renderItem={(shop) => (
+            <List.Item>
+              <Card
                 hoverable
-                onClick={() =&gt; navigate(`/user/shop/${shop.id}`)}
+                onClick={() => navigate(`/user/shop/${shop.id}`)}
                 style={{ width: '100%' }}
-              &gt;
-                &lt;Space direction="vertical" size="small" style={{ width: '100%' }}&gt;
-                  &lt;Space&gt;
+              >
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space>
                     {shop.logo ? (
-                      &lt;Image src={shop.logo} alt="" width={60} height={60} /&gt;
+                      <Image src={shop.logo} alt="" width={60} height={60} />
                     ) : (
-                      &lt;div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}&gt;
-                        &lt;span style={{ color: '#999' }}&gt;店铺&lt;/span&gt;
-                      &lt;/div&gt;
+                      <div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ color: '#999' }}>店铺</span>
+                      </div>
                     )}
-                    &lt;div style={{ flex: 1 }}&gt;
-                      &lt;Title level={5} style={{ margin: 0 }}&gt;{shop.name}&lt;/Title&gt;
-                      &lt;Space&gt;
+                    <div style={{ flex: 1 }}>
+                      <Title level={5} style={{ margin: 0 }}>{shop.name}</Title>
+                      <Space>
                         {getStatusText(shop.status)}
-                        &lt;Text&gt;&lt;StarOutlined style={{ color: '#faad14' }} /&gt; {shop.rating}&lt;/Text&gt;
-                      &lt;/Space&gt;
-                    &lt;/div&gt;
-                  &lt;/Space&gt;
-                  &lt;Text&gt;&lt;EnvironmentOutlined /&gt; {shop.address}&lt;/Text&gt;
-                &lt;/Space&gt;
-              &lt;/Card&gt;
-            &lt;/List.Item&gt;
+                        <Text><StarOutlined style={{ color: '#faad14' }} /> {shop.rating}</Text>
+                      </Space>
+                    </div>
+                  </Space>
+                  <Text><EnvironmentOutlined /> {shop.address}</Text>
+                </Space>
+              </Card>
+            </List.Item>
           )}
           dataSource={shops}
-        /&gt;
-      &lt;/Spin&gt;
-    &lt;/div&gt;
+        />
+      </Spin>
+    </div>
   )
 }
 

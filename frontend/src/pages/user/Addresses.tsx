@@ -8,12 +8,12 @@ const { Title, Text } = Typography
 
 export default function Addresses() {
   const [loading, setLoading] = useState(false)
-  const [addresses, setAddresses] = useState&lt;AddressInfo[]&gt;([])
+  const [addresses, setAddresses] = useState<AddressInfo[]>([])
   const [modalVisible, setModalVisible] = useState(false)
-  const [editingAddress, setEditingAddress] = useState&lt;AddressInfo | null&gt;(null)
+  const [editingAddress, setEditingAddress] = useState<AddressInfo | null>(null)
   const [form] = Form.useForm()
 
-  const fetchAddresses = async () =&gt; {
+  const fetchAddresses = async () => {
     try {
       setLoading(true)
       const res = await addressApi.getAddresses()
@@ -25,23 +25,23 @@ export default function Addresses() {
     }
   }
 
-  useEffect(() =&gt; {
+  useEffect(() => {
     fetchAddresses()
   }, [])
 
-  const handleAdd = () =&gt; {
+  const handleAdd = () => {
     setEditingAddress(null)
     form.resetFields()
     setModalVisible(true)
   }
 
-  const handleEdit = (address: AddressInfo) =&gt; {
+  const handleEdit = (address: AddressInfo) => {
     setEditingAddress(address)
     form.setFieldsValue(address)
     setModalVisible(true)
   }
 
-  const handleDelete = async (id: number) =&gt; {
+  const handleDelete = async (id: number) => {
     try {
       await addressApi.deleteAddress(id)
       message.success('删除成功')
@@ -51,7 +51,7 @@ export default function Addresses() {
     }
   }
 
-  const handleSubmit = async () =&gt; {
+  const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
       if (editingAddress) {
@@ -70,90 +70,90 @@ export default function Addresses() {
 
   if (loading) {
     return (
-      &lt;div style={{ textAlign: 'center', padding: 50 }}&gt;
-        &lt;Spin size="large" /&gt;
-      &lt;/div&gt;
+      <div style={{ textAlign: 'center', padding: 50 }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   return (
-    &lt;div&gt;
-      &lt;Card
+    <div>
+      <Card
         title="收货地址"
-        extra={&lt;Button type="primary" icon={&lt;PlusOutlined /&gt;} onClick={handleAdd}&gt;新增地址&lt;/Button&gt;}
-      &gt;
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增地址</Button>}
+      >
         {addresses.length === 0 ? (
-          &lt;Empty
+          <Empty
             description="暂无收货地址"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-          /&gt;
+          />
         ) : (
-          &lt;List
+          <List
             dataSource={addresses}
-            renderItem={(item) =&gt; (
-              &lt;List.Item
+            renderItem={(item) => (
+              <List.Item
                 actions={[
-                  &lt;Button key="edit" type="link" icon={&lt;EditOutlined /&gt;} onClick={() =&gt; handleEdit(item)}&gt;
+                  <Button key="edit" type="link" icon={<EditOutlined />} onClick={() => handleEdit(item)}>
                     编辑
-                  &lt;/Button&gt;,
-                  &lt;Button key="delete" type="link" danger icon={&lt;DeleteOutlined /&gt;} onClick={() =&gt; handleDelete(item.id)}&gt;
+                  </Button>,
+                  <Button key="delete" type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(item.id)}>
                     删除
-                  &lt;/Button&gt;
+                  </Button>
                 ]}
-              &gt;
-                &lt;List.Item.Meta
-                  avatar={&lt;EnvironmentOutlined style={{ fontSize: 24, color: '#1890ff' }} /&gt;}
+              >
+                <List.Item.Meta
+                  avatar={<EnvironmentOutlined style={{ fontSize: 24, color: '#1890ff' }} />}
                   title={
-                    &lt;Space&gt;
-                      &lt;Text strong&gt;{item.contact_name}&lt;/Text&gt;
-                      &lt;Text&gt;{item.contact_phone}&lt;/Text&gt;
-                      {item.is_default === 1 &amp;&amp; &lt;Text type="primary"&gt;[默认地址]&lt;/Text&gt;}
-                    &lt;/Space&gt;
+                    <Space>
+                      <Text strong>{item.contact_name}</Text>
+                      <Text>{item.contact_phone}</Text>
+                      {item.is_default === 1 && <Text type="primary">[默认地址]</Text>}
+                    </Space>
                   }
                   description={
-                    &lt;Text type="secondary"&gt;{item.address}&lt;/Text&gt;
+                    <Text type="secondary">{item.address}</Text>
                   }
-                /&gt;
-              &lt;/List.Item&gt;
+                />
+              </List.Item>
             )}
-          /&gt;
+          />
         )}
-      &lt;/Card&gt;
+      </Card>
 
-      &lt;Modal
+      <Modal
         title={editingAddress ? '编辑地址' : '新增地址'}
         open={modalVisible}
-        onCancel={() =&gt; setModalVisible(false)}
+        onCancel={() => setModalVisible(false)}
         onOk={handleSubmit}
-      &gt;
-        &lt;Form form={form} layout="vertical"&gt;
-          &lt;Form.Item
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
             label="收货人姓名"
             name="contact_name"
             rules={[{ required: true, message: '请输入收货人姓名' }]}
-          &gt;
-            &lt;Input placeholder="请输入收货人姓名" /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item
+          >
+            <Input placeholder="请输入收货人姓名" />
+          </Form.Item>
+          <Form.Item
             label="联系电话"
             name="contact_phone"
             rules={[{ required: true, message: '请输入联系电话' }]}
-          &gt;
-            &lt;Input placeholder="请输入联系电话" /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item
+          >
+            <Input placeholder="请输入联系电话" />
+          </Form.Item>
+          <Form.Item
             label="详细地址"
             name="address"
             rules={[{ required: true, message: '请输入详细地址' }]}
-          &gt;
-            &lt;Input.TextArea rows={3} placeholder="请输入详细地址" /&gt;
-          &lt;/Form.Item&gt;
-          &lt;Form.Item label="设为默认地址" name="is_default" valuePropName="checked"&gt;
-            &lt;Switch /&gt;
-          &lt;/Form.Item&gt;
-        &lt;/Form&gt;
-      &lt;/Modal&gt;
-    &lt;/div&gt;
+          >
+            <Input.TextArea rows={3} placeholder="请输入详细地址" />
+          </Form.Item>
+          <Form.Item label="设为默认地址" name="is_default" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   )
 }
 
