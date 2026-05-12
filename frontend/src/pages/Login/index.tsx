@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Form, Input, Button, Card, Typography, Space } from 'antd'
@@ -11,6 +12,19 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
+
+  const getHomePath = (role: string) => {
+    switch (role) {
+      case 'SHOP_OWNER':
+        return '/shop'
+      case 'RIDER':
+        return '/rider'
+      case 'ADMIN':
+        return '/admin'
+      default:
+        return '/user/home'
+    }
+  }
 
   const onFinish = async (values: { phone: string; password: string }) => {
     setLoading(true)
@@ -26,7 +40,7 @@ export default function Login() {
         avatar: data.avatar,
         status: 1,
       })
-      navigate('/user/home')
+      navigate(getHomePath(data.role))
     } catch {
       // error handled by interceptor
     } finally {
@@ -45,7 +59,7 @@ export default function Login() {
       <Card style={{ width: 400, boxShadow: '0 14px 30px rgba(0,0,0,0.15)' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Title level={3} style={{ textAlign: 'center', marginBottom: 0 }}>
-            🍜 FuYellowBlueRed
+            外卖配送平台
           </Title>
           <Title level={5} style={{ textAlign: 'center', marginBottom: 24, color: '#666' }}>
             登录您的账号
@@ -85,3 +99,4 @@ export default function Login() {
     </div>
   )
 }
+

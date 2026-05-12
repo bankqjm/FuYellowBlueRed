@@ -9,7 +9,7 @@ import os
 
 from app.config import settings
 from app.database import init_db
-from app.api import auth, users, upload, shop, admin, orders
+from app.api import auth, users, upload, shop, admin, orders, rider, review
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -60,6 +60,8 @@ app.include_router(upload.router, prefix="/api")
 app.include_router(shop.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
+app.include_router(rider.router, prefix="/api")
+app.include_router(review.router, prefix="/api")
 
 
 @app.get("/")

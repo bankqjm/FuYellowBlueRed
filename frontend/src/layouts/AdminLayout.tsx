@@ -1,6 +1,7 @@
+
 import { Outlet, useNavigate } from 'react-router-dom'
-import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd'
-import { DashboardOutlined, LogoutOutlined, UserOutlined, ShopOutlined } from '@ant-design/icons'
+import { Layout, Menu, Avatar, Space, Dropdown } from 'antd'
+import { DashboardOutlined, LogoutOutlined, UserOutlined, ShopOutlined, TeamOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -13,6 +14,7 @@ export default function AdminLayout() {
   const menuItems: MenuProps['items'] = [
     { key: '/admin/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
     { key: '/admin/shops', icon: <ShopOutlined />, label: '店铺审核' },
+    { key: '/admin/users', icon: <TeamOutlined />, label: '用户管理' },
   ]
 
   const userMenuItems: MenuProps['items'] = [
@@ -42,7 +44,7 @@ export default function AdminLayout() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
       }}>
         <div style={{ marginRight: 48, fontSize: 20, fontWeight: 'bold', color: '#f5222d' }}>
-          ⚙️ 管理后台
+          管理后台
         </div>
         <Menu
           mode="horizontal"
@@ -64,3 +66,4 @@ export default function AdminLayout() {
     </Layout>
   )
 }
+

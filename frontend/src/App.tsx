@@ -18,8 +18,12 @@ import ShopOrders from '@/pages/shop/Orders'
 import ShopInfo from '@/pages/shop/ShopInfo'
 import Products from '@/pages/shop/Products'
 import RiderOrders from '@/pages/rider/Orders'
+import RiderEarnings from '@/pages/rider/Earnings'
+import RiderWithdraw from '@/pages/rider/Withdraw'
 import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminShops from '@/pages/admin/Shops'
+import AdminUsers from '@/pages/admin/Users'
+import ReviewPage from '@/pages/user/Review'
 import './App.css'
 
 function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
@@ -59,6 +63,7 @@ function App() {
             &lt;Route path="orders/:id/pay" element={&lt;Orders /&gt;} /&gt;
             &lt;Route path="profile" element={&lt;Profile /&gt;} /&gt;
             &lt;Route path="addresses" element={&lt;Addresses /&gt;} /&gt;
+            &lt;Route path="review/:id" element={&lt;ReviewPage /&gt;} /&gt;
           &lt;/Route&gt;
           &lt;Route
             path="/shop"
@@ -83,6 +88,8 @@ function App() {
           &gt;
             &lt;Route index element={&lt;RiderOrders /&gt;} /&gt;
             &lt;Route path="orders" element={&lt;RiderOrders /&gt;} /&gt;
+            &lt;Route path="earnings" element={&lt;RiderEarnings /&gt;} /&gt;
+            &lt;Route path="withdraw" element={&lt;RiderWithdraw /&gt;} /&gt;
           &lt;/Route&gt;
           &lt;Route
             path="/admin"
@@ -95,6 +102,7 @@ function App() {
             &lt;Route index element={&lt;AdminDashboard /&gt;} /&gt;
             &lt;Route path="dashboard" element={&lt;AdminDashboard /&gt;} /&gt;
             &lt;Route path="shops" element={&lt;AdminShops /&gt;} /&gt;
+            &lt;Route path="users" element={&lt;AdminUsers /&gt;} /&gt;
           &lt;/Route&gt;
           &lt;Route path="/" element={&lt;Navigate to="/login" replace /&gt;} /&gt;
           &lt;Route path="*" element={&lt;Navigate to="/login" replace /&gt;} /&gt;

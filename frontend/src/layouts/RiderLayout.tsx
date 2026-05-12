@@ -1,6 +1,7 @@
+
 import { Outlet, useNavigate } from 'react-router-dom'
-import { Layout, Menu, Typography, Avatar, Space, Dropdown } from 'antd'
-import { InboxOutlined, LogoutOutlined } from '@ant-design/icons'
+import { Layout, Menu, Avatar, Space, Dropdown } from 'antd'
+import { InboxOutlined, LogoutOutlined, WalletOutlined, DollarOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -11,7 +12,9 @@ export default function RiderLayout() {
   const { userInfo, logout } = useAuthStore()
 
   const menuItems: MenuProps['items'] = [
-    { key: '/rider/orders', icon: <InboxOutlined />, label: '待接单' },
+    { key: '/rider/orders', icon: <InboxOutlined />, label: '订单管理' },
+    { key: '/rider/earnings', icon: <WalletOutlined />, label: '我的收入' },
+    { key: '/rider/withdraw', icon: <DollarOutlined />, label: '提现' },
   ]
 
   const userMenuItems: MenuProps['items'] = [
@@ -41,7 +44,7 @@ export default function RiderLayout() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
       }}>
         <div style={{ marginRight: 48, fontSize: 20, fontWeight: 'bold', color: '#52c41a' }}>
-          🚴 骑手配送
+          骑手配送
         </div>
         <Menu
           mode="horizontal"
@@ -63,3 +66,4 @@ export default function RiderLayout() {
     </Layout>
   )
 }
+
