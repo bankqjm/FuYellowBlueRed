@@ -88,6 +88,31 @@ async def update_my_shop(
     return ResponseSchema(code=0, message="更新成功", data=ShopInfo.model_validate(shop))
 
 
+@router.get("/categories", response_model=ResponseSchema[list[CategoryInfo]])
+async def list_all_categories(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Category).order_by(Category.sort_order))
+    categories = result.scalars().all()
+
+    category_list = []
+    for cat in categories:
+        products_result = await db.execute(
+            select(Product).where(Product.category_id == cat.id, Product.status == ProductStatus.ON.value)
+        )
+        products = products_result.scalars().all()
+
+        cat_data = CategoryInfo(
+            id=cat.id,
+            shop_id=cat.shop_id,
+            name=cat.name,
+            sort_order=cat.sort_order,
+            created_at=cat.created_at,
+            products=[ProductInfo.model_validate(p) for p in products]
+        )
+        category_list.append(cat_data)
+
+    return ResponseSchema(code=0, data=category_list)
+
+
 @router.get("/list", response_model=ResponseSchema[PageResponse[ShopInfo]])
 async def list_shops(
     query: ShopListQuery = Depends(),
@@ -133,14 +158,40 @@ async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
     )
     categories = categories_result.scalars().all()
 
-    shop_data = ShopDetail.model_validate(shop)
-    shop_data.categories = [CategoryInfo.model_validate(cat) for cat in categories]
+    shop_data = ShopDetail(
+        id=shop.id,
+        user_id=shop.user_id,
+        name=shop.name,
+        logo=shop.logo,
+        address=shop.address,
+        latitude=shop.latitude,
+        longitude=shop.longitude,
+        business_hours=shop.business_hours,
+        notice=shop.notice,
+        rating=shop.rating,
+        status=shop.status,
+        created_at=shop.created_at,
+        updated_at=shop.updated_at,
+        categories=[]
+    )
 
-    for cat in shop_data.categories:
+    for cat in categories:
         products_result = await db.execute(
             select(Product).where(Product.category_id == cat.id, Product.status == ProductStatus.ON.value)
         )
-        cat.products = [ProductInfo.model_validate(p) for p in products_result.scalars().all()]
+        products = products_result.scalars().all()
+
+        cat_data = CategoryInfo(
+            id=cat.id,
+            shop_id=cat.shop_id,
+            name=cat.name,
+            sort_order=cat.sort_order,
+            created_at=cat.created_at,
+            products=[]
+        )
+        for product in products:
+            cat_data.products.append(ProductInfo.model_validate(product))
+        shop_data.categories.append(cat_data)
 
     return ResponseSchema(code=0, data=shop_data)
 

@@ -297,6 +297,35 @@ async def pay_order(
     return ResponseSchema(code=0, message="支付成功", data=OrderResponse.model_validate(order))
 
 
+@router.get("/{order_id}", response_model=ResponseSchema[OrderResponse])
+async def get_order_detail(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Order).where(
+            Order.id == order_id,
+            Order.user_id == current_user.id,
+        )
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+
+    order_data = OrderResponse.model_validate(order)
+
+    shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop:
+        order_data.shop_name = shop.name
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
+    return ResponseSchema(code=0, data=order_data)
+
+
 @router.get("", response_model=ResponseSchema[PageResponse[OrderResponse]])
 async def list_orders(
     query: OrderQuery = Depends(),
@@ -338,35 +367,6 @@ async def list_orders(
             page_size=query.page_size,
         ),
     )
-
-
-@router.get("/{order_id}", response_model=ResponseSchema[OrderResponse])
-async def get_order_detail(
-    order_id: int,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Order).where(
-            Order.id == order_id,
-            Order.user_id == current_user.id,
-        )
-    )
-    order = result.scalar_one_or_none()
-    if not order:
-        raise BadRequestException("订单不存在")
-
-    order_data = OrderResponse.model_validate(order)
-
-    shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
-    shop = shop_result.scalar_one_or_none()
-    if shop:
-        order_data.shop_name = shop.name
-
-    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
-    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
-
-    return ResponseSchema(code=0, data=order_data)
 
 
 @router.put("/{order_id}/confirm", response_model=ResponseSchema[OrderResponse])

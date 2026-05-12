@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from passlib.context import CryptContext
-from app.database import async_session
+from app.database import AsyncSessionLocal
 from app.models.models import (
     User, Wallet, Shop, Category, Product, UserRole, ShopStatus, ProductStatus, UserAddress
 )
@@ -14,7 +14,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def seed_data():
-    async with async_session() as db:
+    async with AsyncSessionLocal() as db:
         admin = User(
             phone="13800000000",
             password_hash=pwd_context.hash("admin123"),
