@@ -1,7 +1,6 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
-import { useAuthStore } from '../stores/authStore'
+import { useState, useCallback, useEffect } from 'react'
 import { orderApi } from '../services/order'
-import type { OrderInfo, PageResponse } from '../services/shop'
+import type { OrderInfo } from '../services/shop'
 
 export const useOrders = (initialStatus?: string) => {
   const [orders, setOrders] = useState<OrderInfo[]>([])
@@ -12,10 +11,10 @@ export const useOrders = (initialStatus?: string) => {
   const fetchOrders = useCallback(async (currentPage: number = 1, pageSize: number = 20) => {
     try {
       setLoading(true)
-      const res = await orderApi.getOrders({
+      const res = await orderApi.listOrders({
         status,
         page: currentPage,
-        pageSize,
+        page_size: pageSize,
       })
       setOrders(res.data.items)
       setTotal(res.data.total)

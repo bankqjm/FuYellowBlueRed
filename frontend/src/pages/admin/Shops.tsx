@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Table, Button, Space, message, Tag, Modal, Descriptions, Image } from 'antd'
 import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
-import { shopApi, adminApi, ShopInfo } from '@/services/shop'
+import { adminApi, ShopInfo } from '@/services/shop'
 
 export default function Shops() {
   const [shops, setShops] = useState<ShopInfo[]>([])

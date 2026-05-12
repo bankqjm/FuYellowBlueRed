@@ -4,7 +4,7 @@ import { Card, Typography, List, Empty, Button, Space, Spin, message, Modal, For
 import { EnvironmentOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { addressApi, AddressInfo } from '../../services/address'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 export default function Addresses() {
   const [loading, setLoading] = useState(false)
@@ -107,7 +107,7 @@ export default function Addresses() {
                     <Space>
                       <Text strong>{item.contact_name}</Text>
                       <Text>{item.contact_phone}</Text>
-                      {item.is_default === 1 && <Text type="primary">[默认地址]</Text>}
+                      {item.is_default === 1 && <Text type="secondary">[默认地址]</Text>}
                     </Space>
                   }
                   description={

@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, Tabs, List, Empty, Typography, Button, Space, Spin, message, Tag, Image, Modal, Timeline } from 'antd'
-import { orderApi, OrderInfo } from '../../services/order'
+import { orderApi } from '../../services/order'
+import type { OrderInfo } from '../../services/shop'
 
 const { Title, Text } = Typography
 
@@ -18,11 +19,11 @@ export default function Orders() {
   const [payingOrder, setPayingOrder] = useState<OrderInfo | null>(null)
   const [detailModalVisible, setDetailModalVisible] = useState(false)
   const [detailOrder, setDetailOrder] = useState<OrderInfo | null>(null)
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchOrders = async () => {
     try {
-      const res = await orderApi.getOrders({ status: status || undefined })
+      const res = await orderApi.listOrders({ status: status || undefined })
       setOrders(res.data.items)
     } catch (error) {
       console.error('获取订单失败', error)

@@ -29,7 +29,7 @@ api.interceptors.response.use(
       message.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message || '请求失败'))
     }
-    return res
+    return response.data
   },
   (error) => {
     if (error.response?.status === 401) {

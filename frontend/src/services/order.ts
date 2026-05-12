@@ -1,6 +1,5 @@
-
 import api from './api'
-import { OrderItemInfo, OrderInfo, PageResponse } from './shop'
+import { OrderInfo, PageResponse } from './shop'
 
 export interface CartItemInfo {
   id: number

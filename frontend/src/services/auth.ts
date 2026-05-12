@@ -21,9 +21,15 @@ export interface AuthResponse {
   avatar?: string
 }
 
+export interface ApiResponse<T> {
+  code: number
+  message: string
+  data: T
+}
+
 export const authApi = {
-  login: (data: LoginParams) => api.post<{ data: AuthResponse }>('/auth/login', data),
-  register: (data: RegisterParams) => api.post('/auth/register', data),
+  login: (data: LoginParams) => api.post<ApiResponse<AuthResponse>>('/auth/login', data),
+  register: (data: RegisterParams) => api.post<ApiResponse<{ id: number; phone: string }>>('/auth/register', data),
 }
 
 export const userApi = {

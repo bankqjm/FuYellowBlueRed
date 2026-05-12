@@ -14,8 +14,8 @@ export default function ShopOrders() {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const res = await shopApi.getShopOrders(status)
-      setOrders(res.data)
+      const res = await shopApi.getShopOrders({ status: status || undefined })
+      setOrders(res.data.items)
     } catch (error) {
       console.error('获取订单失败', error)
     } finally {
@@ -134,12 +134,12 @@ export default function ShopOrders() {
                   description={
                     <div>
                       <Text>
-                        收货人：{order.address.contact_name} {order.address.contact_phone}
+                        收货人：{order.address_info?.contact_name} {order.address_info?.contact_phone}
                         <br />
-                        地址：{order.address.address}
+                        地址：{order.address_info?.address || order.address}
                         <br />
                       </Text>
-                      {order.items.map((item) => (
+                      {order.items?.map((item) => (
                         <Text key={item.id} type="secondary">
                           {item.product_name} × {item.quantity}
                           <br />

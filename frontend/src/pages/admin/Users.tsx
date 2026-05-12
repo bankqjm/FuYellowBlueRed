@@ -5,7 +5,7 @@ import { SearchOutlined, StopOutlined, CheckOutlined } from '@ant-design/icons'
 import api from '../../services/api'
 import type { ColumnsType } from 'antd/es/table'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
 interface UserRecord {
   id: number

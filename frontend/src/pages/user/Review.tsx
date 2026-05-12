@@ -1,9 +1,10 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Typography, Form, Rate, Input, Button, List, Avatar, message, Spin } from 'antd'
-import { reviewApi, ReviewInfo } from '../../services/review'
-import { orderApi, OrderInfo } from '../../services/order'
+import { Card, Typography, Form, Rate, Input, Button, message, Spin } from 'antd'
+import { reviewApi } from '../../services/review'
+import { orderApi } from '../../services/order'
+import type { OrderInfo } from '../../services/shop'
 
 const { Title, Text } = Typography
 const { TextArea } = Input

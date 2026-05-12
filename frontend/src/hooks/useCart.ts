@@ -1,23 +1,14 @@
-import { useState, useCallback, useEffect } from 'react'
-import { orderApi } from '../services/order'
-
-export interface CartItem {
-  id: number
-  product_id: number
-  product_name: string
-  product_image?: string
-  product_price: number
-  quantity: number
-}
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { cartApi, CartItemInfo } from '../services/order'
 
 export const useCart = () => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [cartItems, setCartItems] = useState<CartItemInfo[]>([])
   const [loading, setLoading] = useState(false)
 
   const fetchCart = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await orderApi.getCart()
+      const res = await cartApi.getCart()
       setCartItems(res.data)
     } catch (error) {
       console.error('获取购物车失败', error)
@@ -28,7 +19,7 @@ export const useCart = () => {
 
   const addToCart = useCallback(async (productId: number, shopId: number, quantity: number) => {
     try {
-      const res = await orderApi.addToCart({ product_id: productId, shop_id: shopId, quantity })
+      const res = await cartApi.addToCart({ product_id: productId, shop_id: shopId, quantity })
       await fetchCart()
       return res
     } catch (error) {
@@ -38,7 +29,7 @@ export const useCart = () => {
 
   const updateCartItem = useCallback(async (itemId: number, quantity: number) => {
     try {
-      const res = await orderApi.updateCart(itemId, { quantity })
+      const res = await cartApi.updateCartItem(itemId, { quantity })
       await fetchCart()
       return res
     } catch (error) {
@@ -48,7 +39,7 @@ export const useCart = () => {
 
   const removeFromCart = useCallback(async (itemId: number) => {
     try {
-      await orderApi.deleteCart(itemId)
+      await cartApi.deleteCartItem(itemId)
       await fetchCart()
     } catch (error) {
       throw error
@@ -57,7 +48,7 @@ export const useCart = () => {
 
   const clearCartByShop = useCallback(async (shopId: number) => {
     try {
-      await orderApi.clearShopCart(shopId)
+      await cartApi.clearShopCart(shopId)
       await fetchCart()
     } catch (error) {
       throw error
@@ -66,7 +57,7 @@ export const useCart = () => {
 
   const cartSummary = useMemo(() => {
     const itemsCount = cartItems.reduce((sum, item) => sum + item.quantity, 0)
-    const totalPrice = cartItems.reduce((sum, item) => sum + item.product_price * item.quantity, 0)
+    const totalPrice = cartItems.reduce((sum, item) => sum + (item.product_price || 0) * item.quantity, 0)
     return { itemsCount, totalPrice }
   }, [cartItems])
 

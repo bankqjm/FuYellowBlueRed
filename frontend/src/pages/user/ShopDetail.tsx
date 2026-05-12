@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Typography, Tabs, List, Image, Button, Space, message, Spin, Divider } from 'antd'
+import { Card, Typography, Tabs, List, Image, Button, Space, message, Spin } from 'antd'
 import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined } from '@ant-design/icons'
-import { shopApi, ShopDetail as ShopDetailType, ProductInfo, CategoryInfo } from '../../services/shop'
+import { shopApi, ShopDetail as ShopDetailType, ProductInfo } from '../../services/shop'
 import { cartApi, CartItemInfo } from '../../services/order'
 
 const { Title, Text } = Typography

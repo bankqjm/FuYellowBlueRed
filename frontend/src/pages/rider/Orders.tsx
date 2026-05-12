@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Typography, Tabs, List, Empty, Button, Space, Tag, Spin, message, Modal } from 'antd'
-import { InboxOutlined, CarOutlined, CheckCircleOutlined } from '@ant-design/icons'
-import { riderApi, OrderInfo } from '../../services/rider'
+import { InboxOutlined, CarOutlined } from '@ant-design/icons'
+import { riderApi } from '../../services/rider'
+import type { OrderInfo } from '../../services/shop'
 
 const { Title, Text } = Typography
 
@@ -76,10 +77,6 @@ export default function RiderOrders() {
   const showOrderDetail = (order: OrderInfo) => {
     setSelectedOrder(order)
     setDetailModalVisible(true)
-  }
-
-  const getOrders = () => {
-    return activeTab === 'available' ? availableOrders : activeOrders
   }
 
   if (loading) {
