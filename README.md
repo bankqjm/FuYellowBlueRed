@@ -12,6 +12,7 @@ FuYellowBlueRed 是一个开源的外卖配送平台，覆盖从用户下单到�
 - **多角色支持**：消费者、商家、骑手、管理员四端一体化
 - **开源免费**：MIT 协议，核心功能永久免费
 - **易于部署**：Docker Compose 一键启动
+- **架构清晰**：采用分层架构，代码可维护性强
 
 ## 技术栈
 
@@ -36,6 +37,11 @@ FuYellowBlueRed/
 │   │   ├── models/          # SQLAlchemy 模型
 │   │   ├── schemas/         # Pydantic 数据模型
 │   │   ├── api/             # API 路由
+│   │   │   └── v1/          # API 版本 1
+│   │   ├── core/            # 核心功能
+│   │   │   ├── exceptions.py # 异常处理
+│   │   │   ├── logger.py     # 日志系统
+│   │   │   └── middleware.py # 中间件
 │   │   ├── services/        # 业务逻辑层
 │   │   └── utils/           # 工具函数
 │   ├── alembic/             # 数据库迁移
@@ -46,13 +52,16 @@ FuYellowBlueRed/
 │   ├── src/
 │   │   ├── pages/           # 页面组件
 │   │   ├── components/      # 通用组件
+│   │   ├── hooks/           # 自定义 Hooks
 │   │   ├── services/        # API 调用
 │   │   ├── stores/          # 状态管理
 │   │   └── utils/           # 工具函数
 │   ├── package.json
 │   └── Dockerfile
 ├── docs/                     # 项目文档
-│   └── requirements.md      # 需求规格说明书
+│   ├── requirements.md       # 需求规格说明书
+│   ├── development-plan.md  # 开发计划
+│   └── architecture-review.md # 架构评审
 ├── docker-compose.yml
 ├── LICENSE
 └── README.md
@@ -88,6 +97,15 @@ cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# 初始化数据库
+python -c "
+import asyncio
+from app.database import init_db
+asyncio.run(init_db())
+"
+
+# 启动服务
 uvicorn app.main:app --reload
 ```
 
@@ -117,6 +135,37 @@ npm run dev
 
 商家审核、用户管理、平台数据概览
 
+## 架构亮点
+
+### Phase 1: MVP 开发（已完成）
+- 完整的订单闭环实现
+- 四端角色功能
+- 简化的支付、地图、通知方案
+
+### Phase 2: 架构改进（已完成）
+- **统一异常处理**：结构化异常体系，统一错误响应
+- **API 版本控制**：`/api/v1/` 前缀，平滑升级
+- **数据库索引**：高频查询优化，性能提升
+- **Service 层**：业务逻辑与路由解耦
+- **配置分层**：支持环境变量 `.env` 配置
+- **前端 Hooks & 组件**：代码复用，可维护性提升
+
+## 测试账号
+
+项目提供种子数据脚本，可以快速初始化测试账号：
+
+```bash
+cd backend
+python scripts/seed_data.py
+```
+
+| 角色 | 手机号 | 密码 | 说明 |
+|------|---------|------|------|
+| 管理员 | 13800000000 | admin123 | 管理后台 |
+| 普通用户 | 13900000001 | user123 | 消费者端 |
+| 商家 | 13900000002 | shop123 | 商家端 |
+| 骑手 | 13900000003 | rider123 | 骑手端 |
+
 ## MVP 简化策略
 
 | 模块 | 完整方案 | MVP 方案 |
@@ -131,6 +180,8 @@ npm run dev
 ## 文档
 
 - [MVP 需求规格说明书](docs/requirements.md)
+- [开发计划](docs/development-plan.md)
+- [架构评审报告](docs/architecture-review.md)
 
 ## 开源协议
 
@@ -139,3 +190,9 @@ npm run dev
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request 参与项目贡献。
+
+## 开发进度
+
+- ✅ **Phase 1**: MVP 开发（100%）
+- ✅ **Phase 2**: 架构改进（100%）
+- ⏳ **后续**：性能优化、测试覆盖等
