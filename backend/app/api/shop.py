@@ -16,9 +16,10 @@ from app.schemas.shop import (
 from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery, AddressInfo
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
-from app.utils.exceptions import BadRequestException, UnauthorizedException, ForbiddenException
+from app.core import BadRequestException, ForbiddenException, get_logger
 
 router = APIRouter(prefix="/shop", tags=["商家"])
+logger = get_logger("shop")
 
 
 @router.post("/apply", response_model=ResponseSchema[ShopInfo])
@@ -46,6 +47,7 @@ async def apply_shop(
     db.add(shop)
     await db.commit()
     await db.refresh(shop)
+    logger.info(f"Shop applied: {shop.id} by user {current_user.id}")
 
     return ResponseSchema(
         code=0,
@@ -343,7 +345,6 @@ async def get_shop_orders(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 获取商家店铺
     shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = shop_result.scalar_one_or_none()
     if not shop:
@@ -369,7 +370,7 @@ async def get_shop_orders(
         order_data.shop_name = shop.name
         order_data.shop_image = shop.logo
         order_data.address_info = AddressInfo(
-            contact_name="",  # 简化
+            contact_name="",
             contact_phone=order.phone,
             address=order.address
         )
@@ -406,7 +407,7 @@ async def get_shop_order_detail(
     order_data.shop_name = shop.name
     order_data.shop_image = shop.logo
     order_data.address_info = AddressInfo(
-        contact_name="",  # 简化
+        contact_name="",
         contact_phone=order.phone,
         address=order.address
     )
@@ -438,6 +439,7 @@ async def accept_order(
     order.status = OrderStatus.ACCEPTED
     await db.commit()
     await db.refresh(order)
+    logger.info(f"Order accepted: {order_id}")
 
     return ResponseSchema(code=0, message="接单成功", data=OrderResponse.model_validate(order))
 
@@ -463,6 +465,7 @@ async def reject_order(
     order.status = OrderStatus.CANCELLED
     await db.commit()
     await db.refresh(order)
+    logger.info(f"Order rejected: {order_id}")
 
     return ResponseSchema(code=0, message="拒单成功", data=OrderResponse.model_validate(order))
 
@@ -488,6 +491,6 @@ async def order_ready(
     order.status = OrderStatus.READY
     await db.commit()
     await db.refresh(order)
+    logger.info(f"Order ready: {order_id}")
 
     return ResponseSchema(code=0, message="备餐完成", data=OrderResponse.model_validate(order))
-

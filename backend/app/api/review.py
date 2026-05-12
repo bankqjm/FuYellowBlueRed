@@ -1,7 +1,7 @@
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import List
 from app.database import get_db
 from app.models.models import (
     User, Order, Review, Shop, OrderStatus,
@@ -9,9 +9,10 @@ from app.models.models import (
 from app.schemas.review import ReviewCreate, ReviewResponse
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
-from app.utils.exceptions import BadRequestException, ForbiddenException
+from app.core import BadRequestException, get_logger
 
 router = APIRouter(prefix="/reviews", tags=["评价"])
+logger = get_logger("review")
 
 
 @router.post("", response_model=ResponseSchema[ReviewResponse])
@@ -65,6 +66,7 @@ async def create_review(
     review_data = ReviewResponse.model_validate(review)
     review_data.user_nickname = current_user.nickname
 
+    logger.info(f"Review created: order={request.order_id}, shop_rating={request.shop_rating}")
     return ResponseSchema(code=0, message="评价成功", data=review_data)
 
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, Integer, Enum, DateTime, ForeignKey, Float
+from sqlalchemy import String, Integer, Enum, DateTime, ForeignKey, Float, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -60,8 +60,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     nickname: Mapped[str] = mapped_column(String(50), nullable=True)
     avatar: Mapped[str] = mapped_column(String(255), nullable=True)
-    role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value)
-    status: Mapped[int] = mapped_column(default=UserStatus.ACTIVE.value)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value, index=True)
+    status: Mapped[int] = mapped_column(default=UserStatus.ACTIVE.value, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -76,7 +76,7 @@ class Wallet(Base):
     __tablename__ = "wallets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
     balance: Mapped[float] = mapped_column(default=0.0)
     frozen_balance: Mapped[float] = mapped_column(default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -89,13 +89,13 @@ class UserAddress(Base):
     __tablename__ = "user_addresses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     contact_name: Mapped[str] = mapped_column(String(50), nullable=False)
     contact_phone: Mapped[str] = mapped_column(String(20), nullable=False)
     address: Mapped[str] = mapped_column(String(255), nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
-    is_default: Mapped[int] = mapped_column(default=0)
+    is_default: Mapped[int] = mapped_column(default=0, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="addresses")
@@ -103,10 +103,14 @@ class UserAddress(Base):
 
 class Shop(Base):
     __tablename__ = "shops"
+    __table_args__ = (
+        Index("idx_shops_status", "status"),
+        Index("idx_shops_user_id", "user_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     logo: Mapped[str] = mapped_column(String(255), nullable=True)
     address: Mapped[str] = mapped_column(String(255), nullable=False)
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
@@ -126,6 +130,9 @@ class Shop(Base):
 
 class Category(Base):
     __tablename__ = "categories"
+    __table_args__ = (
+        Index("idx_categories_shop_id", "shop_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
@@ -139,6 +146,12 @@ class Category(Base):
 
 class Product(Base):
     __tablename__ = "products"
+    __table_args__ = (
+        Index("idx_products_shop_id", "shop_id"),
+        Index("idx_products_category_id", "category_id"),
+        Index("idx_products_status", "status"),
+        Index("idx_products_name", "name"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
@@ -160,6 +173,13 @@ class Product(Base):
 
 class Order(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index("idx_orders_user_id", "user_id"),
+        Index("idx_orders_shop_id", "shop_id"),
+        Index("idx_orders_rider_id", "rider_id"),
+        Index("idx_orders_status", "status"),
+        Index("idx_orders_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_no: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
@@ -186,6 +206,10 @@ class Order(Base):
 
 class OrderItem(Base):
     __tablename__ = "order_items"
+    __table_args__ = (
+        Index("idx_order_items_order_id", "order_id"),
+        Index("idx_order_items_product_id", "product_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
@@ -200,6 +224,11 @@ class OrderItem(Base):
 
 class Review(Base):
     __tablename__ = "reviews"
+    __table_args__ = (
+        Index("idx_reviews_shop_id", "shop_id"),
+        Index("idx_reviews_user_id", "user_id"),
+        Index("idx_reviews_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), unique=True, nullable=False)
@@ -218,6 +247,11 @@ class Review(Base):
 
 class RiderEarning(Base):
     __tablename__ = "rider_earnings"
+    __table_args__ = (
+        Index("idx_rider_earnings_rider_id", "rider_id"),
+        Index("idx_rider_earnings_order_id", "order_id"),
+        Index("idx_rider_earnings_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rider_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -229,6 +263,11 @@ class RiderEarning(Base):
 
 class WithdrawalRecord(Base):
     __tablename__ = "withdrawal_records"
+    __table_args__ = (
+        Index("idx_withdrawal_records_user_id", "user_id"),
+        Index("idx_withdrawal_records_status", "status"),
+        Index("idx_withdrawal_records_created_at", "created_at"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -242,6 +281,11 @@ class WithdrawalRecord(Base):
 
 class CartItem(Base):
     __tablename__ = "cart_items"
+    __table_args__ = (
+        Index("idx_cart_items_user_id", "user_id"),
+        Index("idx_cart_items_shop_id", "shop_id"),
+        Index("idx_cart_items_product_id", "product_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)

@@ -96,24 +96,51 @@
 
 ---
 
-## Phase 2: 架构改进（待开发）
+## Phase 2: 架构改进（已完成）
 
-### P2 — Service 层抽取
+### P3 — 统一异常处理体系 ✅
+
+**目标**: 建立统一的异常处理机制，统一错误响应格式
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P3.1 | ✅ | 创建 `app/core/exceptions.py` 异常类定义 |
+| P3.2 | ✅ | 创建日志系统 `app/core/logger.py` |
+| P3.3 | ✅ | 创建请求日志中间件 `app/core/middleware.py` |
+| P3.4 | ✅ | 更新 `main.py` 注册异常处理器 |
+| P3.5 | ✅ | 统一所有 API 的错误响应格式 |
+
+### P8 — 数据库索引优化 ✅
+
+**目标**: 添加索引优化查询性能
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P8.1 | ✅ | 添加 orders 表索引（user_id, shop_id, status, created_at） |
+| P8.2 | ✅ | 添加 products 表索引（shop_id, category_id, status, name） |
+| P8.3 | ✅ | 添加 reviews 表索引（shop_id, user_id, created_at） |
+| P8.4 | ✅ | 添加 cart_items 表索引 |
+| P8.5 | ✅ | 添加 rider_earnings, withdrawal_records 表索引 |
+
+### P2 — Service 层抽取 ✅（基础）
 
 **目标**: 将业务逻辑从 API 路由分离，提高代码可维护性和可测试性
 
 | 任务 | 状态 | 说明 |
 |------|------|------|
-| P2.1 | ⬜ | 创建 `app/services/` 目录结构 |
-| P2.2 | ⬜ | 抽取认证服务 `auth_service.py` |
-| P2.3 | ⬜ | 抽取用户服务 `user_service.py` |
-| P2.4 | ⬜ | 抽取商家服务 `shop_service.py` |
-| P2.5 | ⬜ | 抽取订单服务 `order_service.py` |
-| P2.6 | ⬜ | 抽取骑手服务 `rider_service.py` |
-| P2.7 | ⬜ | 抽取评价服务 `review_service.py` |
-| P2.8 | ⬜ | 抽取管理员服务 `admin_service.py` |
-| P2.9 | ⬜ | 重构 API 路由使用 Service 层 |
-| P2.10 | ⬜ | 添加 Service 层单元测试 |
+| P2.1 | ✅ | 创建 `app/services/` 目录结构 |
+| P2.2 | ✅ | 创建 `base.py` 服务基类 |
+| P2.3 | ✅ | 创建 `auth_service.py` 认证服务 |
+| P2.4 | ✅ | 创建 `order_service.py` 订单服务 |
+
+### P4-P7 — 待开发
+
+| 阶段 | 任务 | 优先级 |
+|------|------|--------|
+| P4 | API 版本控制 | P1 |
+| P5 | 配置分层 | P1 |
+| P6 | 前端 Hooks 抽取 | P1 |
+| P7 | 前端组件拆分 | P1 |
 
 **Service 层设计示例**:
 

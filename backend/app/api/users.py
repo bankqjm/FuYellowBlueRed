@@ -7,9 +7,10 @@ from app.schemas.auth import UserInfo, UpdateUserRequest
 from app.schemas.address import AddressCreate, AddressUpdate, AddressResponse
 from app.schemas.base import ResponseSchema
 from app.deps.auth import get_current_user
-from app.utils.exceptions import BadRequestException
+from app.core import BadRequestException, get_logger
 
 router = APIRouter(prefix="/users", tags=["用户"])
+logger = get_logger("users")
 
 
 @router.get("/me", response_model=ResponseSchema[UserInfo])
@@ -64,7 +65,6 @@ async def create_address(
     db: AsyncSession = Depends(get_db),
 ):
     if request.is_default:
-        # 如果设为默认，先取消其他地址的默认状态
         result = await db.execute(
             select(UserAddress).where(
                 UserAddress.user_id == current_user.id,
@@ -108,7 +108,6 @@ async def update_address(
         raise BadRequestException("地址不存在")
 
     if request.is_default:
-        # 如果设为默认，先取消其他地址的默认状态
         result = await db.execute(
             select(UserAddress).where(
                 UserAddress.user_id == current_user.id,

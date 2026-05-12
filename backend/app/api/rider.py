@@ -11,9 +11,10 @@ from app.models.models import (
 from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
-from app.utils.exceptions import BadRequestException, ForbiddenException
+from app.core import BadRequestException, ForbiddenException, get_logger
 
 router = APIRouter(prefix="/rider", tags=["骑手"])
+logger = get_logger("rider")
 
 
 @router.get("/orders/available", response_model=ResponseSchema[PageResponse[OrderResponse]])
@@ -131,6 +132,7 @@ async def accept_order(
     await db.commit()
     await db.refresh(order)
 
+    logger.info(f"Rider {current_user.id} accepted order {order_id}")
     return ResponseSchema(code=0, message="接单成功", data=OrderResponse.model_validate(order))
 
 
@@ -172,6 +174,7 @@ async def deliver_order(
 
     await db.commit()
 
+    logger.info(f"Rider {current_user.id} delivered order {order_id}")
     return ResponseSchema(code=0, message="确认送达成功", data=OrderResponse.model_validate(order))
 
 
@@ -263,6 +266,7 @@ async def withdraw(
     wallet.balance -= amount
     await db.commit()
 
+    logger.info(f"Rider {current_user.id} withdrew {amount}")
     return ResponseSchema(code=0, message="提现成功", data={
         "withdraw_id": record.id,
         "amount": amount,
@@ -304,4 +308,3 @@ async def get_withdrawal_records(
             page_size=query.page_size,
         ),
     )
-

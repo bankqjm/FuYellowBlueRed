@@ -8,9 +8,10 @@ from app.models.models import Shop, ShopStatus, User, UserStatus, UserRole, Orde
 from app.schemas.shop import ShopInfo, ShopListQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
-from app.utils.exceptions import ForbiddenException, BadRequestException
+from app.core import ForbiddenException, BadRequestException, get_logger
 
 router = APIRouter(prefix="/admin", tags=["管理员"])
+logger = get_logger("admin")
 
 
 class UserInfo:
@@ -41,6 +42,8 @@ async def approve_shop(
     shop.status = ShopStatus.APPROVED.value
     await db.commit()
     await db.refresh(shop)
+    
+    logger.info(f"Shop {shop_id} approved by admin {current_user.id}")
     return ResponseSchema(code=0, message="审核通过", data=ShopInfo.model_validate(shop))
 
 
@@ -61,6 +64,8 @@ async def reject_shop(
     shop.status = ShopStatus.REJECTED.value
     await db.commit()
     await db.refresh(shop)
+    
+    logger.info(f"Shop {shop_id} rejected by admin {current_user.id}")
     return ResponseSchema(code=0, message="已拒绝", data=ShopInfo.model_validate(shop))
 
 
@@ -164,6 +169,7 @@ async def update_user_status(
     user.status = status
     await db.commit()
 
+    logger.info(f"User {user_id} status updated to {status} by admin {current_user.id}")
     return ResponseSchema(code=0, message="更新成功", data={
         "id": user.id,
         "status": user.status,
