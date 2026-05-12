@@ -1,248 +1,462 @@
-# FuYellowBlueRed 开发计划
+# FuYellowBlueRed 开发计划 v2.0
 
-## 总体说明
+## 概述
 
-本开发计划基于 [MVP 需求规格说明书](requirements.md)，按 6 个里程碑（M1-M6）分阶段交付。每个里程碑包含具体的开发任务、验收标准和依赖关系。
-
----
-
-## M1 — 基础框架搭建
-
-**目标**：可运行的空项目 + 登录注册 + Docker 一键启动
-
-### 后端任务
-
-| # | 任务 | 说明 |
-|---|------|------|
-| 1.1 | 初始化 FastAPI 项目 | 创建项目结构、配置管理（pydantic-settings）、日志配置 |
-| 1.2 | 数据库连接与 ORM 配置 | SQLAlchemy async engine + session，支持 SQLite/MySQL 切换 |
-| 1.3 | Alembic 数据库迁移 | 初始化迁移框架，创建所有核心表的迁移脚本（users, shops, categories, products, orders, order_items, reviews, wallets, rider_earnings, withdrawal_records） |
-| 1.4 | 统一响应格式 | 封装 `Result` / `PageResult` 响应模型 |
-| 1.5 | JWT 认证体系 | 注册、登录、Token 生成与验证、依赖注入获取当前用户 |
-| 1.6 | 用户注册 API | POST /api/auth/register（手机号+密码+昵称+角色），注册时自动创建钱包 |
-| 1.7 | 用户登录 API | POST /api/auth/login，返回 JWT Token |
-| 1.8 | 获取当前用户信息 API | GET /api/users/me |
-| 1.9 | 修改用户信息 API | PUT /api/users/me（昵称、头像） |
-| 1.10 | CORS 与安全中间件 | 配置跨域、请求限流 |
-| 1.11 | 文件上传 API | POST /api/upload，本地文件存储 |
-| 1.12 | Docker 配置 | 后端 Dockerfile + docker-compose.yml |
-
-### 前端任务
-
-| # | 任务 | 说明 |
-|---|------|------|
-| 1.13 | 初始化 React + AntD Pro 项目 | 脚手架搭建、路由配置、布局组件 |
-| 1.14 | 登录页面 | 手机号+密码登录表单，Token 存储 |
-| 1.15 | 注册页面 | 手机号+密码+昵称+角色选择 |
-| 1.16 | 全局状态管理 | 用户信息、Token、角色状态（Zustand 或 Context） |
-| 1.17 | API 请求封装 | Axios 实例、拦截器（Token 注入、401 跳转）、统一错误处理 |
-| 1.18 | 角色路由守卫 | 根据角色跳转不同首页 |
-
-### 验收标准
-
-- [ ] `docker-compose up` 可一键启动前后端
-- [ ] 注册新用户 → 登录 → 获取用户信息完整流程
-- [ ] 不同角色登录后跳转对应首页
-- [ ] API 文档可访问（/docs）
+本文档定义外卖平台项目的开发计划，包含 MVP 阶段（已完成）和 Phase 2 架构改进阶段。
 
 ---
 
-## M2 — 商家与商品
+## Phase 1: MVP 开发（已完成）
 
-**目标**：商家端核心功能 — 开店申请、审核、商品/分类 CRUD
+### M1 — 基础框架 ✅
 
-### 后端任务
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| M1.1 | ✅ | FastAPI 项目结构、数据库连接 |
+| M1.2 | ✅ | SQLAlchemy ORM 配置 |
+| M1.3 | ✅ | 用户注册/登录 API |
+| M1.4 | ✅ | JWT Token 认证 |
+| M1.5 | ✅ | 统一响应格式封装 |
+| M1.6 | ✅ | React + Vite 项目脚手架 |
+| M1.7 | ✅ | 登录/注册页面 |
+| M1.8 | ✅ | Ant Design + Zustand 集成 |
+| M1.9 | ✅ | Docker Compose 配置 |
 
-| # | 任务 | 说明 |
-|---|------|------|
-| 2.1 | 店铺模型与迁移 | Shop 模型、Category 模型、Product 模型 |
-| 2.2 | 开店申请 API | POST /api/shops（商家提交申请，status=待审核） |
-| 2.3 | 商家审核 API | PUT /api/admin/shops/:id/review（管理员通过/拒绝） |
-| 2.4 | 店铺信息编辑 API | PUT /api/shops/:id（logo、公告、营业时间、营业状态切换） |
-| 2.5 | 商品分类 CRUD API | /api/shops/:id/categories（增删改排序） |
-| 2.6 | 商品 CRUD API | /api/shops/:id/products（增删改查、上架/下架） |
-| 2.7 | 商品图片上传 | 关联文件上传接口，商品图片字段更新 |
+### M2 — 商家与商品 ✅
 
-### 前端任务
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| M2.1 | ✅ | 店铺申请 API |
+| M2.2 | ✅ | 店铺审核 API |
+| M2.3 | ✅ | 商品分类 CRUD API |
+| M2.4 | ✅ | 商品 CRUD API |
+| M2.5 | ✅ | 商家店铺管理页面 |
+| M2.6 | ✅ | 商品分类管理页面 |
+| M2.7 | ✅ | 商品管理页面 |
+| M2.8 | ✅ | 图片上传功能 |
 
-| # | 任务 | 说明 |
-|---|------|------|
-| 2.8 | 开店申请页面 | 表单：店铺名称、地址、营业时间、公告、Logo 上传 |
-| 2.9 | 店铺管理页面 | 店铺信息展示与编辑、营业/休息切换 |
-| 2.10 | 分类管理页面 | 分类列表、新增/编辑/删除/排序 |
-| 2.11 | 商品管理页面 | 商品列表（支持上下架）、新增/编辑商品表单（含图片上传） |
-| 2.12 | 管理员 — 商家审核页面 | 待审核列表、通过/拒绝操作 |
+### M3 — 核心订单闭环 ✅
 
-### 验收标准
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| M3.1 | ✅ | 收货地址 API |
+| M3.2 | ✅ | 购物车和订单 Schema |
+| M3.3 | ✅ | 购物车 API |
+| M3.4 | ✅ | 订单创建和支付 API |
+| M3.5 | ✅ | 商家订单管理 API |
+| M3.6 | ✅ | 用户端商家列表页面 |
+| M3.7 | ✅ | 用户端商家详情页面 |
+| M3.8 | ✅ | 购物车页面 |
+| M3.9 | ✅ | 订单列表和支付页面 |
+| M3.10 | ✅ | 商家订单管理页面 |
+| M3.11 | ✅ | 地址管理页面 |
 
-- [ ] 商家提交开店申请 → 管理员审核通过 → 商家可管理店铺
-- [ ] 商家可完成商品分类和商品的完整 CRUD
-- [ ] 商品图片上传与展示正常
+### M4 — 骑手配送 ✅
 
----
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| M4.1 | ✅ | 骑手待接单列表 API |
+| M4.2 | ✅ | 骑手接单 API |
+| M4.3 | ✅ | 骑手取餐确认 API |
+| M4.4 | ✅ | 骑手送达确认 API |
+| M4.5 | ✅ | 骑手进行中订单 API |
+| M4.6 | ✅ | 骑手收入明细 API |
+| M4.7 | ✅ | 骑手累计收入 API |
+| M4.8 | ✅ | 骑手模拟提现 API |
+| M4.9 | ✅ | 订单状态轮询 API |
+| M4.10 | ✅ | 骑手订单管理页面 |
+| M4.11 | ✅ | 骑手收入页面 |
+| M4.12 | ✅ | 骑手提现页面 |
+| M4.13 | ✅ | 用户确认收货页面 |
+| M4.14 | ✅ | 用户订单状态轮询 |
 
-## M3 — 核心订单闭环（消费者侧）
+### M5 — 评价与管理 ✅
 
-**目标**：消费者浏览 → 加购 → 下单 → 模拟支付 → 商家接单
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| M5.1 | ✅ | 提交评价 API |
+| M5.2 | ✅ | 评价列表 API |
+| M5.3 | ✅ | 更新商家评分 |
+| M5.4 | ✅ | 管理员用户列表 API |
+| M5.5 | ✅ | 管理员禁用/启用用户 API |
+| M5.6 | ✅ | 管理员平台统计 API |
+| M5.7 | ✅ | 用户评价页面 |
+| M5.8 | ✅ | 管理员仪表盘 |
+| M5.9 | ✅ | 管理员用户管理页面 |
 
-### 后端任务
+### M6 — 打磨优化 ✅
 
-| # | 任务 | 说明 |
-|---|------|------|
-| 3.1 | 收货地址 API | /api/users/addresses（增删改查、设默认） |
-| 3.2 | 商家列表 API | GET /api/shops（支持按距离排序，Haversine 计算） |
-| 3.3 | 商家详情 API | GET /api/shops/:id（含分类+商品列表） |
-| 3.4 | 商品搜索 API | GET /api/products/search（名称模糊搜索） |
-| 3.5 | 购物车 API | /api/cart（添加、修改数量、删除、清空、同步） |
-| 3.6 | 配送费计算 | Haversine 距离计算 + 阶梯配送费规则 |
-| 3.7 | 创建订单 API | POST /api/orders（校验库存、计算金额、创建订单+明细、扣减库存） |
-| 3.8 | 模拟支付 API | POST /api/orders/:id/pay（直接标记已支付，钱包余额变动） |
-| 3.9 | 商家接单/拒单 API | PUT /api/shops/orders/:id（ACCEPTED / CANCELLED） |
-| 3.10 | 商家备餐状态 API | PUT /api/shops/orders/:id（PREPARING → READY_FOR_PICKUP） |
-| 3.11 | 订单查询 API | GET /api/orders（按状态筛选、分页） |
-| 3.12 | 订单详情 API | GET /api/orders/:id（含明细、状态时间线） |
-
-### 前端任务
-
-| # | 任务 | 说明 |
-|---|------|------|
-| 3.13 | 首页 — 商家列表 | 按距离排序展示、搜索框 |
-| 3.14 | 商家详情页 | 店铺信息 + 分类 Tab + 商品列表 + 加购按钮 |
-| 3.15 | 购物车页面 | 商品列表、数量修改、删除、清空、合计金额 |
-| 3.16 | 确认订单页面 | 收货地址选择、商品明细、配送费、备注、提交 |
-| 3.17 | 模拟支付页面 | 支付按钮 → 直接成功 → 跳转订单详情 |
-| 3.18 | 订单列表页面 | 按 Tab 筛选（全部/待支付/待接单/备餐中/待取餐） |
-| 3.19 | 订单详情页面 | 状态时间线、商品明细、配送信息 |
-| 3.20 | 收货地址管理页面 | 地址列表、新增/编辑/删除、设默认 |
-| 3.21 | 商家 — 订单管理页面 | 待处理订单列表、接单/拒单、备餐状态操作 |
-
-### 验收标准
-
-- [ ] 消费者可浏览商家、搜索商品、加入购物车
-- [ ] 完整下单流程：选地址 → 确认 → 模拟支付 → 订单创建
-- [ ] 商家可接单/拒单、标记备餐状态
-- [ ] 订单状态从 PENDING_PAYMENT → READY_FOR_PICKUP 完整流转
-
----
-
-## M4 — 骑手配送
-
-**目标**：完整订单闭环 — 骑手接单 → 取餐 → 送达
-
-### 后端任务
-
-| # | 任务 | 说明 |
-|---|------|------|
-| 4.1 | 待接单订单列表 API | GET /api/rider/orders（status=READY_FOR_PICKUP） |
-| 4.2 | 骑手接单 API | PUT /api/rider/orders/:id/accept（绑定骑手、状态→RIDER_PICKED_UP） |
-| 4.3 | 骑手取餐确认 API | PUT /api/rider/orders/:id/pickup（状态→DELIVERING） |
-| 4.4 | 骑手送达确认 API | PUT /api/rider/orders/:id/deliver（状态→DELIVERED、记录骑手收入） |
-| 4.5 | 骑手进行中订单 API | GET /api/rider/active |
-| 4.6 | 骑手收入明细 API | GET /api/rider/earnings |
-| 4.7 | 骑手累计收入 API | GET /api/rider/earnings/summary |
-| 4.8 | 模拟提现 API | POST /api/rider/withdraw（提交提现请求，直接标记 COMPLETED） |
-| 4.9 | 消费者确认收货 API | PUT /api/orders/:id/confirm（状态→COMPLETED） |
-| 4.10 | 订单状态轮询 API | GET /api/orders/:id/status（轻量接口，供前端轮询） |
-
-### 前端任务
-
-| # | 任务 | 说明 |
-|---|------|------|
-| 4.11 | 骑手 — 待接单列表页面 | 显示备餐完成订单、配送距离、配送费 |
-| 4.12 | 骑手 — 进行中订单页面 | 取餐确认、送达确认按钮 |
-| 4.13 | 骑手 — 收入明细页面 | 收入列表、累计金额 |
-| 4.14 | 骑手 — 模拟提现页面 | 提现表单、提现记录 |
-| 4.15 | 消费者 — 订单轮询 | 前端 5 秒轮询订单状态，实时更新状态时间线 |
-| 4.16 | 消费者 — 确认收货 | 送达后显示确认收货按钮 |
-
-### 验收标准
-
-- [ ] 骑手可查看待接单列表并接单
-- [ ] 骑手取餐 → 送达 → 消费者确认收货完整流程
-- [ ] 骑手收入自动记录，可查看明细和累计
-- [ ] 模拟提现流程正常
-- [ ] 消费者端订单状态实时更新（轮询）
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| M6.1 | ✅ | 全局错误处理 |
+| M6.2 | ✅ | 输入校验完善 |
+| M6.3 | ✅ | 响应式布局适配 |
+| M6.4 | ✅ | 项目文档完善 |
+| M6.5 | ✅ | 种子数据脚本 |
 
 ---
 
-## M5 — 评价与管理
+## Phase 2: 架构改进（待开发）
 
-**目标**：全角色功能闭环 — 评价系统 + 管理后台
+### P2 — Service 层抽取
 
-### 后端任务
+**目标**: 将业务逻辑从 API 路由分离，提高代码可维护性和可测试性
 
-| # | 任务 | 说明 |
-|---|------|------|
-| 5.1 | 提交评价 API | POST /api/reviews（商家评分+骑手评分+文字+图片） |
-| 5.2 | 评价列表 API | GET /api/shops/:id/reviews |
-| 5.3 | 更新商家评分 | 评价提交后自动更新店铺平均评分 |
-| 5.4 | 管理员 — 用户列表 API | GET /api/admin/users（分页、搜索） |
-| 5.5 | 管理员 — 禁用/启用用户 API | PUT /api/admin/users/:id/status |
-| 5.6 | 管理员 — 平台统计 API | GET /api/admin/stats（订单量、用户数、商家数） |
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P2.1 | ⬜ | 创建 `app/services/` 目录结构 |
+| P2.2 | ⬜ | 抽取认证服务 `auth_service.py` |
+| P2.3 | ⬜ | 抽取用户服务 `user_service.py` |
+| P2.4 | ⬜ | 抽取商家服务 `shop_service.py` |
+| P2.5 | ⬜ | 抽取订单服务 `order_service.py` |
+| P2.6 | ⬜ | 抽取骑手服务 `rider_service.py` |
+| P2.7 | ⬜ | 抽取评价服务 `review_service.py` |
+| P2.8 | ⬜ | 抽取管理员服务 `admin_service.py` |
+| P2.9 | ⬜ | 重构 API 路由使用 Service 层 |
+| P2.10 | ⬜ | 添加 Service 层单元测试 |
 
-### 前端任务
+**Service 层设计示例**:
 
-| # | 任务 | 说明 |
-|---|------|------|
-| 5.7 | 消费者 — 评价页面 | 星级评分、文字输入、图片上传 |
-| 5.8 | 商家详情页 — 评价列表 | 展示评价列表（评分+内容） |
-| 5.9 | 管理员 — 仪表盘 | 订单量、用户数、商家数统计卡片 |
-| 5.10 | 管理员 — 用户管理页面 | 用户列表、搜索、禁用/启用 |
+```python
+# app/services/order_service.py
+class OrderService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
-### 验收标准
+    async def create_order(self, user_id: int, data: OrderCreate) -> Order:
+        # 业务逻辑
+        pass
 
-- [ ] 消费者可对已完成订单提交评价（商家+骑手）
-- [ ] 商家详情页展示评价列表和平均评分
-- [ ] 管理员可查看平台统计、管理用户
+    async def pay_order(self, order_id: int) -> Order:
+        # 业务逻辑
+        pass
 
----
+    async def cancel_order(self, order_id: int, user_id: int) -> Order:
+        # 业务逻辑
+        pass
 
-## M6 — 打磨优化
-
-**目标**：可发布版本 — UI 优化、错误处理、文档完善
-
-### 任务
-
-| # | 任务 | 说明 |
-|---|------|------|
-| 6.1 | 全局错误处理 | 后端统一异常捕获、前端错误提示组件 |
-| 6.2 | 表单校验完善 | 前后端校验对齐、友好错误提示 |
-| 6.3 | 空状态与加载态 | 列表空状态、页面加载骨架屏 |
-| 6.4 | 响应式适配 | 移动端适配（骑手端、消费者端） |
-| 6.5 | 后端单元测试 | 核心业务逻辑测试覆盖率 ≥ 60% |
-| 6.6 | API 文档完善 | 补充接口说明、请求/响应示例 |
-| 6.7 | README 与部署文档 | 完善本地开发指南、Docker 部署说明 |
-| 6.8 | 种子数据脚本 | 初始化测试数据（示例商家、商品、用户） |
-
-### 验收标准
-
-- [ ] 所有页面无 JS 报错，异常操作有友好提示
-- [ ] 移动端可正常使用核心功能
-- [ ] 后端测试通过，覆盖率达标
-- [ ] 新开发者可按文档完成本地启动
-
----
-
-## 任务依赖关系
-
-```
-M1（基础框架）
- ├── M2（商家与商品）── 依赖 M1
- │    └── M3（核心订单闭环）── 依赖 M2
- │         └── M4（骑手配送）── 依赖 M3
- │              └── M5（评价与管理）── 依赖 M4
- │                   └── M6（打磨优化）── 依赖 M5
+# app/api/orders.py - 重构后
+@router.post("")
+async def create_order(
+    request: OrderCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = OrderService(db)
+    order = await service.create_order(current_user.id, request)
+    return ResponseSchema(code=0, data=OrderResponse.model_validate(order))
 ```
 
-各里程碑严格顺序执行，M6 可与 M5 部分并行（如测试编写可提前）。
+### P3 — 统一异常处理体系
+
+**目标**: 建立统一的异常处理机制，统一错误响应格式
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P3.1 | ⬜ | 创建 `app/core/exceptions.py` 异常类定义 |
+| P3.2 | ⬜ | 创建 `app/core/handlers.py` 全局异常处理器 |
+| P3.3 | ⬜ | 更新 `main.py` 注册异常处理器 |
+| P3.4 | ⬜ | 统一所有 API 的错误响应格式 |
+| P3.5 | ⬜ | 添加请求日志中间件 |
+
+**异常类设计**:
+
+```python
+# app/core/exceptions.py
+class BaseAPIException(Exception):
+    status_code: int = 400
+    message: str
+    error_code: str
+
+    def __init__(self, message: str = None):
+        self.message = message or self.__class__.__doc__
+
+class NotFoundException(BaseAPIException):
+    status_code = 404
+    error_code = "NOT_FOUND"
+
+class UnauthorizedException(BaseAPIException):
+    status_code = 401
+    error_code = "UNAUTHORIZED"
+
+class ForbiddenException(BaseAPIException):
+    status_code = 403
+    error_code = "FORBIDDEN"
+
+class ValidationException(BaseAPIException):
+    status_code = 422
+    error_code = "VALIDATION_ERROR"
+
+class BusinessException(BaseAPIException):
+    status_code = 400
+    error_code = "BUSINESS_ERROR"
+```
+
+### P4 — API 版本控制
+
+**目标**: 添加 `/api/v1/` 版本前缀，便于未来 API 演进
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P4.1 | ⬜ | 创建 `app/api/v1/` 目录 |
+| P4.2 | ⬜ | 移动现有 API 到 v1 目录 |
+| P4.3 | ⬜ | 创建 `app/api/v1/__init__.py` 统一导出 |
+| P4.4 | ⬜ | 更新 `main.py` 路由注册 |
+| P4.5 | ⬜ | 更新前端 API 调用路径 |
+
+**目录结构**:
+
+```
+app/api/
+├── __init__.py
+├── deps.py              # 依赖注入
+├── v1/
+│   ├── __init__.py      # 统一导出
+│   ├── auth.py
+│   ├── users.py
+│   ├── shops.py
+│   ├── orders.py
+│   ├── riders.py
+│   ├── reviews.py
+│   └── admin.py
+└── v2/                  # 未来版本
+    └── ...
+```
+
+### P5 — 配置分层
+
+**目标**: 实现开发/生产环境配置分离
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P5.1 | ⬜ | 创建 `app/core/config.py` 配置类 |
+| P5.2 | ⬜ | 实现环境变量读取 |
+| P5.3 | ⬜ | 创建 `.env.example` 示例文件 |
+| P5.4 | ⬜ | 更新 `database.py` 使用配置类 |
+| P5.5 | ⬜ | 添加 MySQL 配置支持 |
+| P5.6 | ⬜ | 更新 Docker 配置 |
+
+**配置类设计**:
+
+```python
+# app/core/config.py
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+class Settings(BaseSettings):
+    APP_NAME: str = "FuYellowBlueRed"
+    DEBUG: bool = False
+    DATABASE_URL: str = "sqlite:///./data.db"
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+@lru_cache()
+def get_settings():
+    return Settings()
+```
+
+### P6 — 前端 Hooks 抽取
+
+**目标**: 抽取自定义 Hooks，提高代码复用性
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P6.1 | ⬜ | 创建 `src/hooks/` 目录 |
+| P6.2 | ⬜ | 抽取 `useAuth.ts` 认证 Hook |
+| P6.3 | ⬜ | 抽取 `useOrders.ts` 订单 Hook |
+| P6.4 | ⬜ | 抽取 `useCart.ts` 购物车 Hook |
+| P6.5 | ⬜ | 抽取 `useAddress.ts` 地址 Hook |
+| P6.6 | ⬜ | 抽取 `useShops.ts` 商家 Hook |
+| P6.7 | ⬜ | 重构页面组件使用 Hooks |
+| P6.8 | ⬜ | 添加 Hooks 文档 |
+
+**Hook 设计示例**:
+
+```typescript
+// src/hooks/useOrders.ts
+import { useState, useEffect, useCallback } from 'react'
+import { orderApi, OrderInfo } from '@/services/order'
+
+export function useOrders(initialStatus?: string) {
+  const [orders, setOrders] = useState<OrderInfo[]>([])
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState(initialStatus)
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await orderApi.getOrders({ status })
+      setOrders(res.data.items)
+    } catch (error) {
+      console.error('获取订单失败', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [status])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
+
+  return { orders, loading, status, setStatus, refetch: fetchOrders }
+}
+```
+
+### P7 — 前端组件拆分
+
+**目标**: 将大型页面组件拆分为更小的可复用组件
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P7.1 | ⬜ | 创建 `src/components/` 目录 |
+| P7.2 | ⬜ | 创建 `ErrorBoundary` 错误边界组件 |
+| P7.3 | ⬜ | 创建 `Loading` 加载组件 |
+| P7.4 | ⬜ | 拆分订单列表组件 |
+| P7.5 | ⬜ | 拆分商品卡片组件 |
+| P7.6 | ⬜ | 拆分地址选择组件 |
+| P7.7 | ⬜ | 拆分评价组件 |
+
+**组件结构示例**:
+
+```
+src/
+├── components/
+│   ├── ErrorBoundary/
+│   │   ├── index.tsx
+│   │   └── styles.ts
+│   ├── Loading/
+│   │   ├── index.tsx
+│   │   └── styles.ts
+│   ├── OrderList/
+│   │   ├── index.tsx
+│   │   ├── OrderItem.tsx
+│   │   └── styles.ts
+│   └── ProductCard/
+│       ├── index.tsx
+│       └── styles.ts
+└── pages/
+    └── user/
+        └── Orders/
+            ├── index.tsx    # 主组件（简洁）
+            ├── OrderList.tsx  # 导入拆分的组件
+            └── OrderDetail.tsx
+```
+
+### P8 — 数据库优化
+
+**目标**: 添加索引优化查询性能
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P8.1 | ⬜ | 分析查询热点 |
+| P8.2 | ⬜ | 创建 Alembic 迁移添加索引 |
+| P8.3 | ⬜ | 添加 orders 表索引 |
+| P8.4 | ⬜ | 添加 products 表索引 |
+| P8.5 | ⬜ | 添加 reviews 表索引 |
+| P8.6 | ⬜ | 添加 cart_items 表索引 |
+| P8.7 | ⬜ | 验证索引效果 |
+
+**索引迁移示例**:
+
+```python
+# alembic/versions/add_indexes.py
+def upgrade():
+    op.create_index('idx_orders_user_id', 'orders', ['user_id'])
+    op.create_index('idx_orders_status', 'orders', ['status'])
+    op.create_index('idx_orders_created_at', 'orders', ['created_at'])
+    op.create_index('idx_products_shop_id', 'products', ['shop_id'])
+    op.create_index('idx_reviews_shop_id', 'reviews', ['shop_id'])
+
+def downgrade():
+    op.drop_index('idx_orders_user_id')
+    op.drop_index('idx_orders_status')
+    # ...
+```
+
+### P9 — 日志审计系统
+
+**目标**: 添加结构化日志记录关键操作
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P9.1 | ⬜ | 创建 `app/core/logger.py` 日志配置 |
+| P9.2 | ⬜ | 添加请求日志中间件 |
+| P9.3 | ⬜ | 记录登录登出日志 |
+| P9.4 | ⬜ | 记录订单操作日志 |
+| P9.5 | ⬜ | 记录管理员操作日志 |
+| P9.6 | ⬜ | 添加日志格式化配置 |
+
+### P10 — 安全性增强
+
+**目标**: 加强系统安全性
+
+| 任务 | 状态 | 说明 |
+|------|------|------|
+| P10.1 | ⬜ | 添加请求限流中间件 |
+| P10.2 | ⬜ | 增强输入验证 |
+| P10.3 | ⬜ | 优化 CORS 配置 |
+| P10.4 | ⬜ | 添加敏感数据脱敏 |
 
 ---
 
-## 风险与应对
+## Phase 2 任务优先级
 
-| 风险 | 应对措施 |
-|------|----------|
-| 前后端联调效率低 | M1 阶段约定 API 契约，前端可用 Mock 数据先行开发 |
-| 订单并发问题 | MVP 阶段使用数据库行锁，不引入分布式锁 |
-| 图片存储空间 | MVP 使用本地磁盘，限制单文件大小 5MB |
-| 轮询性能开销 | 轮询接口仅返回状态字段，轻量响应；后续可升级 WebSocket |
+| 阶段 | 任务 | 优先级 | 工作量 |
+|------|------|--------|--------|
+| P2 | Service 层抽取 | P0 | 高 |
+| P3 | 统一异常处理 | P0 | 中 |
+| P4 | API 版本控制 | P1 | 中 |
+| P5 | 配置分层 | P1 | 中 |
+| P8 | 数据库优化 | P0 | 低 |
+| P6 | 前端 Hooks 抽取 | P1 | 高 |
+| P7 | 前端组件拆分 | P1 | 高 |
+| P9 | 日志审计系统 | P1 | 中 |
+| P10 | 安全性增强 | P1 | 中 |
+
+---
+
+## 开发流程
+
+### Phase 2 开发顺序
+
+1. **P3 — 统一异常处理** (前置依赖最少，可优先完成)
+2. **P5 — 配置分层** (其他任务依赖配置)
+3. **P4 — API 版本控制** (不影响现有功能)
+4. **P8 — 数据库优化** (可并行执行)
+5. **P2 — Service 层抽取** (核心重构，需要仔细测试)
+6. **P6 — 前端 Hooks 抽取** (可并行执行)
+7. **P7 — 前端组件拆分** (依赖 P6)
+8. **P9 — 日志审计系统** (可并行执行)
+9. **P10 — 安全性增强** (最后执行)
+
+### 每日开发流程
+
+1. 从待办列表选取任务
+2. 创建功能分支
+3. 实现功能
+4. 添加单元测试
+5. 提交代码
+6. 更新本文档任务状态
+
+---
+
+## 验收标准
+
+### Phase 2 验收清单
+
+- [ ] 所有 API 通过 Service 层调用
+- [ ] 异常响应格式统一
+- [ ] API 路由使用 `/api/v1/` 前缀
+- [ ] 支持环境变量配置
+- [ ] 关键查询添加索引
+- [ ] 前端使用自定义 Hooks
+- [ ] 通用组件抽离到 components 目录
+- [ ] 日志记录关键操作
+- [ ] 请求限流生效
+- [ ] 单元测试覆盖率 ≥ 60%
+
