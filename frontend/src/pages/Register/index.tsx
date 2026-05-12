@@ -28,7 +28,7 @@ export default function Register() {
     try {
       await authApi.register(values)
       const res = await authApi.login({ phone: values.phone, password: values.password })
-      const data = res.data.data
+      const data = res.data
       localStorage.setItem('token', data.access_token)
       setAuth(data.access_token, {
         id: data.user_id,
