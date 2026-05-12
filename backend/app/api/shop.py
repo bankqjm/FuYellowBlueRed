@@ -4,13 +4,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
 from app.database import get_db
-from app.models.models import Shop, Category, Product, ShopStatus, ProductStatus, User
+from app.models.models import (
+    Shop, Category, Product, ShopStatus, ProductStatus, User, Order, OrderItem, OrderStatus,
+)
 from app.schemas.shop import (
     ShopCreate, ShopUpdate, ShopInfo, ShopDetail,
     CategoryCreate, CategoryUpdate, CategoryInfo,
     ProductCreate, ProductUpdate, ProductInfo,
-    ShopListQuery, ProductListQuery
+    ShopListQuery, ProductListQuery,
 )
+from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery, AddressInfo
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.utils.exceptions import BadRequestException, UnauthorizedException, ForbiddenException
@@ -332,4 +335,159 @@ async def delete_product(
     await db.delete(product)
     await db.commit()
     return ResponseSchema(code=0, message="删除成功")
+
+
+@router.get("/my/orders", response_model=ResponseSchema[PageResponse[OrderResponse]])
+async def get_shop_orders(
+    query: OrderQuery = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 获取商家店铺
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    stmt = select(Order).where(Order.shop_id == shop.id)
+    count_stmt = select(func.count(Order.id)).where(Order.shop_id == shop.id)
+
+    if query.status:
+        stmt = stmt.where(Order.status == query.status)
+        count_stmt = count_stmt.where(Order.status == query.status)
+
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
+    stmt = stmt.order_by(Order.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+
+    result = await db.execute(stmt)
+    orders = result.scalars().all()
+
+    order_list = []
+    for order in orders:
+        order_data = OrderResponse.model_validate(order)
+        order_data.shop_name = shop.name
+        order_data.shop_image = shop.logo
+        order_data.address_info = AddressInfo(
+            contact_name="",  # 简化
+            contact_phone=order.phone,
+            address=order.address
+        )
+        order_list.append(order_data)
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=order_list,
+            total=total,
+            page=query.page,
+            page_size=query.page_size,
+        ),
+    )
+
+
+@router.get("/my/orders/{order_id}", response_model=ResponseSchema[OrderResponse])
+async def get_shop_order_detail(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    result = await db.execute(select(Order).where(Order.id == order_id, Order.shop_id == shop.id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+
+    order_data = OrderResponse.model_validate(order)
+    order_data.shop_name = shop.name
+    order_data.shop_image = shop.logo
+    order_data.address_info = AddressInfo(
+        contact_name="",  # 简化
+        contact_phone=order.phone,
+        address=order.address
+    )
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
+    return ResponseSchema(code=0, data=order_data)
+
+
+@router.put("/my/orders/{order_id}/accept", response_model=ResponseSchema[OrderResponse])
+async def accept_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    result = await db.execute(select(Order).where(Order.id == order_id, Order.shop_id == shop.id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+    if order.status != OrderStatus.PENDING_ACCEPT:
+        raise BadRequestException("订单状态异常")
+
+    order.status = OrderStatus.ACCEPTED
+    await db.commit()
+    await db.refresh(order)
+
+    return ResponseSchema(code=0, message="接单成功", data=OrderResponse.model_validate(order))
+
+
+@router.put("/my/orders/{order_id}/reject", response_model=ResponseSchema[OrderResponse])
+async def reject_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    result = await db.execute(select(Order).where(Order.id == order_id, Order.shop_id == shop.id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+    if order.status != OrderStatus.PENDING_ACCEPT:
+        raise BadRequestException("订单状态异常")
+
+    order.status = OrderStatus.CANCELLED
+    await db.commit()
+    await db.refresh(order)
+
+    return ResponseSchema(code=0, message="拒单成功", data=OrderResponse.model_validate(order))
+
+
+@router.put("/my/orders/{order_id}/ready", response_model=ResponseSchema[OrderResponse])
+async def order_ready(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    result = await db.execute(select(Order).where(Order.id == order_id, Order.shop_id == shop.id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+    if order.status != OrderStatus.ACCEPTED:
+        raise BadRequestException("订单状态异常")
+
+    order.status = OrderStatus.READY
+    await db.commit()
+    await db.refresh(order)
+
+    return ResponseSchema(code=0, message="备餐完成", data=OrderResponse.model_validate(order))
 

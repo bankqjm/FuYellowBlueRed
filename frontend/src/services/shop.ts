@@ -49,6 +49,48 @@ export interface PageResponse<T> {
   page_size: number
 }
 
+export interface OrderItemInfo {
+  id: number
+  order_id: number
+  product_id: number
+  product_name: string
+  product_image?: string
+  price: number
+  quantity: number
+}
+
+export interface AddressInfo {
+  contact_name: string
+  contact_phone: string
+  address: string
+}
+
+export interface OrderInfo {
+  id: number
+  order_no: string
+  user_id: number
+  shop_id: number
+  rider_id?: number
+  address: string
+  latitude?: number
+  longitude?: number
+  phone: string
+  remark?: string
+  total_amount: number
+  delivery_fee: number
+  status: string
+  created_at?: string
+  updated_at?: string
+  shop_name?: string
+  shop_image?: string
+  items?: OrderItemInfo[]
+  address_info?: AddressInfo
+}
+
+export interface ShopDetail extends ShopInfo {
+  categories?: CategoryInfo[]
+}
+
 export const shopApi = {
   apply: (data: {
     name: string
@@ -58,9 +100,9 @@ export const shopApi = {
     longitude?: number
     business_hours?: string
     notice?: string
-  }) =&gt; api.post&lt;ShopInfo&gt;('/shop/apply', data),
+  }) => api.post&lt;ShopInfo&gt;('/shop/apply', data),
 
-  getMyShop: () =&gt; api.get&lt;ShopInfo&gt;('/shop/my'),
+  getMyShop: () => api.get&lt;ShopInfo&gt;('/shop/my'),
 
   updateMyShop: (data: {
     name?: string
@@ -70,26 +112,26 @@ export const shopApi = {
     longitude?: number
     business_hours?: string
     notice?: string
-  }) =&gt; api.put&lt;ShopInfo&gt;('/shop/my', data),
+  }) => api.put&lt;ShopInfo&gt;('/shop/my', data),
 
   listShops: (params?: {
     page?: number
     page_size?: number
     keyword?: string
     status?: number
-  }) =&gt; api.get&lt;PageResponse&lt;ShopInfo&gt;&gt;('/shop/list', { params }),
+  }) => api.get&lt;PageResponse&lt;ShopInfo&gt;&gt;('/shop/list', { params }),
 
-  getShopDetail: (shopId: number) =&gt; api.get&lt;ShopDetail&gt;(`/shop/${shopId}`),
+  getShopDetail: (shopId: number) => api.get&lt;ShopDetail&gt;(`/shop/${shopId}`),
 
-  createCategory: (data: { shop_id: number; name: string; sort_order?: number }) =&gt;
+  createCategory: (data: { shop_id: number; name: string; sort_order?: number }) =>
     api.post&lt;CategoryInfo&gt;('/shop/category', data),
 
-  listCategories: (shopId: number) =&gt; api.get&lt;CategoryInfo[]&gt;(`/shop/category/${shopId}`),
+  listCategories: (shopId: number) => api.get&lt;CategoryInfo[]&gt;(`/shop/category/${shopId}`),
 
-  updateCategory: (categoryId: number, data: { name?: string; sort_order?: number }) =&gt;
+  updateCategory: (categoryId: number, data: { name?: string; sort_order?: number }) =>
     api.put&lt;CategoryInfo&gt;(`/shop/category/${categoryId}`, data),
 
-  deleteCategory: (categoryId: number) =&gt; api.delete(`/shop/category/${categoryId}`),
+  deleteCategory: (categoryId: number) => api.delete(`/shop/category/${categoryId}`),
 
   createProduct: (data: {
     shop_id: number
@@ -100,7 +142,7 @@ export const shopApi = {
     original_price?: number
     description?: string
     stock: number
-  }) =&gt; api.post&lt;ProductInfo&gt;('/shop/product', data),
+  }) => api.post&lt;ProductInfo&gt;('/shop/product', data),
 
   listProducts: (shopId: number, params?: {
     page?: number
@@ -108,9 +150,9 @@ export const shopApi = {
     keyword?: string
     category_id?: number
     status?: number
-  }) =&gt; api.get&lt;PageResponse&lt;ProductInfo&gt;&gt;(`/shop/product/${shopId}`, { params }),
+  }) => api.get&lt;PageResponse&lt;ProductInfo&gt;&gt;(`/shop/product/${shopId}`, { params }),
 
-  getProductDetail: (productId: number) =&gt; api.get&lt;ProductInfo&gt;(`/shop/product/detail/${productId}`),
+  getProductDetail: (productId: number) => api.get&lt;ProductInfo&gt;(`/shop/product/detail/${productId}`),
 
   updateProduct: (productId: number, data: {
     category_id?: number
@@ -121,19 +163,29 @@ export const shopApi = {
     description?: string
     stock?: number
     status?: number
-  }) =&gt; api.put&lt;ProductInfo&gt;(`/shop/product/${productId}`, data),
+  }) => api.put&lt;ProductInfo&gt;(`/shop/product/${productId}`, data),
 
-  deleteProduct: (productId: number) =&gt; api.delete(`/shop/product/${productId}`),
-}
+  deleteProduct: (productId: number) => api.delete(`/shop/product/${productId}`),
 
-export interface ShopDetail extends ShopInfo {
-  categories?: CategoryInfo[]
+  getShopOrders: (params?: {
+    page?: number
+    page_size?: number
+    status?: string
+  }) => api.get&lt;PageResponse&lt;OrderInfo&gt;&gt;('/shop/my/orders', { params }),
+
+  getShopOrderDetail: (orderId: number) => api.get&lt;OrderInfo&gt;(`/shop/my/orders/${orderId}`),
+
+  acceptOrder: (orderId: number) => api.put&lt;OrderInfo&gt;(`/shop/my/orders/${orderId}/accept`),
+
+  rejectOrder: (orderId: number) => api.put&lt;OrderInfo&gt;(`/shop/my/orders/${orderId}/reject`),
+
+  orderReady: (orderId: number) => api.put&lt;OrderInfo&gt;(`/shop/my/orders/${orderId}/ready`),
 }
 
 export const adminApi = {
-  approveShop: (shopId: number) =&gt; api.put&lt;ShopInfo&gt;(`/admin/shop/${shopId}/approve`),
-  rejectShop: (shopId: number) =&gt; api.put&lt;ShopInfo&gt;(`/admin/shop/${shopId}/reject`),
-  listPendingShops: (params?: { page?: number; page_size?: number; keyword?: string }) =&gt;
+  approveShop: (shopId: number) => api.put&lt;ShopInfo&gt;(`/admin/shop/${shopId}/approve`),
+  rejectShop: (shopId: number) => api.put&lt;ShopInfo&gt;(`/admin/shop/${shopId}/reject`),
+  listPendingShops: (params?: { page?: number; page_size?: number; keyword?: string }) =>
     api.get&lt;PageResponse&lt;ShopInfo&gt;&gt;('/admin/shop/pending', { params }),
 }
 

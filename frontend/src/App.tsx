@@ -9,6 +9,7 @@ import ShopLayout from '@/layouts/ShopLayout'
 import RiderLayout from '@/layouts/RiderLayout'
 import AdminLayout from '@/layouts/AdminLayout'
 import UserHome from '@/pages/user/Home'
+import ShopDetail from '@/pages/user/ShopDetail'
 import Cart from '@/pages/user/Cart'
 import Orders from '@/pages/user/Orders'
 import Profile from '@/pages/user/Profile'
@@ -52,8 +53,10 @@ function App() {
           &gt;
             &lt;Route index element={&lt;UserHome /&gt;} /&gt;
             &lt;Route path="home" element={&lt;UserHome /&gt;} /&gt;
+            &lt;Route path="shop/:id" element={&lt;ShopDetail /&gt;} /&gt;
             &lt;Route path="cart" element={&lt;Cart /&gt;} /&gt;
             &lt;Route path="orders" element={&lt;Orders /&gt;} /&gt;
+            &lt;Route path="orders/:id/pay" element={&lt;Orders /&gt;} /&gt;
             &lt;Route path="profile" element={&lt;Profile /&gt;} /&gt;
             &lt;Route path="addresses" element={&lt;Addresses /&gt;} /&gt;
           &lt;/Route&gt;
