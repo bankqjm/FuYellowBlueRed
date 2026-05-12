@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Typography, Tabs, List, Image, Button, Space, message, Spin, Divider } from 'antd'
 import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined } from '@ant-design/icons'
-import { shopApi, ShopDetail, ProductInfo, CategoryInfo } from '../../services/shop'
+import { shopApi, ShopDetail as ShopDetailType, ProductInfo, CategoryInfo } from '../../services/shop'
 import { cartApi, CartItemInfo } from '../../services/order'
 
 const { Title, Text } = Typography
@@ -13,7 +13,7 @@ export default function ShopDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [shop, setShop] = useState<ShopDetail | null>(null)
+  const [shop, setShop] = useState<ShopDetailType | null>(null)
   const [cart, setCart] = useState<CartItemInfo[]>([])
 
   const fetchShopDetail = async () => {
