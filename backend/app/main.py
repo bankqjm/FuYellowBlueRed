@@ -48,7 +48,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -83,14 +83,14 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-app.include_router(auth_router, prefix="/api")
-app.include_router(users_router, prefix="/api")
-app.include_router(upload_router, prefix="/api")
-app.include_router(shop_router, prefix="/api")
-app.include_router(admin_router, prefix="/api")
-app.include_router(orders_router, prefix="/api")
-app.include_router(rider_router, prefix="/api")
-app.include_router(review_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
+app.include_router(upload_router, prefix="/api/v1")
+app.include_router(shop_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(orders_router, prefix="/api/v1")
+app.include_router(rider_router, prefix="/api/v1")
+app.include_router(review_router, prefix="/api/v1")
 
 
 @app.get("/")
