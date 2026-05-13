@@ -10,14 +10,24 @@ import {
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Header, Content } = Layout
 const { Text } = Typography
+
+const tabItems = [
+  { key: '/user/home', icon: <HomeOutlined />, label: '首页' },
+  { key: '/user/cart', icon: <ShoppingCartOutlined />, label: '购物车' },
+  { key: '/user/orders', icon: <InboxOutlined />, label: '订单' },
+  { key: '/user/addresses', icon: <EnvironmentOutlined />, label: '地址' },
+  { key: '/user/profile', icon: <UserOutlined />, label: '我的' },
+]
 
 export default function UserLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { userInfo, logout } = useAuthStore()
+  const isMobile = useIsMobile()
 
   const menuItems: MenuProps['items'] = [
     { key: '/user/home', icon: <HomeOutlined />, label: '首页' },
@@ -46,6 +56,42 @@ export default function UserLayout() {
       localStorage.removeItem('token')
       navigate('/login')
     }
+  }
+
+  const getActiveKey = () => {
+    const path = location.pathname
+    const match = tabItems.find(item => path.startsWith(item.key))
+    return match ? match.key : '/user/home'
+  }
+
+  if (isMobile) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
+        <div className="mobile-header">
+          <span className="header-title" style={{ color: '#1890ff' }}>🍜 外卖</span>
+          <div className="header-right">
+            <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }}>
+              <Avatar icon={<UserOutlined />} src={userInfo?.avatar} size="small" />
+            </Dropdown>
+          </div>
+        </div>
+        <div className="mobile-content">
+          <Outlet />
+        </div>
+        <div className="mobile-bottom-bar">
+          {tabItems.map(item => (
+            <div
+              key={item.key}
+              className={`bar-item ${getActiveKey() === item.key ? 'active' : ''}`}
+              onClick={() => navigate(item.key)}
+            >
+              <span className="bar-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Card, Typography, Row, Col, Statistic, Spin } from 'antd'
 import { ShoppingCartOutlined, UserOutlined, ShopOutlined, DollarOutlined } from '@ant-design/icons'
 import api from '../../services/api'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title } = Typography
 
@@ -17,6 +18,7 @@ interface Stats {
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<Stats | null>(null)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     fetchStats()
@@ -38,6 +40,36 @@ export default function AdminDashboard() {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (isMobile) {
+    return (
+      <div>
+        <Title level={5}>平台概览</Title>
+        <div className="mobile-stats-grid">
+          <div className="stat-card">
+            <div className="stat-value"><UserOutlined /> {stats?.user_count || 0}</div>
+            <div className="stat-label">用户总数</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value"><ShopOutlined /> {stats?.shop_count || 0}</div>
+            <div className="stat-label">商家总数</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#3f8600' }}><ShopOutlined /> {stats?.approved_shop_count || 0}</div>
+            <div className="stat-label">已审核商家</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value"><ShoppingCartOutlined /> {stats?.order_count || 0}</div>
+            <div className="stat-label">订单总数</div>
+          </div>
+        </div>
+        <div className="mobile-card" style={{ textAlign: 'center' }}>
+          <div className="stat-value" style={{ color: '#cf1322' }}><DollarOutlined /> {stats?.pending_order_count || 0}</div>
+          <div className="stat-label">进行中订单</div>
+        </div>
       </div>
     )
   }
@@ -99,4 +131,3 @@ export default function AdminDashboard() {
     </div>
   )
 }
-

@@ -4,6 +4,7 @@ import { Card, Typography, Table, Input, Select, Space, Button, Tag, message, Po
 import { SearchOutlined, StopOutlined, CheckOutlined } from '@ant-design/icons'
 import api from '../../services/api'
 import type { ColumnsType } from 'antd/es/table'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title } = Typography
 
@@ -25,6 +26,7 @@ export default function AdminUsers() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [role, setRole] = useState<string>('')
+  const isMobile = useIsMobile()
 
   const fetchUsers = async () => {
     try {
@@ -56,14 +58,14 @@ export default function AdminUsers() {
     }
   }
 
-  const getRoleTag = (role: string) => {
+  const getRoleTag = (roleStr: string) => {
     const map: Record<string, { text: string; color: string }> = {
       USER: { text: '普通用户', color: 'blue' },
       SHOP_OWNER: { text: '商家', color: 'green' },
       RIDER: { text: '骑手', color: 'orange' },
       ADMIN: { text: '管理员', color: 'red' },
     }
-    return map[role] || { text: role, color: 'default' }
+    return map[roleStr] || { text: roleStr, color: 'default' }
   }
 
   const columns: ColumnsType<UserRecord> = [
@@ -86,8 +88,8 @@ export default function AdminUsers() {
       title: '角色',
       dataIndex: 'role',
       width: 100,
-      render: (role: string) => {
-        const tag = getRoleTag(role)
+      render: (roleStr: string) => {
+        const tag = getRoleTag(roleStr)
         return <Tag color={tag.color}>{tag.text}</Tag>
       },
     },
@@ -136,27 +138,77 @@ export default function AdminUsers() {
     },
   ]
 
+  const renderMobileUsers = () => {
+    if (users.length === 0) {
+      return <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无用户数据</div>
+    }
+    return users.map(user => {
+      const roleTag = getRoleTag(user.role)
+      return (
+        <div className="mobile-card" key={user.id}>
+          <div className="card-row">
+            <span className="label">昵称</span>
+            <span className="value">{user.nickname}</span>
+          </div>
+          <div className="card-row">
+            <span className="label">手机号</span>
+            <span className="value">{user.phone}</span>
+          </div>
+          <div className="card-row">
+            <span className="label">角色</span>
+            <span className="value"><Tag color={roleTag.color}>{roleTag.text}</Tag></span>
+          </div>
+          <div className="card-row">
+            <span className="label">状态</span>
+            <span className="value">
+              <Tag color={user.status === 1 ? 'green' : 'red'}>
+                {user.status === 1 ? '正常' : '禁用'}
+              </Tag>
+            </span>
+          </div>
+          {user.created_at && (
+            <div className="card-row">
+              <span className="label">注册时间</span>
+              <span className="value" style={{ fontSize: 11 }}>{new Date(user.created_at).toLocaleString()}</span>
+            </div>
+          )}
+          <div className="card-actions">
+            {user.status === 1 ? (
+              <Popconfirm title="确定禁用该用户？" onConfirm={() => handleUpdateStatus(user.id, 0)}>
+                <Button size="small" danger icon={<StopOutlined />}>禁用</Button>
+              </Popconfirm>
+            ) : (
+              <Popconfirm title="确定启用该用户？" onConfirm={() => handleUpdateStatus(user.id, 1)}>
+                <Button size="small" type="primary" icon={<CheckOutlined />}>启用</Button>
+              </Popconfirm>
+            )}
+          </div>
+        </div>
+      )
+    })
+  }
+
   return (
     <div>
       <Card>
         <Title level={4}>用户管理</Title>
       </Card>
 
-      <Card style={{ marginTop: 16 }}>
-        <Space style={{ marginBottom: 16 }}>
+      <Card style={{ marginTop: isMobile ? 8 : 16 }}>
+        <Space style={{ marginBottom: 16, flexWrap: 'wrap' }} direction={isMobile ? 'vertical' : 'horizontal'}>
           <Input
             placeholder="搜索手机号/昵称"
             prefix={<SearchOutlined />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            style={{ width: 200 }}
+            style={{ width: isMobile ? '100%' : 200 }}
             allowClear
           />
           <Select
             placeholder="选择角色"
             value={role || undefined}
             onChange={(value) => setRole(value || '')}
-            style={{ width: 120 }}
+            style={{ width: isMobile ? '100%' : 120 }}
             allowClear
           >
             <Select.Option value="USER">普通用户</Select.Option>
@@ -166,26 +218,27 @@ export default function AdminUsers() {
           </Select>
         </Space>
 
-        <Table
-          columns={columns}
-          dataSource={users}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            current: page,
-            pageSize: pageSize,
-            total: total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条`,
-            onChange: (p, ps) => {
-              setPage(p)
-              setPageSize(ps || 20)
-            },
-          }}
-        />
+        {isMobile ? renderMobileUsers() : (
+          <Table
+            columns={columns}
+            dataSource={users}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              current: page,
+              pageSize: pageSize,
+              total: total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => `共 ${total} 条`,
+              onChange: (p, ps) => {
+                setPage(p)
+                setPageSize(ps || 20)
+              },
+            }}
+          />
+        )}
       </Card>
     </div>
   )
 }
-

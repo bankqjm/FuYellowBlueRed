@@ -5,6 +5,7 @@ import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Mod
 import { MinusOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { cartApi, CartItemInfo, orderApi } from '../../services/order'
 import { addressApi, AddressInfo } from '../../services/address'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -12,6 +13,7 @@ const { TextArea } = Input
 
 export default function Cart() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(false)
   const [cart, setCart] = useState<CartItemInfo[]>([])
   const [addresses, setAddresses] = useState<AddressInfo[]>([])
@@ -109,7 +111,6 @@ export default function Cart() {
 
   const cartTotal = getCartTotal()
 
-  // 按店铺分组
   const groupedCart = cart.reduce((acc, item) => {
     if (!acc[item.shop_id]) {
       acc[item.shop_id] = []
@@ -146,42 +147,47 @@ export default function Cart() {
       </Card>
 
       {Object.entries(groupedCart).map(([shopId, items]) => (
-        <Card key={shopId} style={{ marginTop: 16 }} title={items[0].shop_name}>
+        <Card key={shopId} style={{ marginTop: isMobile ? 8 : 16 }} title={items[0].shop_name}>
           <List
             dataSource={items}
             renderItem={(item) => (
               <List.Item
-                actions={[
-                  <Space key="actions">
-                    <Button
-                      size="small"
-                      shape="circle"
-                      icon={<MinusOutlined />}
-                      onClick={() => updateCartItem(item, item.quantity - 1)}
-                    />
-                    <Text>{item.quantity}</Text>
-                    <Button
-                      size="small"
-                      shape="circle"
-                      icon={<PlusOutlined />}
-                      onClick={() => updateCartItem(item, item.quantity + 1)}
-                    />
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => deleteCartItem(item)}
-                    />
-                  </Space>
-                ]}
+                actions={
+                  isMobile ? undefined : [
+                    <Space key="actions">
+                      <Button
+                        size="small"
+                        shape="circle"
+                        icon={<MinusOutlined />}
+                        onClick={() => updateCartItem(item, item.quantity - 1)}
+                      />
+                      <Text>{item.quantity}</Text>
+                      <Button
+                        size="small"
+                        shape="circle"
+                        icon={<PlusOutlined />}
+                        onClick={() => updateCartItem(item, item.quantity + 1)}
+                      />
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteCartItem(item)}
+                      />
+                    </Space>
+                  ]
+                }
               >
                 <List.Item.Meta
                   avatar={
                     item.product_image ? (
-                      <Image src={item.product_image} alt="" width={60} height={60} />
+                      <Image src={item.product_image} alt="" width={isMobile ? 48 : 60} height={isMobile ? 48 : 60} style={{ borderRadius: 6 }} />
                     ) : (
-                      <div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: '#999' }}>商品</span>
+                      <div style={{
+                        width: isMobile ? 48 : 60, height: isMobile ? 48 : 60, background: '#f0f0f0',
+                        borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        <span style={{ color: '#999', fontSize: 12 }}>商品</span>
                       </div>
                     )
                   }
@@ -189,6 +195,19 @@ export default function Cart() {
                   description={
                     <div>
                       <Text type="danger">¥{item.product_price?.toFixed(2)}</Text>
+                      {isMobile && (
+                        <div style={{ marginTop: 4 }}>
+                          <Space size="small">
+                            <Button size="small" shape="circle" icon={<MinusOutlined />}
+                              onClick={() => updateCartItem(item, item.quantity - 1)} />
+                            <Text>{item.quantity}</Text>
+                            <Button size="small" shape="circle" icon={<PlusOutlined />}
+                              onClick={() => updateCartItem(item, item.quantity + 1)} />
+                            <Button type="text" danger size="small" icon={<DeleteOutlined />}
+                              onClick={() => deleteCartItem(item)} />
+                          </Space>
+                        </div>
+                      )}
                     </div>
                   }
                 />
@@ -201,13 +220,15 @@ export default function Cart() {
       <Card
         style={{
           position: 'fixed',
-          bottom: 0,
+          bottom: isMobile ? 56 : 0,
           left: 0,
           right: 0,
           boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+          zIndex: 99,
+          borderRadius: 0,
         }}
       >
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <div>
             <Text>共</Text>
             <Text strong style={{ marginLeft: 4, marginRight: 4 }}>{cartTotal.quantity}</Text>
@@ -215,9 +236,11 @@ export default function Cart() {
             <Text type="danger" strong style={{ fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
           </div>
           <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/user/home')}>
-              继续购物
-            </Button>
+            {!isMobile && (
+              <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/user/home')}>
+                继续购物
+              </Button>
+            )}
             <Button type="primary" size="large" onClick={() => setCheckoutModalVisible(true)}>
               去结算
             </Button>
@@ -230,7 +253,7 @@ export default function Cart() {
         open={checkoutModalVisible}
         onCancel={() => setCheckoutModalVisible(false)}
         onOk={handleCheckout}
-        width={600}
+        width={isMobile ? undefined : 600}
       >
         <Form form={form} layout="vertical">
           <Form.Item label="收货地址" name="address" rules={[{ required: true, message: '请选择收货地址' }]}>
@@ -267,4 +290,3 @@ export default function Cart() {
     </div>
   )
 }
-

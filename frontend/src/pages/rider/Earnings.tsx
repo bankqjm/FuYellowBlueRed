@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Card, Typography, Statistic, Row, Col, List, Empty, Spin } from 'antd'
 import { WalletOutlined, AccountBookOutlined } from '@ant-design/icons'
 import { riderApi, EarningsInfo, EarningsSummary } from '../../services/rider'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title, Text } = Typography
 
@@ -10,6 +11,7 @@ export default function RiderEarnings() {
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<EarningsSummary | null>(null)
   const [earnings, setEarnings] = useState<EarningsInfo[]>([])
+  const isMobile = useIsMobile()
 
   const fetchSummary = async () => {
     try {
@@ -41,6 +43,49 @@ export default function RiderEarnings() {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (isMobile) {
+    return (
+      <div>
+        <div className="mobile-stats-grid">
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#3f8600' }}>
+              <AccountBookOutlined /> {summary?.total_earnings?.toFixed(2) || '0.00'}
+            </div>
+            <div className="stat-label">累计收入</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value" style={{ color: '#cf1322' }}>
+              <WalletOutlined /> {summary?.balance?.toFixed(2) || '0.00'}
+            </div>
+            <div className="stat-label">可提现余额</div>
+          </div>
+        </div>
+
+        <div className="mobile-card">
+          <div className="card-title">收入明细</div>
+          {earnings.length === 0 ? (
+            <Empty description="暂无收入记录" style={{ marginTop: 30 }} />
+          ) : (
+            earnings.map(item => (
+              <div key={item.order_id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '8px 0', borderBottom: '1px solid #f5f5f5'
+              }}>
+                <div>
+                  <div style={{ fontSize: 13 }}>订单 #{item.order_id}</div>
+                  <div style={{ fontSize: 11, color: '#999' }}>
+                    {item.created_at ? new Date(item.created_at).toLocaleString() : ''}
+                  </div>
+                </div>
+                <Text type="success" strong>+¥{item.amount.toFixed(2)}</Text>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     )
   }
@@ -98,4 +143,3 @@ export default function RiderEarnings() {
     </div>
   )
 }
-

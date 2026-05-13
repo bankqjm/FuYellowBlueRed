@@ -4,6 +4,7 @@ import { Form, Input, Button, Card, Typography, Space, Select, message } from 'a
 import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons'
 import { authApi } from '@/services/auth'
 import { useAuthStore } from '@/stores/authStore'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title } = Typography
 
@@ -17,6 +18,20 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
+  const isMobile = useIsMobile()
+
+  const getHomePath = (role: string) => {
+    switch (role) {
+      case 'SHOP_OWNER':
+        return '/shop'
+      case 'RIDER':
+        return '/rider'
+      case 'ADMIN':
+        return '/admin'
+      default:
+        return '/user/home'
+    }
+  }
 
   const onFinish = async (values: {
     phone: string
@@ -39,9 +54,8 @@ export default function Register() {
         status: 1,
       })
       message.success('注册成功！')
-      navigate('/user/home')
+      navigate(getHomePath(data.role))
     } catch {
-      // error handled by interceptor
     } finally {
       setLoading(false)
     }
@@ -54,8 +68,14 @@ export default function Register() {
       justifyContent: 'center',
       alignItems: 'center',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: isMobile ? '16px' : 0,
     }}>
-      <Card style={{ width: 400, boxShadow: '0 14px 30px rgba(0,0,0,0.15)' }}>
+      <Card style={{
+        width: isMobile ? '100%' : 400,
+        maxWidth: 400,
+        boxShadow: '0 14px 30px rgba(0,0,0,0.15)',
+        borderRadius: isMobile ? 12 : 8,
+      }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Title level={3} style={{ textAlign: 'center', marginBottom: 0 }}>
             🍜 FuYellowBlueRed

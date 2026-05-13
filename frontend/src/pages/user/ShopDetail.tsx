@@ -5,13 +5,14 @@ import { Card, Typography, Tabs, List, Image, Button, Space, message, Spin } fro
 import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined } from '@ant-design/icons'
 import { shopApi, ShopDetail as ShopDetailType, ProductInfo } from '../../services/shop'
 import { cartApi, CartItemInfo } from '../../services/order'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title, Text } = Typography
-const { TabPane } = Tabs
 
 export default function ShopDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(false)
   const [shop, setShop] = useState<ShopDetailType | null>(null)
   const [cart, setCart] = useState<CartItemInfo[]>([])
@@ -105,20 +106,90 @@ export default function ShopDetail() {
     return <div>店铺不存在</div>
   }
 
+  const tabItems = (shop.categories || []).map(category => ({
+    key: category.id.toString(),
+    label: category.name,
+    children: (
+      <List
+        dataSource={category.products?.filter(p => p.status === 1)}
+        renderItem={product => {
+          const count = getProductCountInCart(product.id)
+          return (
+            <List.Item style={{ padding: isMobile ? '8px 0' : undefined }}>
+              <Space style={{ width: '100%', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                {product.image ? (
+                  <Image src={product.image} alt="" width={isMobile ? 60 : 80} height={isMobile ? 60 : 80} style={{ borderRadius: 6 }} />
+                ) : (
+                  <div style={{
+                    width: isMobile ? 60 : 80, height: isMobile ? 60 : 80, background: '#f0f0f0',
+                    borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <span style={{ color: '#999' }}>商品</span>
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Title level={5} style={{ margin: 0 }}>{product.name}</Title>
+                  {product.description && <Text type="secondary" style={{ fontSize: 12 }}>{product.description}</Text>}
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="danger" strong style={{ fontSize: isMobile ? 16 : 18 }}>¥{product.price.toFixed(2)}</Text>
+                    {product.original_price && product.original_price > product.price && (
+                      <Text delete style={{ marginLeft: 8, fontSize: 12 }}>¥{product.original_price.toFixed(2)}</Text>
+                    )}
+                  </div>
+                </div>
+                <Space>
+                  {count > 0 ? (
+                    <>
+                      <Button
+                        size="small"
+                        shape="circle"
+                        icon={<MinusOutlined />}
+                        onClick={() => updateCartItem(product, count - 1)}
+                      />
+                      <Text>{count}</Text>
+                      <Button
+                        size="small"
+                        shape="circle"
+                        icon={<PlusOutlined />}
+                        onClick={() => updateCartItem(product, count + 1)}
+                      />
+                    </>
+                  ) : (
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => addToCart(product)}
+                    >
+                      加入购物车
+                    </Button>
+                  )}
+                </Space>
+              </Space>
+            </List.Item>
+          )
+        }}
+      />
+    ),
+  }))
+
   return (
     <div>
       <Card>
         <Space direction="vertical" style={{ width: '100%' }}>
           <Space>
             {shop.logo ? (
-              <Image src={shop.logo} alt="" width={80} height={80} />
+              <Image src={shop.logo} alt="" width={isMobile ? 60 : 80} height={isMobile ? 60 : 80} style={{ borderRadius: 8 }} />
             ) : (
-              <div style={{ width: 80, height: 80, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                width: isMobile ? 60 : 80, height: isMobile ? 60 : 80, background: '#f0f0f0',
+                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
                 <span style={{ color: '#999' }}>店铺</span>
               </div>
             )}
             <div>
-              <Title level={4} style={{ margin: 0 }}>{shop.name}</Title>
+              <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>{shop.name}</Title>
               <Text><StarOutlined style={{ color: '#faad14' }} /> {shop.rating}</Text>
             </div>
           </Space>
@@ -131,80 +202,20 @@ export default function ShopDetail() {
         </Space>
       </Card>
 
-      <Card style={{ marginTop: 16 }}>
-        <Tabs defaultActiveKey={shop.categories?.[0]?.id?.toString() || '0'}>
-          {shop.categories?.map(category => (
-            <TabPane tab={category.name} key={category.id.toString()}>
-              <List
-                dataSource={category.products?.filter(p => p.status === 1)}
-                renderItem={product => {
-                  const count = getProductCountInCart(product.id)
-                  return (
-                    <List.Item>
-                      <Space style={{ width: '100%' }}>
-                        {product.image ? (
-                          <Image src={product.image} alt="" width={80} height={80} />
-                        ) : (
-                          <div style={{ width: 80, height: 80, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ color: '#999' }}>商品</span>
-                          </div>
-                        )}
-                        <div style={{ flex: 1 }}>
-                          <Title level={5} style={{ margin: 0 }}>{product.name}</Title>
-                          {product.description && <Text type="secondary">{product.description}</Text>}
-                          <div style={{ marginTop: 8 }}>
-                            <Text type="danger" strong style={{ fontSize: 18 }}>¥{product.price.toFixed(2)}</Text>
-                            {product.original_price && product.original_price > product.price && (
-                              <Text delete style={{ marginLeft: 8 }}>¥{product.original_price.toFixed(2)}</Text>
-                            )}
-                          </div>
-                        </div>
-                        <Space>
-                          {count > 0 ? (
-                            <>
-                              <Button
-                                size="small"
-                                shape="circle"
-                                icon={<MinusOutlined />}
-                                onClick={() => updateCartItem(product, count - 1)}
-                              />
-                              <Text>{count}</Text>
-                              <Button
-                                size="small"
-                                shape="circle"
-                                icon={<PlusOutlined />}
-                                onClick={() => updateCartItem(product, count + 1)}
-                              />
-                            </>
-                          ) : (
-                            <Button
-                              type="primary"
-                              size="small"
-                              icon={<PlusOutlined />}
-                              onClick={() => addToCart(product)}
-                            >
-                              加入购物车
-                            </Button>
-                          )}
-                        </Space>
-                      </Space>
-                    </List.Item>
-                  )
-                }}
-              />
-            </TabPane>
-          ))}
-        </Tabs>
+      <Card style={{ marginTop: isMobile ? 8 : 16 }}>
+        <Tabs defaultActiveKey={shop.categories?.[0]?.id?.toString() || '0'} items={tabItems} />
       </Card>
 
       {cartTotal.quantity > 0 && (
         <Card
           style={{
             position: 'fixed',
-            bottom: 0,
+            bottom: isMobile ? 56 : 0,
             left: 0,
             right: 0,
             boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+            zIndex: 99,
+            borderRadius: 0,
           }}
         >
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -230,4 +241,3 @@ export default function ShopDetail() {
     </div>
   )
 }
-
