@@ -1,4 +1,4 @@
-# 外卖平台开源项目 — MVP 需求规格说明书
+# 外卖平台开源项目 — 需求规格说明书 v2.0
 
 ## 1. 项目概述
 
@@ -60,7 +60,7 @@ MVP 阶段聚焦**核心订单闭环**：用户浏览商家 → 加购下单 →
 #### 3.2.2 商品管理
 
 - 商品分类管理（增删改排序）
-- 商品管理（名称、图片、价格、原价、描述、库存、上架/下架）
+- 商品管理（名称、图片、价格，原价、描述、库存、上架/下架）
 - 商品按分类展示
 
 #### 3.2.3 订单处理
@@ -167,9 +167,136 @@ PENDING_PAYMENT → PAID → PENDING_ACCEPT → ACCEPTED → PREPARING → READY
 
 ---
 
-## 6. 技术架构
+## 6. 架构需求
 
-### 6.1 技术栈
+### 6.1 后端架构
+
+#### 6.1.1 分层架构
+
+```
+backend/app/
+├── api/                    # API 路由层
+│   ├── v1/               # API 版本控制
+│   │   ├── auth.py
+│   │   ├── users.py
+│   │   ├── shops.py
+│   │   ├── orders.py
+│   │   ├── riders.py
+│   │   ├── reviews.py
+│   │   └── admin.py
+│   └── deps.py          # 依赖注入
+├── services/             # 业务逻辑层
+│   ├── auth_service.py
+│   ├── user_service.py
+│   ├── order_service.py
+│   └── ...
+├── schemas/              # 数据模型层（Pydantic）
+├── models/              # 数据库模型（SQLAlchemy）
+├── core/                 # 核心配置
+│   ├── config.py
+│   ├── security.py
+│   └── exceptions.py
+└── main.py
+```
+
+#### 6.1.2 依赖注入
+
+- 使用 FastAPI 依赖注入系统管理：
+  - 数据库会话
+  - 当前用户
+  - 配置
+
+#### 6.1.3 异常处理体系
+
+```python
+class BaseAPIException(Exception):
+    status_code: int = 400
+    message: str
+    error_code: str
+
+class NotFoundException(BaseAPIException):
+    status_code = 404
+    error_code = "NOT_FOUND"
+
+class UnauthorizedException(BaseAPIException):
+    status_code = 401
+    error_code = "UNAUTHORIZED"
+
+class ForbiddenException(BaseAPIException):
+    status_code = 403
+    error_code = "FORBIDDEN"
+```
+
+#### 6.1.4 配置分层
+
+```python
+# 开发环境
+DATABASE_URL=sqlite:///./dev.db
+DEBUG=True
+
+# 生产环境
+DATABASE_URL=mysql://user:pass@host/db
+DEBUG=False
+```
+
+#### 6.1.5 API 版本控制
+
+- 所有 API 添加版本前缀：`/api/v1/`
+- 便于未来 API 演进
+
+### 6.2 前端架构
+
+#### 6.2.1 分层结构
+
+```
+frontend/src/
+├── pages/               # 页面组件
+│   ├── user/
+│   │   ├── Home/
+│   │   │   ├── index.tsx
+│   │   │   ├── components/
+│   │   │   └── hooks/
+│   │   └── ...
+├── components/          # 通用组件
+│   ├── ErrorBoundary/
+│   └── Loading/
+├── hooks/              # 自定义 Hooks
+│   ├── useOrders.ts
+│   ├── useCart.ts
+│   └── useAuth.ts
+├── services/           # API 服务
+├── stores/            # 状态管理
+└── utils/             # 工具函数
+```
+
+#### 6.2.2 组件设计原则
+
+- 单一职责：每个组件只负责一个功能
+- 可复用性：通用组件抽离到 components 目录
+- 可测试性：业务逻辑通过 hooks 隔离
+
+### 6.3 数据库架构
+
+#### 6.3.1 索引优化
+
+| 表名 | 索引字段 | 用途 |
+|------|----------|------|
+| orders | user_id, status, created_at | 订单查询优化 |
+| products | shop_id, category_id | 商品查询优化 |
+| reviews | shop_id | 评价列表查询 |
+| cart_items | user_id | 购物车查询 |
+
+#### 6.3.2 软删除（可选）
+
+- 关键数据支持软删除
+- `deleted_at` 字段记录删除时间
+- 查询时自动过滤已删除数据
+
+---
+
+## 7. 技术架构
+
+### 7.1 技术栈
 
 | 层级 | 技术选型 | 说明 |
 |------|----------|------|
@@ -180,7 +307,7 @@ PENDING_PAYMENT → PAID → PENDING_ACCEPT → ACCEPTED → PREPARING → READY
 | 认证 | JWT (PyJWT) | 无状态 Token 鉴权 |
 | 部署 | Docker + Docker Compose | 一键启动所有服务 |
 
-### 6.2 项目结构（规划）
+### 7.2 项目结构（规划）
 
 ```
 FuYellowBlueRed/
@@ -192,13 +319,8 @@ FuYellowBlueRed/
 │   │   ├── models/          # SQLAlchemy 模型
 │   │   ├── schemas/         # Pydantic 数据模型
 │   │   ├── api/             # API 路由
-│   │   │   ├── auth.py
-│   │   │   ├── users.py
-│   │   │   ├── shops.py
-│   │   │   ├── products.py
-│   │   │   ├── orders.py
-│   │   │   ├── riders.py
-│   │   │   └── admin.py
+│   │   │   ├── v1/          # API 版本
+│   │   │   └── deps.py      # 依赖注入
 │   │   ├── services/        # 业务逻辑层
 │   │   └── utils/           # 工具函数
 │   ├── alembic/             # 数据库迁移
@@ -209,6 +331,7 @@ FuYellowBlueRed/
 │   ├── src/
 │   │   ├── pages/           # 页面组件
 │   │   ├── components/      # 通用组件
+│   │   ├── hooks/           # 自定义 Hooks
 │   │   ├── services/        # API 调用
 │   │   ├── stores/          # 状态管理
 │   │   └── utils/           # 工具函数
@@ -219,7 +342,7 @@ FuYellowBlueRed/
 └── README.md
 ```
 
-### 6.3 API 设计原则
+### 7.3 API 设计原则
 
 - RESTful 风格
 - 统一响应格式：`{ "code": 0, "message": "success", "data": {...} }`
@@ -229,9 +352,9 @@ FuYellowBlueRed/
 
 ---
 
-## 7. 数据模型
+## 8. 数据模型
 
-### 7.1 核心实体
+### 8.1 核心实体
 
 ```
 users ──1:1── wallets
@@ -245,7 +368,7 @@ users ──1:1── wallets
   └──1:N── withdrawal_records
 ```
 
-### 7.2 主要字段
+### 8.2 主要字段
 
 **users** — 用户表
 
@@ -383,7 +506,7 @@ users ──1:1── wallets
 
 ---
 
-## 8. 配送费计算规则（MVP 简化）
+## 9. 配送费计算规则（MVP 简化）
 
 - 基础配送费：3 元（3km 以内）
 - 超出部分：每增加 1km 加收 1 元
@@ -393,9 +516,9 @@ users ──1:1── wallets
 
 ---
 
-## 9. 前端页面规划
+## 10. 前端页面规划
 
-### 9.1 消费者端
+### 10.1 消费者端
 
 | 页面 | 路径 | 说明 |
 |------|------|------|
@@ -409,7 +532,7 @@ users ──1:1── wallets
 | 收货地址管理 | /addresses | 增删改查 |
 | 个人中心 | /profile | 个人信息 |
 
-### 9.2 商家端
+### 10.2 商家端
 
 | 页面 | 路径 | 说明 |
 |------|------|------|
@@ -419,7 +542,7 @@ users ──1:1── wallets
 | 订单管理 | /shop/orders | 接单/备餐/完成 |
 | 开店申请 | /shop/apply | 提交申请 |
 
-### 9.3 骑手端
+### 10.3 骑手端
 
 | 页面 | 路径 | 说明 |
 |------|------|------|
@@ -428,7 +551,7 @@ users ──1:1── wallets
 | 收入明细 | /rider/earnings | 收入记录 |
 | 提现 | /rider/withdraw | 模拟提现 |
 
-### 9.4 管理端
+### 10.4 管理端
 
 | 页面 | 路径 | 说明 |
 |------|------|------|
@@ -438,7 +561,7 @@ users ──1:1── wallets
 
 ---
 
-## 10. 非功能需求
+## 11. 非功能需求
 
 | 项目 | MVP 目标 |
 |------|----------|
@@ -451,7 +574,7 @@ users ──1:1── wallets
 
 ---
 
-## 11. 里程碑规划
+## 12. 里程碑规划
 
 | 阶段 | 内容 | 交付物 |
 |------|------|--------|
@@ -461,3 +584,37 @@ users ──1:1── wallets
 | M4 — 骑手配送 | 骑手接单、取餐、送达、收入管理 | 完整订单闭环 |
 | M5 — 评价与管理 | 评价系统、管理后台、基础统计 | 全角色功能闭环 |
 | M6 — 打磨优化 | UI 优化、错误处理、文档完善 | 可发布版本 |
+
+---
+
+## 13. 架构改进需求（Phase 2）
+
+> 以下为架构优化需求，将在 MVP 完成后实施
+
+### 13.1 后端架构优化
+
+| 需求 | 说明 | 优先级 |
+|------|------|--------|
+| Service 层抽取 | 将业务逻辑从 API 路由分离到独立 Service 层 | P0 |
+| 统一异常处理 | 建立异常处理体系，统一错误响应格式 | P0 |
+| API 版本控制 | `/api/v1/` 前缀，便于未来 API 演进 | P1 |
+| 配置分层 | 开发/生产环境配置分离 | P1 |
+| 日志审计 | 结构化日志记录关键操作 | P1 |
+
+### 13.2 前端架构优化
+
+| 需求 | 说明 | 优先级 |
+|------|------|--------|
+| Hooks 抽取 | 抽取 useOrders、useCart 等自定义 Hooks | P1 |
+| 组件拆分 | 页面组件拆分为更小的可复用组件 | P1 |
+| 错误边界 | 统一错误处理组件 | P2 |
+| 加载骨架屏 | 提升首屏加载体验 | P2 |
+
+### 13.3 数据库优化
+
+| 需求 | 说明 | 优先级 |
+|------|------|--------|
+| 添加索引 | orders, products, reviews 表索引优化 | P0 |
+| 连接池配置 | 数据库连接池大小配置 | P1 |
+| 软删除预留 | deleted_at 字段预留 | P2 |
+

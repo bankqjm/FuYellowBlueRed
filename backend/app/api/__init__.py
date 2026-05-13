@@ -1,0 +1,21 @@
+from app.api.v1 import (
+    auth_router,
+    users_router,
+    upload_router,
+    shop_router,
+    admin_router,
+    orders_router,
+    rider_router,
+    review_router,
+)
+
+__all__ = [
+    "auth_router",
+    "users_router",
+    "upload_router",
+    "shop_router",
+    "admin_router",
+    "orders_router",
+    "rider_router",
+    "review_router",
+]
