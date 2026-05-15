@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Typography, Tabs, List, Image, Button, Space, message, Spin } from 'antd'
-import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined } from '@ant-design/icons'
-import { shopApi, ShopDetail as ShopDetailType, ProductInfo } from '../../services/shop'
+import { Card, Typography, List, Image, Button, Space, message, Spin, Tag } from 'antd'
+import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined, ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons'
+import { shopApi, ShopDetail as ShopDetailType, ProductInfo, CategoryInfo } from '../../services/shop'
 import { cartApi, CartItemInfo } from '../../services/order'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -16,6 +16,9 @@ export default function ShopDetail() {
   const [loading, setLoading] = useState(false)
   const [shop, setShop] = useState<ShopDetailType | null>(null)
   const [cart, setCart] = useState<CartItemInfo[]>([])
+  const [activeCategory, setActiveCategory] = useState<number | null>(null)
+
+  const MIN_ORDER = 20
 
   const fetchShopDetail = async () => {
     if (!id) return
@@ -23,6 +26,9 @@ export default function ShopDetail() {
       setLoading(true)
       const res = await shopApi.getShopDetail(parseInt(id))
       setShop(res.data)
+      if (res.data.categories && res.data.categories.length > 0) {
+        setActiveCategory(res.data.categories[0].id)
+      }
     } catch (error) {
       console.error('获取商家详情失败', error)
     } finally {
@@ -76,7 +82,6 @@ export default function ShopDetail() {
       } else {
         await cartApi.updateCartItem(cartItem.id, { quantity })
       }
-      message.success('购物车已更新')
       fetchCart()
     } catch (error) {
       console.error('更新购物车失败', error)
@@ -93,150 +98,255 @@ export default function ShopDetail() {
   }
 
   const cartTotal = getCartTotalForShop()
+  const diffToMinOrder = MIN_ORDER - cartTotal.price
 
-  if (loading) {
+  const renderProductItem = (product: ProductInfo) => {
+    const count = getProductCountInCart(product.id)
     return (
-      <div style={{ textAlign: 'center', padding: 50 }}>
-        <Spin size="large" />
+      <div
+        key={product.id}
+        style={{
+          display: 'flex', gap: isMobile ? 8 : 12,
+          padding: isMobile ? '10px 0' : '12px 0',
+          borderBottom: '1px solid #f5f5f5'
+        }}
+      >
+        {product.image ? (
+          <Image
+            src={product.image} alt=""
+            width={isMobile ? 64 : 80} height={isMobile ? 64 : 80}
+            style={{ borderRadius: 8, flexShrink: 0, objectFit: 'cover' }}
+            preview={false}
+          />
+        ) : (
+          <div style={{
+            width: isMobile ? 64 : 80, height: isMobile ? 64 : 80, background: '#f0f0f0',
+            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0, fontSize: 12, color: '#999'
+          }}>
+            商品
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: isMobile ? 13 : 14, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {product.name}
+          </div>
+          {product.description && (
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {product.description}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <Text type="danger" strong style={{ fontSize: isMobile ? 15 : 17 }}>¥{product.price.toFixed(2)}</Text>
+              {product.original_price && product.original_price > product.price && (
+                <Text delete style={{ marginLeft: 6, fontSize: 11, color: '#999' }}>¥{product.original_price.toFixed(2)}</Text>
+              )}
+            </div>
+            <div>
+              {count > 0 ? (
+                <Space size={4}>
+                  <Button
+                    size="small" shape="circle" icon={<MinusOutlined />}
+                    onClick={(e) => { e.stopPropagation(); updateCartItem(product, count - 1) }}
+                  />
+                  <Text strong style={{ minWidth: 20, textAlign: 'center' }}>{count}</Text>
+                  <Button
+                    size="small" shape="circle" type="primary" icon={<PlusOutlined />}
+                    onClick={(e) => { e.stopPropagation(); updateCartItem(product, count + 1) }}
+                  />
+                </Space>
+              ) : (
+                <Button
+                  type="primary" size="small"
+                  icon={<PlusOutlined />}
+                  onClick={(e) => { e.stopPropagation(); addToCart(product) }}
+                  style={{ borderRadius: 16 }}
+                >
+                  加入
+                </Button>
+              )}
+            </div>
+          </div>
+          {product.sales > 0 && (
+            <Text type="secondary" style={{ fontSize: 10 }}>月售{product.sales}</Text>
+          )}
+        </div>
       </div>
     )
+  }
+
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: 50 }}><Spin size="large" /></div>
   }
 
   if (!shop) {
     return <div>店铺不存在</div>
   }
 
-  const tabItems = (shop.categories || []).map(category => ({
-    key: category.id.toString(),
-    label: category.name,
-    children: (
-      <List
-        dataSource={category.products?.filter(p => p.status === 1)}
-        renderItem={product => {
-          const count = getProductCountInCart(product.id)
-          return (
-            <List.Item style={{ padding: isMobile ? '8px 0' : undefined }}>
-              <Space style={{ width: '100%', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-                {product.image ? (
-                  <Image src={product.image} alt="" width={isMobile ? 60 : 80} height={isMobile ? 60 : 80} style={{ borderRadius: 6 }} />
-                ) : (
-                  <div style={{
-                    width: isMobile ? 60 : 80, height: isMobile ? 60 : 80, background: '#f0f0f0',
-                    borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    <span style={{ color: '#999' }}>商品</span>
-                  </div>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Title level={5} style={{ margin: 0 }}>{product.name}</Title>
-                  {product.description && <Text type="secondary" style={{ fontSize: 12 }}>{product.description}</Text>}
-                  <div style={{ marginTop: 4 }}>
-                    <Text type="danger" strong style={{ fontSize: isMobile ? 16 : 18 }}>¥{product.price.toFixed(2)}</Text>
-                    {product.original_price && product.original_price > product.price && (
-                      <Text delete style={{ marginLeft: 8, fontSize: 12 }}>¥{product.original_price.toFixed(2)}</Text>
-                    )}
-                  </div>
-                </div>
-                <Space>
-                  {count > 0 ? (
-                    <>
-                      <Button
-                        size="small"
-                        shape="circle"
-                        icon={<MinusOutlined />}
-                        onClick={() => updateCartItem(product, count - 1)}
-                      />
-                      <Text>{count}</Text>
-                      <Button
-                        size="small"
-                        shape="circle"
-                        icon={<PlusOutlined />}
-                        onClick={() => updateCartItem(product, count + 1)}
-                      />
-                    </>
-                  ) : (
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<PlusOutlined />}
-                      onClick={() => addToCart(product)}
-                    >
-                      加入购物车
-                    </Button>
-                  )}
-                </Space>
-              </Space>
-            </List.Item>
-          )
-        }}
-      />
-    ),
-  }))
+  const categories = shop.categories || []
+  const activeCategoryData = categories.find(c => c.id === activeCategory)
+  const activeProducts = activeCategoryData?.products?.filter(p => p.status === 1) || []
 
   return (
     <div>
-      <Card>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Space>
-            {shop.logo ? (
-              <Image src={shop.logo} alt="" width={isMobile ? 60 : 80} height={isMobile ? 60 : 80} style={{ borderRadius: 8 }} />
-            ) : (
-              <div style={{
-                width: isMobile ? 60 : 80, height: isMobile ? 60 : 80, background: '#f0f0f0',
-                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <span style={{ color: '#999' }}>店铺</span>
-              </div>
-            )}
-            <div>
-              <Title level={isMobile ? 5 : 4} style={{ margin: 0 }}>{shop.name}</Title>
-              <Text><StarOutlined style={{ color: '#faad14' }} /> {shop.rating}</Text>
-            </div>
-          </Space>
-          {shop.notice && (
-            <div>
-              <Text type="secondary">店铺公告：</Text>
-              <Text>{shop.notice}</Text>
+      <div style={{
+        background: 'linear-gradient(135deg, #ff9a44, #fc6076)',
+        padding: isMobile ? '16px' : '24px',
+        borderRadius: isMobile ? 0 : 12,
+        marginBottom: isMobile ? 0 : 16,
+        color: '#fff'
+      }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {shop.logo ? (
+            <Image src={shop.logo} alt="" width={isMobile ? 56 : 72} height={isMobile ? 56 : 72} style={{ borderRadius: 10, flexShrink: 0 }} preview={false} />
+          ) : (
+            <div style={{
+              width: isMobile ? 56 : 72, height: isMobile ? 56 : 72, background: 'rgba(255,255,255,0.3)',
+              borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, fontSize: 28
+            }}>
+              🏪
             </div>
           )}
-        </Space>
-      </Card>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, marginBottom: 4 }}>{shop.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <span><StarOutlined style={{ color: '#faad14' }} /> {shop.rating}</span>
+              <span>月售2000+</span>
+              <span><ClockCircleOutlined /> 约30分钟</span>
+            </div>
+            <div style={{ fontSize: 12, marginTop: 4, opacity: 0.9 }}>
+              ¥{MIN_ORDER}起送 | 配送费¥3
+            </div>
+          </div>
+        </div>
+        {shop.notice && (
+          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.9, background: 'rgba(255,255,255,0.15)', padding: '6px 10px', borderRadius: 6 }}>
+            📢 {shop.notice}
+          </div>
+        )}
+        <div style={{ marginTop: 8, display: 'flex', gap: 4 }}>
+          <Tag color="volcano" style={{ margin: 0, fontSize: 11 }}>满20减5</Tag>
+          <Tag color="volcano" style={{ margin: 0, fontSize: 11 }}>满40减10</Tag>
+        </div>
+      </div>
 
-      <Card style={{ marginTop: isMobile ? 8 : 16 }}>
-        <Tabs defaultActiveKey={shop.categories?.[0]?.id?.toString() || '0'} items={tabItems} />
-      </Card>
+      {isMobile ? (
+        <div style={{ display: 'flex', background: '#fff', minHeight: 'calc(100vh - 300px)' }}>
+          <div style={{
+            width: 80, flexShrink: 0, background: '#f5f5f5',
+            overflowY: 'auto', borderRight: '1px solid #f0f0f0'
+          }}>
+            {categories.map(cat => (
+              <div
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                style={{
+                  padding: '12px 6px', fontSize: 12, textAlign: 'center',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  background: activeCategory === cat.id ? '#fff' : 'transparent',
+                  color: activeCategory === cat.id ? '#1890ff' : '#666',
+                  fontWeight: activeCategory === cat.id ? 600 : 400,
+                  borderLeft: activeCategory === cat.id ? '3px solid #1890ff' : '3px solid transparent',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                }}
+              >
+                {cat.name}
+              </div>
+            ))}
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, padding: '10px 0 4px', color: '#333' }}>
+              {activeCategoryData?.name}
+            </div>
+            {activeProducts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 30, color: '#999' }}>暂无商品</div>
+            ) : (
+              activeProducts.map(renderProductItem)
+            )}
+          </div>
+        </div>
+      ) : (
+        <Card>
+          <div style={{ display: 'flex', gap: 0 }}>
+            <div style={{
+              width: 120, flexShrink: 0, borderRight: '1px solid #f0f0f0',
+              marginRight: 16
+            }}>
+              {categories.map(cat => (
+                <div
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  style={{
+                    padding: '10px 12px', fontSize: 13, cursor: 'pointer',
+                    background: activeCategory === cat.id ? '#e6f7ff' : 'transparent',
+                    color: activeCategory === cat.id ? '#1890ff' : '#666',
+                    fontWeight: activeCategory === cat.id ? 600 : 400,
+                    borderRight: activeCategory === cat.id ? '3px solid #1890ff' : '3px solid transparent',
+                    borderRadius: activeCategory === cat.id ? '4px 0 0 4px' : 0,
+                    marginBottom: 2
+                  }}
+                >
+                  {cat.name}
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: 1 }}>
+              <Title level={5} style={{ margin: '0 0 12px 0' }}>{activeCategoryData?.name}</Title>
+              {activeProducts.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 30, color: '#999' }}>暂无商品</div>
+              ) : (
+                activeProducts.map(renderProductItem)
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {cartTotal.quantity > 0 && (
-        <Card
+        <div
           style={{
             position: 'fixed',
             bottom: isMobile ? 56 : 0,
             left: 0,
             right: 0,
-            boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+            background: '#333',
+            padding: '8px 16px',
             zIndex: 99,
-            borderRadius: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-            <Space>
-              <ShoppingCartOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-              <div>
-                <div>
-                  <Text type="danger" strong style={{ fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>共{cartTotal.quantity}件</Text>
-                </div>
-              </div>
-            </Space>
-            <Button
-              type="primary"
-              size="large"
-              onClick={() => navigate(`/user/cart`)}
-            >
-              去购物车
-            </Button>
-          </Space>
-        </Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ position: 'relative' }}>
+              <ShoppingCartOutlined style={{ fontSize: 28, color: '#1890ff' }} />
+              <span style={{
+                position: 'absolute', top: -8, right: -8,
+                background: '#ff4d4f', color: '#fff', fontSize: 10,
+                borderRadius: 10, padding: '0 5px', lineHeight: '16px',
+                fontWeight: 700
+              }}>
+                {cartTotal.quantity}
+              </span>
+            </div>
+            <div>
+              <Text style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
+              {diffToMinOrder > 0 && (
+                <div style={{ fontSize: 10, color: '#faad14' }}>再选¥{diffToMinOrder.toFixed(0)}享满减优惠</div>
+              )}
+            </div>
+          </div>
+          <Button
+            type="primary"
+            size="large"
+            style={{ borderRadius: 20, minWidth: 100, fontWeight: 600 }}
+            onClick={() => navigate('/user/cart')}
+          >
+            去结算
+          </Button>
+        </div>
       )}
     </div>
   )

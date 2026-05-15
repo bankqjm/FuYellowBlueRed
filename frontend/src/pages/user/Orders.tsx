@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, Tabs, List, Empty, Typography, Button, Space, Spin, message, Tag, Image, Modal, Timeline } from 'antd'
-import { orderApi } from '../../services/order'
+import { RedoOutlined } from '@ant-design/icons'
+import { orderApi, cartApi } from '../../services/order'
 import type { OrderInfo } from '../../services/shop'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -96,6 +97,27 @@ export default function Orders() {
       console.error('确认收货失败', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleReorder = async (order: OrderInfo) => {
+    try {
+      if (!order.items || order.items.length === 0) {
+        message.warning('该订单无商品信息')
+        return
+      }
+      for (const item of order.items) {
+        await cartApi.addToCart({
+          shop_id: order.shop_id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+        })
+      }
+      message.success('商品已加入购物车')
+      navigate('/user/cart')
+    } catch (error) {
+      console.error('再来一单失败', error)
+      message.error('操作失败，请重试')
     }
   }
 
@@ -217,8 +239,18 @@ export default function Orders() {
                         : order.status === 'COMPLETED'
                         ? [
                             <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                            <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
+                              再来一单
+                            </Button>,
                             <Button key="review" onClick={() => navigate(`/user/review/${order.id}`)}>
                               去评价
+                            </Button>
+                          ]
+                        : order.status === 'CANCELLED'
+                        ? [
+                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                            <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
+                              再来一单
                             </Button>
                           ]
                         : [
@@ -273,6 +305,9 @@ export default function Orders() {
                               )}
                               {order.status === 'DELIVERING' && (
                                 <Button type="primary" size="small" onClick={() => handleConfirmReceive(order)}>确认收货</Button>
+                              )}
+                              {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
+                                <Button size="small" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>再来一单</Button>
                               )}
                               {order.status === 'COMPLETED' && (
                                 <Button size="small" onClick={() => navigate(`/user/review/${order.id}`)}>评价</Button>
