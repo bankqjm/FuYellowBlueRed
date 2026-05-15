@@ -87,6 +87,19 @@ export default function Orders() {
     }
   }
 
+  const handleCancelOrder = async (order: OrderInfo) => {
+    try {
+      setLoading(true)
+      await orderApi.cancelOrder(order.id)
+      message.success('订单已取消')
+      fetchOrders()
+    } catch (error) {
+      console.error('取消订单失败', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleConfirmReceive = async (order: OrderInfo) => {
     try {
       setLoading(true)
@@ -222,12 +235,18 @@ export default function Orders() {
                       order.status === 'PENDING_PAYMENT'
                         ? [
                             <Button key="pay" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                            <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>,
                             <Button type="primary" key="paybtn" onClick={() => {
                               setPayingOrder(order)
                               setPayModalVisible(true)
                             }}>
                               立即支付
                             </Button>
+                          ]
+                        : order.status === 'PENDING_ACCEPT'
+                        ? [
+                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                            <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>
                           ]
                         : order.status === 'DELIVERING'
                         ? [
@@ -302,6 +321,9 @@ export default function Orders() {
                                   setPayingOrder(order)
                                   setPayModalVisible(true)
                                 }}>支付</Button>
+                              )}
+                              {(order.status === 'PENDING_PAYMENT' || order.status === 'PENDING_ACCEPT') && (
+                                <Button size="small" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>
                               )}
                               {order.status === 'DELIVERING' && (
                                 <Button type="primary" size="small" onClick={() => handleConfirmReceive(order)}>确认收货</Button>

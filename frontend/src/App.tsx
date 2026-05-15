@@ -16,6 +16,7 @@ import Profile from '@/pages/user/Profile'
 import Addresses from '@/pages/user/Addresses'
 import ShopOrders from '@/pages/shop/Orders'
 import ShopInfo from '@/pages/shop/ShopInfo'
+import ShopDashboard from '@/pages/shop/Dashboard'
 import Products from '@/pages/shop/Products'
 import RiderOrders from '@/pages/rider/Orders'
 import RiderEarnings from '@/pages/rider/Earnings'
@@ -73,7 +74,8 @@ function App() {
               </AuthGuard>
             }
           >
-            <Route index element={<ShopInfo />} />
+            <Route index element={<ShopDashboard />} />
+            <Route path="dashboard" element={<ShopDashboard />} />
             <Route path="info" element={<ShopInfo />} />
             <Route path="products" element={<Products />} />
             <Route path="orders" element={<ShopOrders />} />

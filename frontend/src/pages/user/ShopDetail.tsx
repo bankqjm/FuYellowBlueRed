@@ -18,8 +18,6 @@ export default function ShopDetail() {
   const [cart, setCart] = useState<CartItemInfo[]>([])
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
 
-  const MIN_ORDER = 20
-
   const fetchShopDetail = async () => {
     if (!id) return
     try {
@@ -98,7 +96,8 @@ export default function ShopDetail() {
   }
 
   const cartTotal = getCartTotalForShop()
-  const diffToMinOrder = MIN_ORDER - cartTotal.price
+  const minOrderAmount = shop?.min_order_amount || 0
+  const diffToMinOrder = minOrderAmount - cartTotal.price
 
   const renderProductItem = (product: ProductInfo) => {
     const count = getProductCountInCart(product.id)
@@ -213,11 +212,11 @@ export default function ShopDetail() {
             <div style={{ fontSize: isMobile ? 17 : 20, fontWeight: 700, marginBottom: 4 }}>{shop.name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               <span><StarOutlined style={{ color: '#faad14' }} /> {shop.rating}</span>
-              <span>月售2000+</span>
-              <span><ClockCircleOutlined /> 约30分钟</span>
+              <span>月售{shop.monthly_sales}+</span>
+              <span><ClockCircleOutlined /> 约{shop.delivery_time}</span>
             </div>
             <div style={{ fontSize: 12, marginTop: 4, opacity: 0.9 }}>
-              ¥{MIN_ORDER}起送 | 配送费¥3
+              ¥{shop.min_order_amount}起送 | 配送费¥{shop.delivery_fee}
             </div>
           </div>
         </div>
@@ -227,8 +226,16 @@ export default function ShopDetail() {
           </div>
         )}
         <div style={{ marginTop: 8, display: 'flex', gap: 4 }}>
-          <Tag color="volcano" style={{ margin: 0, fontSize: 11 }}>满20减5</Tag>
-          <Tag color="volcano" style={{ margin: 0, fontSize: 11 }}>满40减10</Tag>
+          {(() => {
+            try {
+              const discountList: string[] = shop.discounts ? JSON.parse(shop.discounts) : []
+              return discountList.map((d, i) => (
+                <Tag key={i} color="volcano" style={{ margin: 0, fontSize: 11 }}>{d}</Tag>
+              ))
+            } catch {
+              return null
+            }
+          })()}
         </div>
       </div>
 
@@ -334,7 +341,7 @@ export default function ShopDetail() {
             <div>
               <Text style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
               {diffToMinOrder > 0 && (
-                <div style={{ fontSize: 10, color: '#faad14' }}>再选¥{diffToMinOrder.toFixed(0)}享满减优惠</div>
+                <div style={{ fontSize: 10, color: '#faad14' }}>再选¥{diffToMinOrder.toFixed(0)}满足¥{minOrderAmount}起送</div>
               )}
             </div>
           </div>

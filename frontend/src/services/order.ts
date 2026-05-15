@@ -49,4 +49,6 @@ export const orderApi = {
   getOrderDetail: (orderId: number) => api.get<OrderInfo>(`/orders/${orderId}`),
 
   confirmReceipt: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/confirm`),
+
+  cancelOrder: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/cancel`),
 }

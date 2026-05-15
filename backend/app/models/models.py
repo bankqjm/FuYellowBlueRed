@@ -119,6 +119,11 @@ class Shop(Base):
     notice: Mapped[str] = mapped_column(String(500), nullable=True)
     rating: Mapped[float] = mapped_column(default=5.0)
     status: Mapped[int] = mapped_column(default=ShopStatus.PENDING.value)
+    monthly_sales: Mapped[int] = mapped_column(default=0)
+    min_order_amount: Mapped[float] = mapped_column(Float, default=20.0)
+    delivery_fee: Mapped[float] = mapped_column(Float, default=3.0)
+    delivery_time: Mapped[str] = mapped_column(String(20), default="30分钟")
+    discounts: Mapped[str] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

@@ -76,6 +76,22 @@ export default function Cart() {
     }
   }
 
+  const handleClearShopCart = (shopId: number) => {
+    Modal.confirm({
+      title: '确认清空',
+      content: '确定要清空该店铺的购物车吗？',
+      onOk: async () => {
+        try {
+          await cartApi.clearShopCart(shopId)
+          message.success('购物车已清空')
+          fetchCart()
+        } catch (error) {
+          console.error('清空购物车失败', error)
+        }
+      },
+    })
+  }
+
   const handleCheckout = async () => {
     if (!selectedAddress) {
       message.error('请选择收货地址')
@@ -147,7 +163,7 @@ export default function Cart() {
       </Card>
 
       {Object.entries(groupedCart).map(([shopId, items]) => (
-        <Card key={shopId} style={{ marginTop: isMobile ? 8 : 16 }} title={items[0].shop_name}>
+        <Card key={shopId} style={{ marginTop: isMobile ? 8 : 16 }} title={items[0].shop_name} extra={<Button type="link" danger size="small" onClick={() => handleClearShopCart(parseInt(shopId))}>清空</Button>}>
           <List
             dataSource={items}
             renderItem={(item) => (

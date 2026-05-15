@@ -13,6 +13,11 @@ export interface ShopInfo {
   notice?: string
   rating: number
   status: number
+  monthly_sales: number
+  min_order_amount: number
+  delivery_fee: number
+  delivery_time: string
+  discounts: string
   created_at: string
   updated_at: string
 }
@@ -85,6 +90,13 @@ export interface OrderInfo {
   shop_image?: string
   items?: OrderItemInfo[]
   address_info?: AddressInfo
+}
+
+export interface ShopStats {
+  total_orders: number
+  total_revenue: number
+  pending_orders: number
+  rating: number
 }
 
 export interface ShopDetail extends ShopInfo {
@@ -180,6 +192,10 @@ export const shopApi = {
   rejectOrder: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/reject`),
 
   orderReady: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/ready`),
+
+  getMyStats: () => api.get<ShopStats>('/shop/my/stats'),
+
+  cancelOrder: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/cancel`),
 }
 
 export const adminApi = {

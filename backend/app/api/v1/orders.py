@@ -393,3 +393,29 @@ async def confirm_receipt(
 
     logger.info(f"Order confirmed: {order_id}")
     return ResponseSchema(code=0, message="确认收货成功", data=OrderResponse.model_validate(order))
+
+
+@router.put("/{order_id}/cancel", response_model=ResponseSchema[OrderResponse])
+async def cancel_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Order).where(
+            Order.id == order_id,
+            Order.user_id == current_user.id,
+        )
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+    if order.status not in (OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ACCEPT):
+        raise BadRequestException("当前订单状态不可取消")
+
+    order.status = OrderStatus.CANCELLED
+    await db.commit()
+    await db.refresh(order)
+
+    logger.info(f"Order cancelled: {order_id} by user {current_user.id}")
+    return ResponseSchema(code=0, message="取消订单成功", data=OrderResponse.model_validate(order))

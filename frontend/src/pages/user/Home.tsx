@@ -106,11 +106,16 @@ export default function UserHome() {
   }
 
   const renderShopCard = (shop: ShopInfo) => {
-    const monthlySales = (shop as any).monthly_sales || Math.floor(Math.random() * 2000 + 100)
-    const deliveryFee = (shop as any).delivery_fee || 3
-    const minOrder = (shop as any).min_order_amount || 20
-    const deliveryTime = (shop as any).delivery_time || `${Math.floor(Math.random() * 20 + 25)}分钟`
-    const discounts = (shop as any).discounts || []
+    const monthlySales = shop.monthly_sales || 0
+    const deliveryFee = shop.delivery_fee || 0
+    const minOrder = shop.min_order_amount || 0
+    const deliveryTime = shop.delivery_time || ''
+    let discountList: string[] = []
+    try {
+      discountList = shop.discounts ? JSON.parse(shop.discounts) : []
+    } catch {
+      discountList = []
+    }
 
     if (isMobile) {
       return (
@@ -153,9 +158,9 @@ export default function UserHome() {
                 <span>配送¥{deliveryFee}</span>
                 <span><ClockCircleOutlined /> {deliveryTime}</span>
               </div>
-              {discounts.length > 0 && (
+              {discountList.length > 0 && (
                 <div style={{ marginTop: 4, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {discounts.slice(0, 2).map((d: string, i: number) => (
+                  {discountList.slice(0, 2).map((d: string, i: number) => (
                     <Tag key={i} color="volcano" style={{ fontSize: 10, lineHeight: '16px', padding: '0 4px', margin: 0 }}>{d}</Tag>
                   ))}
                 </div>
@@ -193,8 +198,8 @@ export default function UserHome() {
               <Text type="secondary"><ClockCircleOutlined /> {deliveryTime}</Text>
             </Space>
             <div>
-              {discounts.length > 0 ? (
-                discounts.slice(0, 3).map((d: string, i: number) => (
+              {discountList.length > 0 ? (
+                discountList.slice(0, 3).map((d: string, i: number) => (
                   <Tag key={i} color="volcano" style={{ fontSize: 11 }}>{d}</Tag>
                 ))
               ) : (

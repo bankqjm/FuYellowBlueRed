@@ -545,3 +545,45 @@ async def order_ready(
     logger.info(f"Order ready: {order_id}")
 
     return ResponseSchema(code=0, message="备餐完成", data=OrderResponse.model_validate(order))
+
+
+@router.get("/my/stats", response_model=ResponseSchema[dict])
+async def get_shop_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    today_count_result = await db.execute(
+        select(func.count(Order.id)).where(
+            Order.shop_id == shop.id,
+            Order.status != OrderStatus.CANCELLED,
+        )
+    )
+    total_orders = today_count_result.scalar() or 0
+
+    today_revenue_result = await db.execute(
+        select(func.sum(Order.total_amount)).where(
+            Order.shop_id == shop.id,
+            Order.status == OrderStatus.COMPLETED,
+        )
+    )
+    total_revenue = today_revenue_result.scalar() or 0.0
+
+    pending_result = await db.execute(
+        select(func.count(Order.id)).where(
+            Order.shop_id == shop.id,
+            Order.status.in_([OrderStatus.PENDING_ACCEPT, OrderStatus.ACCEPTED, OrderStatus.READY]),
+        )
+    )
+    pending_orders = pending_result.scalar() or 0
+
+    return ResponseSchema(code=0, data={
+        "total_orders": total_orders,
+        "total_revenue": total_revenue,
+        "pending_orders": pending_orders,
+        "rating": shop.rating,
+    })
