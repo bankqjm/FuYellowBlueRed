@@ -1,11 +1,13 @@
-import { Card, Typography, List, Avatar, Space, Button } from 'antd'
+import { Card, Typography, List, Avatar, Space, Button, Tag } from 'antd'
 import { UserOutlined, EditOutlined } from '@ant-design/icons'
 import { useAuthStore } from '@/stores/authStore'
+import { getRoleInfo } from '@/utils/role'
 
 const { Title, Text } = Typography
 
 export default function Profile() {
   const { userInfo, logout } = useAuthStore()
+  const roleInfo = getRoleInfo(userInfo?.role)
 
   return (
     <Card>
@@ -22,7 +24,7 @@ export default function Profile() {
           </List.Item>
           <List.Item>
             <Text strong>角色：</Text>
-            <Text>{userInfo?.role || '未知'}</Text>
+            <Tag color={roleInfo.color}>{roleInfo.text}</Tag>
           </List.Item>
         </List>
 

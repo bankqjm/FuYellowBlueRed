@@ -5,6 +5,7 @@ import { SearchOutlined, StopOutlined, CheckOutlined } from '@ant-design/icons'
 import api from '../../services/api'
 import type { ColumnsType } from 'antd/es/table'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { getRoleInfo, ROLE_MAP } from '@/utils/role'
 
 const { Title } = Typography
 
@@ -58,16 +59,6 @@ export default function AdminUsers() {
     }
   }
 
-  const getRoleTag = (roleStr: string) => {
-    const map: Record<string, { text: string; color: string }> = {
-      USER: { text: '普通用户', color: 'blue' },
-      SHOP_OWNER: { text: '商家', color: 'green' },
-      RIDER: { text: '骑手', color: 'orange' },
-      ADMIN: { text: '管理员', color: 'red' },
-    }
-    return map[roleStr] || { text: roleStr, color: 'default' }
-  }
-
   const columns: ColumnsType<UserRecord> = [
     {
       title: 'ID',
@@ -89,8 +80,8 @@ export default function AdminUsers() {
       dataIndex: 'role',
       width: 100,
       render: (roleStr: string) => {
-        const tag = getRoleTag(roleStr)
-        return <Tag color={tag.color}>{tag.text}</Tag>
+        const info = getRoleInfo(roleStr)
+        return <Tag color={info.color}>{info.text}</Tag>
       },
     },
     {
@@ -143,7 +134,7 @@ export default function AdminUsers() {
       return <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无用户数据</div>
     }
     return users.map(user => {
-      const roleTag = getRoleTag(user.role)
+      const roleInfo = getRoleInfo(user.role)
       return (
         <div className="mobile-card" key={user.id}>
           <div className="card-row">
@@ -156,7 +147,7 @@ export default function AdminUsers() {
           </div>
           <div className="card-row">
             <span className="label">角色</span>
-            <span className="value"><Tag color={roleTag.color}>{roleTag.text}</Tag></span>
+            <span className="value"><Tag color={roleInfo.color}>{roleInfo.text}</Tag></span>
           </div>
           <div className="card-row">
             <span className="label">状态</span>
@@ -211,10 +202,9 @@ export default function AdminUsers() {
             style={{ width: isMobile ? '100%' : 120 }}
             allowClear
           >
-            <Select.Option value="USER">普通用户</Select.Option>
-            <Select.Option value="SHOP_OWNER">商家</Select.Option>
-            <Select.Option value="RIDER">骑手</Select.Option>
-            <Select.Option value="ADMIN">管理员</Select.Option>
+            {Object.entries(ROLE_MAP).map(([value, { text }]) => (
+              <Select.Option key={value} value={value}>{text}</Select.Option>
+            ))}
           </Select>
         </Space>
 
