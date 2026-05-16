@@ -19,6 +19,8 @@ from app.api import (
     orders_router,
     rider_router,
     review_router,
+    wallet_router,
+    earnings_router,
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
 
@@ -91,6 +93,8 @@ app.include_router(admin_router, prefix="/api/v1")
 app.include_router(orders_router, prefix="/api/v1")
 app.include_router(rider_router, prefix="/api/v1")
 app.include_router(review_router, prefix="/api/v1")
+app.include_router(wallet_router, prefix="/api/v1")
+app.include_router(earnings_router, prefix="/api/v1")
 
 
 @app.get("/")

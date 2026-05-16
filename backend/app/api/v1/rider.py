@@ -12,6 +12,7 @@ from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, ForbiddenException, get_logger
+from app.services.finance import FinanceService
 
 router = APIRouter(prefix="/rider", tags=["骑手"])
 logger = get_logger("rider")
@@ -155,24 +156,20 @@ async def deliver_order(
     if order.status != OrderStatus.DELIVERING:
         raise BadRequestException("订单状态异常")
 
+    commission_info = await FinanceService.calculate_order_commission(order)
+    rider_income = commission_info["rider_income"]
+
+    await FinanceService.add_rider_earning(
+        db=db,
+        rider_id=current_user.id,
+        order_id=order.id,
+        amount=rider_income
+    )
+    logger.info(f"Rider earning added: rider={current_user.id}, order={order_id}, amount={rider_income}")
+
     order.status = OrderStatus.COMPLETED
     await db.commit()
     await db.refresh(order)
-
-    earning = RiderEarning(
-        rider_id=current_user.id,
-        order_id=order.id,
-        amount=order.delivery_fee,
-        type=EarningType.DELIVERY_FEE.value,
-    )
-    db.add(earning)
-
-    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
-    wallet = wallet_result.scalar_one_or_none()
-    if wallet:
-        wallet.balance += order.delivery_fee
-
-    await db.commit()
 
     logger.info(f"Rider {current_user.id} delivered order {order_id}")
     return ResponseSchema(code=0, message="确认送达成功", data=OrderResponse.model_validate(order))

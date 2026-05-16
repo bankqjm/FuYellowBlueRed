@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from app.database import get_db
@@ -14,6 +14,7 @@ from app.models.models import (
     OrderStatus,
     ProductStatus,
 )
+from app.services.finance import FinanceService
 from app.schemas.order import (
     CartItemCreate,
     CartItemUpdate,
@@ -274,6 +275,7 @@ async def create_order(
 @router.post("/{order_id}/pay", response_model=ResponseSchema[OrderResponse])
 async def pay_order(
     order_id: int,
+    channel: str = Body(default="BALANCE"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -289,11 +291,21 @@ async def pay_order(
     if order.status != OrderStatus.PENDING_PAYMENT:
         raise BadRequestException("订单状态异常")
 
+    payment_result = await FinanceService.process_payment(
+        db=db,
+        order=order,
+        user=current_user,
+        channel=channel
+    )
+    logger.info(f"Payment processed: order={order_id}, {payment_result}")
+
+    await FinanceService.process_order_settlement(db=db, order=order)
+
     order.status = OrderStatus.PENDING_ACCEPT
     await db.commit()
     await db.refresh(order)
 
-    logger.info(f"Order paid: {order_id}")
+    logger.info(f"Order paid and settled: {order_id}")
     return ResponseSchema(code=0, message="支付成功", data=OrderResponse.model_validate(order))
 
 
@@ -412,6 +424,17 @@ async def cancel_order(
         raise BadRequestException("订单不存在")
     if order.status not in (OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ACCEPT):
         raise BadRequestException("当前订单状态不可取消")
+
+    if order.status == OrderStatus.PENDING_ACCEPT:
+        await FinanceService.process_refund(
+            db=db,
+            order=order,
+            user=current_user,
+            refund_amount=order.total_amount,
+            refund_type="AUTO_REFUND",
+            reason="用户取消订单"
+        )
+        logger.info(f"Refund processed for cancelled order: {order_id}")
 
     order.status = OrderStatus.CANCELLED
     await db.commit()

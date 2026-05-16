@@ -219,7 +219,261 @@ FuYellowBlueRed 是一个开源外卖配送平台，支持消费者、商家、�
 
 ---
 
-## 五、风险与依赖
+## 六、三方账务系统需求（账务管理专家视角）
+
+### 6.1 账务系统概述
+
+作为一个完整的外卖配送平台，需要实现标准的三方账务体系，确保资金流转透明、合规、可追溯。
+
+**账务系统的核心目标**：
+1. **资金安全**：所有资金变动必须有据可查，支持对账
+2. **分账合规**：订单金额按规则分给平台、商家、骑手
+3. **支付便捷**：支持支付宝、微信等多种支付方式
+4. **结算高效**：商家和骑手的收入可快速提现到账
+5. **风控完善**：防超付、防重复支付、防薅羊毛
+
+### 6.2 资金流向设计
+
+#### 订单资金流向图
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        订单金额构成                               │
+│                                                                 │
+│   用户支付 ¥100.00                                              │
+│   ├── 商品金额 ¥85.00                                          │
+│   │   ├── 商家实收 ¥76.50 (90% 抽成10%)                        │
+│   │   └── 平台抽成 ¥8.50                                       │
+│   └── 配送费 ¥15.00                                            │
+│       ├── 骑手收入 ¥12.00 (80%)                                 │
+│       └── 平台服务费 ¥3.00 (20%)                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**分账规则**：
+| 角色 | 收入来源 | 结算比例 | 提现规则 |
+|------|---------|---------|---------|
+| 商家 | 商品金额 | 90%（平台抽10%） | T+7结算 |
+| 骑手 | 配送费 | 80%（平台收20%服务费） | 实时到账可提现 |
+| 平台 | 商家抽成 + 骑手服务费 | 100%归平台 | — |
+
+### 6.3 账务数据模型设计
+
+#### 新增模型清单
+
+| 模型名 | 表名 | 用途 |
+|--------|------|------|
+| `PaymentTransaction` | payment_transactions | 支付流水表，记录所有支付操作 |
+| `ShopEarning` | shop_earnings | 商家收入表，记录商家每笔收入 |
+| `PlatformCommission` | platform_commissions | 平台抽成记录表 |
+| `FundFlow` | fund_flows | 资金流水表，记录所有账户余额变动 |
+| `RefundRecord` | refund_records | 退款记录表 |
+
+#### PaymentTransaction（支付流水表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Integer | 主键 |
+| order_id | Integer | 关联订单ID |
+| user_id | Integer | 支付用户ID |
+| trade_no | String(64) | 第三方交易流水号 |
+| trade_type | String(20) | 交易类型：PAY/REFUND |
+| amount | Float | 交易金额 |
+| channel | String(20) | 支付渠道：ALIPAY/WECHAT/BALANCE |
+| status | String(20) | 状态：PENDING/SUCCESS/FAILED/CLOSED |
+| extra_data | Text | 扩展数据（JSON） |
+| created_at | DateTime | 创建时间 |
+| completed_at | DateTime | 完成时间 |
+
+#### ShopEarning（商家收入表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Integer | 主键 |
+| shop_id | Integer | 商家ID |
+| order_id | Integer | 关联订单ID |
+| order_no | String(32) | 订单编号 |
+| goods_amount | Float | 商品金额 |
+| commission_rate | Float | 抽成比例（默认0.10） |
+| commission_amount | Float | 抽成金额 |
+| net_amount | Float | 商家实收金额 |
+| status | String(20) | 状态：SETTLED（已结算）/UNSETTLED（未结算）/WITHDRAWN（已提现） |
+| settled_at | DateTime | 结算时间 |
+| created_at | DateTime | 创建时间 |
+
+#### PlatformCommission（平台抽成记录表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Integer | 主键 |
+| order_id | Integer | 关联订单ID |
+| shop_commission | Float | 商家抽成金额 |
+| rider_service_fee | Float | 骑手服务费 |
+| total | Float | 平台总收入 |
+| created_at | DateTime | 创建时间 |
+
+#### FundFlow（资金流水表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Integer | 主键 |
+| user_id | Integer | 用户ID |
+| account_type | String(20) | 账户类型：USER/SHOP/RIDER/PLATFORM |
+| flow_type | String(20) | 流水类型：INCOME/EXPENSE/FREEZE/UNFREEZE |
+| amount | Float | 金额 |
+| balance_before | Float | 变动前余额 |
+| balance_after | Float | 变动后余额 |
+| business_type | String(20) | 业务类型：ORDER_PAY/COMMISSION/WITHDRAW/BONUS |
+| related_id | Integer | 关联业务ID（如订单ID、提现ID） |
+| description | String(255) | 描述 |
+| created_at | DateTime | 创建时间 |
+
+#### RefundRecord（退款记录表）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | Integer | 主键 |
+| order_id | Integer | 关联订单ID |
+| user_id | Integer | 退款用户ID |
+| transaction_id | Integer | 原支付流水ID |
+| refund_amount | Float | 退款金额 |
+| refund_type | String(20) | 退款类型：AUTO_REFUND（超时）/MANUAL（手动取消） |
+| status | String(20) | 状态：PENDING/PROCESSING/SUCCESS/FAILED |
+| reason | String(255) | 退款原因 |
+| processed_at | DateTime | 处理时间 |
+| created_at | DateTime | 创建时间 |
+
+### 6.4 账务API设计
+
+#### 用户端账务API
+
+| API | 方法 | 路径 | 说明 |
+|-----|------|------|------|
+| 支付订单 | POST | /orders/{id}/pay | 包含支付方式选择和钱包扣款 |
+| 取消订单退款 | PUT | /orders/{id}/cancel | 包含退款逻辑 |
+| 我的钱包 | GET | /wallet | 获取用户钱包余额 |
+| 钱包充值 | POST | /wallet/recharge | 充值到钱包余额 |
+| 支付流水 | GET | /wallet/transactions | 获取支付流水记录 |
+
+#### 商家端账务API
+
+| API | 方法 | 路径 | 说明 |
+|-----|------|------|------|
+| 商家收入汇总 | GET | /shop/my/earnings/summary | 今日/本周/本月/总收入 |
+| 商家收入明细 | GET | /shop/my/earnings | 收入流水列表 |
+| 商家结算记录 | GET | /shop/my/settlements | 结算记录列表 |
+| 商家提现 | POST | /shop/my/withdraw | 商家提现申请 |
+
+#### 骑手端账务API（已有，需完善）
+
+| API | 方法 | 路径 | 说明 |
+|-----|------|------|------|
+| 骑手收入汇总 | GET | /rider/earnings/summary | 今日/本周/本月/总收入 |
+| 骑手收入明细 | GET | /rider/earnings | 收入流水列表 |
+| 骑手提现 | POST | /rider/withdraw | 完善：支持多种账户类型 |
+
+#### 管理端账务API
+
+| API | 方法 | 路径 | 说明 |
+|-----|------|------|------|
+| 平台账务概览 | GET | /admin/finance/overview | 总收入/总支出/总提现 |
+| 商家结算管理 | GET | /admin/finance/shop-settlements | 商家结算列表 |
+| 商家结算确认 | PUT | /admin/finance/shop-settlements/{id}/settle | 确认结算 |
+| 骑手提现审核 | GET | /admin/finance/rider-withdrawals | 骑手提现列表 |
+| 骑手提现审核 | PUT | /admin/finance/rider-withdrawals/{id}/approve | 审核提现 |
+| 账务对账 | GET | /admin/finance/reconciliation | 日/周/月对账单 |
+| 退款管理 | GET | /admin/finance/refunds | 退款列表 |
+| 退款处理 | PUT | /admin/finance/refunds/{id}/process | 处理退款 |
+
+### 6.5 账务需求清单
+
+#### P0 — 核心账务功能（必须实现）
+
+| 需求ID | 需求描述 | 验收标准 | 后端变更 | 前端变更 |
+|--------|---------|---------|---------|---------|
+| F-P0-01 | 用户钱包余额支付 | 下单时支持使用钱包余额支付，支付前校验余额 | 新增钱包扣款逻辑、FundFlow记录 | Cart.tsx 增加钱包支付选项 |
+| F-P0-02 | 支付流水记录 | 每笔支付/退款必须记录到PaymentTransaction | 新增PaymentTransaction模型和API | 新增支付记录页面 |
+| F-P0-03 | 商家收入计算 | 订单完成后计算商家实收金额，记录到ShopEarning | 新增ShopEarning模型和计算逻辑 | shop/Earnings.tsx 收入明细 |
+| F-P0-04 | 骑手收入计算 | 配送完成后计算骑手收入，记录到RiderEarning | 修改deliver_order增加收入记录 | rider/Earnings.tsx |
+| F-P0-05 | 资金流水记录 | 所有账户余额变动必须记录到FundFlow | 新增FundFlow模型 | 钱包页面显示资金流水 |
+| F-P0-06 | 订单退款逻辑 | 用户取消已支付订单时，退款到钱包余额 | 新增RefundRecord模型和退款逻辑 | Orders.tsx 取消按钮增加退款提示 |
+| F-P0-07 | 平台抽成记录 | 订单完成后记录平台抽成金额 | 新增PlatformCommission模型 | — |
+
+#### P1 — 账务体验提升
+
+| 需求ID | 需求描述 | 验收标准 | 后端变更 | 前端变更 |
+|--------|---------|---------|---------|---------|
+| F-P1-01 | 钱包充值功能 | 用户可充值到钱包余额（模拟） | 新增 wallet/recharge API | user/Wallet.tsx 充值页面 |
+| F-P1-02 | 商家提现功能 | 商家可申请提现到银行账户 | 新增商家提现API和WithdrawalRecord | shop/Withdraw.tsx |
+| F-P1-03 | 商家结算功能 | T+7自动结算商家收入 | 新增定时结算任务 | 商家提现页面 |
+| F-P1-04 | 第三方支付对接 | 支持支付宝/微信支付（沙箱环境） | 新增第三方支付SDK集成 | Cart.tsx 增加支付方式选择 |
+| F-P1-05 | 账务对账单 | 管理端可查看日/周/月账务对账单 | 新增对账API | admin/Finance.tsx |
+
+#### P2 — 账务安全增强
+
+| 需求ID | 需求描述 | 验收标准 | 后端变更 | 前端变更 |
+|--------|---------|---------|---------|---------|
+| F-P2-01 | 幂等性保证 | 支付/退款接口必须保证幂等，防止重复扣款 | 使用唯一流水号防重 | — |
+| F-P2-02 | 事务一致性 | 钱包扣款和流水记录必须在同一事务 | 数据库事务管理 | — |
+| F-P2-03 | 账务安全审计 | 记录关键操作的审计日志 | 新增审计日志表 | — |
+| F-P2-04 | 账务异常告警 | 资金异常（超付、少付）自动告警 | 新增告警机制 | — |
+
+### 6.6 账务开发计划
+
+#### Sprint F1 — 核心账务（预计3天）
+
+| Day | 任务 | 涉及文件 |
+|-----|------|---------|
+| Day 1 | 设计并实现账务数据模型 | models.py 新增5个模型 |
+| Day 1 | 实现用户钱包余额支付 | orders.py pay_order 修改 |
+| Day 1 | 实现支付流水记录 | payment.py 新增API |
+| Day 2 | 实现商家收入计算 | shop.py deliver_order 修改 |
+| Day 2 | 实现资金流水记录 | fundflow.py 新增API |
+| Day 2 | 实现骑手收入计算完善 | rider.py deliver_order 修改 |
+| Day 3 | 实现订单退款逻辑 | orders.py cancel_order 修改 |
+| Day 3 | 实现平台抽成记录 | commission.py 新增 |
+
+#### Sprint F2 — 账务前端（预计2天）
+
+| Day | 任务 | 涉及文件 |
+|-----|------|---------|
+| Day 1 | 钱包页面重构 | user/Wallet.tsx 新增 |
+| Day 1 | 支付页面增加支付方式 | Cart.tsx 修改 |
+| Day 2 | 商家收入页面 | shop/Earnings.tsx 新增 |
+| Day 2 | 骑手收入页面完善 | rider/Earnings.tsx 修改 |
+| Day 2 | 订单页增加退款提示 | user/Orders.tsx 修改 |
+
+#### Sprint F3 — 管理端账务（预计2天）
+
+| Day | 任务 | 涉及文件 |
+|-----|------|---------|
+| Day 1 | 管理端账务概览 | admin/Finance.tsx 新增 |
+| Day 1 | 商家结算管理 | admin/ShopSettlements.tsx 新增 |
+| Day 1 | 骑手提现审核 | admin/RiderWithdrawals.tsx 新增 |
+| Day 2 | 账务对账单 | admin/Reconciliation.tsx 新增 |
+| Day 2 | 退款管理 | admin/Refunds.tsx 新增 |
+
+### 6.7 账务验收标准
+
+#### 功能验收
+- [ ] 用户下单可使用钱包余额支付
+- [ ] 每笔支付生成唯一支付流水记录
+- [ ] 订单完成后商家获得商品金额的90%
+- [ ] 骑手完成配送后获得配送费的80%
+- [ ] 所有账户余额变动有FundFlow记录
+- [ ] 用户取消已支付订单可退款
+- [ ] 管理端可查看完整账务数据
+
+#### 安全验收
+- [ ] 支付接口支持幂等（重复调用不重复扣款）
+- [ ] 余额扣款和流水记录在同一事务
+- [ ] 所有账务操作有审计日志
+
+#### 对账验收
+- [ ] 平台总收入 = 商家抽成 + 骑手服务费
+- [ ] 用户支出 = 订单支付总额 - 退款总额
+- [ ] 商家收入 = 订单商品总额 × 90%
+- [ ] 骑手收入 = 订单配送费总额 × 80%
 
 | 风险项 | 影响 | 缓解措施 |
 |--------|------|---------|
