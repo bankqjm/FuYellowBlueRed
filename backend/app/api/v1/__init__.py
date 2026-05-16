@@ -8,6 +8,7 @@ from app.api.v1.rider import router as rider_router
 from app.api.v1.review import router as review_router
 from app.api.v1.wallet import router as wallet_router
 from app.api.v1.earnings import router as earnings_router
+from app.api.v1.config import router as config_router
 
 __all__ = [
     "auth_router",
@@ -20,4 +21,5 @@ __all__ = [
     "review_router",
     "wallet_router",
     "earnings_router",
+    "config_router",
 ]

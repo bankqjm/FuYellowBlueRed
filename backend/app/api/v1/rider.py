@@ -156,7 +156,7 @@ async def deliver_order(
     if order.status != OrderStatus.DELIVERING:
         raise BadRequestException("订单状态异常")
 
-    commission_info = await FinanceService.calculate_order_commission(order)
+    commission_info = await FinanceService.calculate_order_commission(db, order)
     rider_income = commission_info["rider_income"]
 
     await FinanceService.add_rider_earning(

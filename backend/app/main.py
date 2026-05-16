@@ -21,8 +21,11 @@ from app.api import (
     review_router,
     wallet_router,
     earnings_router,
+    config_router,
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
+from app.database import AsyncSessionLocal
+from app.services.config import ConfigService
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -33,7 +36,10 @@ logger = get_logger("app")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    logger.info("Application started")
+    async with AsyncSessionLocal() as db:
+        await ConfigService.init_default_configs(db)
+        await db.commit()
+    logger.info("Application started, default configs initialized")
     yield
     logger.info("Application shutdown")
 
@@ -95,6 +101,7 @@ app.include_router(rider_router, prefix="/api/v1")
 app.include_router(review_router, prefix="/api/v1")
 app.include_router(wallet_router, prefix="/api/v1")
 app.include_router(earnings_router, prefix="/api/v1")
+app.include_router(config_router, prefix="/api/v1")
 
 
 @app.get("/")

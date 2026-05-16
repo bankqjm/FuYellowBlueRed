@@ -460,3 +460,25 @@ class RefundRecord(Base):
     reason: Mapped[str] = mapped_column(String(255), nullable=True)
     processed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ConfigKey(str, PyEnum):
+    SHOP_COMMISSION_RATE = "SHOP_COMMISSION_RATE"
+    RIDER_SERVICE_FEE_RATE = "RIDER_SERVICE_FEE_RATE"
+    MIN_WITHDRAWAL_AMOUNT = "MIN_WITHDRAWAL_AMOUNT"
+    PLATFORM_NAME = "PLATFORM_NAME"
+    PLATFORM_CONTACT = "PLATFORM_CONTACT"
+
+
+class PlatformConfig(Base):
+    __tablename__ = "platform_configs"
+    __table_args__ = (
+        Index("idx_platform_config_key", "key", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

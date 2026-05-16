@@ -10,6 +10,7 @@ from app.models.models import (
     AccountType, FlowType, BusinessType,
     SettlementStatus, RefundType, RefundStatus
 )
+from app.services.config import ConfigService
 
 
 class FinanceService:
@@ -103,13 +104,18 @@ class FinanceService:
         }
 
     @staticmethod
-    async def calculate_order_commission(order: Order) -> dict:
+    async def calculate_order_commission(db: AsyncSession, order: Order) -> dict:
         goods_amount = order.total_amount - order.delivery_fee
-        commission_rate = 0.10
+        
+        commission_rate = await ConfigService.get_config_float(
+            db, "SHOP_COMMISSION_RATE", 0.10
+        )
         shop_commission = round(goods_amount * commission_rate, 2)
         net_amount = round(goods_amount - shop_commission, 2)
 
-        rider_service_rate = 0.20
+        rider_service_rate = await ConfigService.get_config_float(
+            db, "RIDER_SERVICE_FEE_RATE", 0.20
+        )
         rider_service_fee = round(order.delivery_fee * rider_service_rate, 2)
         rider_income = round(order.delivery_fee - rider_service_fee, 2)
 
@@ -125,7 +131,7 @@ class FinanceService:
 
     @staticmethod
     async def process_order_settlement(db: AsyncSession, order: Order) -> dict:
-        commission_info = await FinanceService.calculate_order_commission(order)
+        commission_info = await FinanceService.calculate_order_commission(db, order)
 
         shop_earning = ShopEarning(
             shop_id=order.shop_id,
