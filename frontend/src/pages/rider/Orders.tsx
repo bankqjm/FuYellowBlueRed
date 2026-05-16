@@ -133,7 +133,7 @@ export default function RiderOrders() {
         availableOrders.length === 0 ? (
           <Empty description="暂无待接单订单" style={{ marginTop: 30 }} />
         ) : (
-          <div>{availableOrders.map(order => renderOrderCard(order, 'available'))}</div>
+          <div>{availableOrders.map((order) => renderOrderCard(order, 'available'))}</div>
         )
       ) : (
         availableOrders.length === 0 ? (
@@ -150,7 +150,7 @@ export default function RiderOrders() {
                   </Button>,
                   <Button type="primary" key="accept" onClick={() => handleAccept(order)}>
                     立即接单
-                  </Button>
+                  </Button>,
                 ]}
               >
                 <List.Item.Meta
@@ -185,7 +185,7 @@ export default function RiderOrders() {
         activeOrders.length === 0 ? (
           <Empty description="暂无进行中订单" style={{ marginTop: 30 }} />
         ) : (
-          <div>{activeOrders.map(order => renderOrderCard(order, 'active'))}</div>
+          <div>{activeOrders.map((order) => renderOrderCard(order, 'active'))}</div>
         )
       ) : (
         activeOrders.length === 0 ? (
@@ -202,7 +202,7 @@ export default function RiderOrders() {
                   </Button>,
                   <Button type="primary" key="deliver" onClick={() => handleDeliver(order)}>
                     确认送达
-                  </Button>
+                  </Button>,
                 ]}
               >
                 <List.Item.Meta

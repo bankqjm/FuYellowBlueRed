@@ -1,9 +1,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Typography, List, Image, Button, Space, message, Spin, Tag } from 'antd'
-import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined, ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons'
-import { shopApi, ShopDetail as ShopDetailType, ProductInfo, CategoryInfo } from '../../services/shop'
+import { Card, Typography, Image, Button, Space, message, Spin, Tag } from 'antd'
+import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { shopApi, ShopDetail as ShopDetailType, ProductInfo } from '../../services/shop'
 import { cartApi, CartItemInfo } from '../../services/order'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -19,7 +19,7 @@ export default function ShopDetail() {
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
 
   const fetchShopDetail = async () => {
-    if (!id) return
+    if (!id) {return}
     try {
       setLoading(true)
       const res = await shopApi.getShopDetail(parseInt(id))
@@ -49,13 +49,13 @@ export default function ShopDetail() {
   }, [id])
 
   const getProductCountInCart = (productId: number) => {
-    if (!id) return 0
-    const cartItem = cart.find(item => item.shop_id === parseInt(id) && item.product_id === productId)
+    if (!id) {return 0}
+    const cartItem = cart.find((item) => item.shop_id === parseInt(id) && item.product_id === productId)
     return cartItem?.quantity || 0
   }
 
   const addToCart = async (product: ProductInfo) => {
-    if (!id) return
+    if (!id) {return}
     try {
       await cartApi.addToCart({
         shop_id: parseInt(id),
@@ -70,9 +70,9 @@ export default function ShopDetail() {
   }
 
   const updateCartItem = async (product: ProductInfo, quantity: number) => {
-    if (!id) return
-    const cartItem = cart.find(item => item.shop_id === parseInt(id) && item.product_id === product.id)
-    if (!cartItem) return
+    if (!id) {return}
+    const cartItem = cart.find((item) => item.shop_id === parseInt(id) && item.product_id === product.id)
+    if (!cartItem) {return}
 
     try {
       if (quantity <= 0) {
@@ -87,8 +87,8 @@ export default function ShopDetail() {
   }
 
   const getCartTotalForShop = () => {
-    if (!id) return { quantity: 0, price: 0 }
-    const shopCart = cart.filter(item => item.shop_id === parseInt(id))
+    if (!id) {return { quantity: 0, price: 0 }}
+    const shopCart = cart.filter((item) => item.shop_id === parseInt(id))
     return {
       quantity: shopCart.reduce((sum, item) => sum + item.quantity, 0),
       price: shopCart.reduce((sum, item) => sum + (item.product_price || 0) * item.quantity, 0),
@@ -107,7 +107,7 @@ export default function ShopDetail() {
         style={{
           display: 'flex', gap: isMobile ? 8 : 12,
           padding: isMobile ? '10px 0' : '12px 0',
-          borderBottom: '1px solid #f5f5f5'
+          borderBottom: '1px solid #f5f5f5',
         }}
       >
         {product.image ? (
@@ -121,7 +121,7 @@ export default function ShopDetail() {
           <div style={{
             width: isMobile ? 64 : 80, height: isMobile ? 64 : 80, background: '#f0f0f0',
             borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, fontSize: 12, color: '#999'
+            flexShrink: 0, fontSize: 12, color: '#999',
           }}>
             商品
           </div>
@@ -184,8 +184,8 @@ export default function ShopDetail() {
   }
 
   const categories = shop.categories || []
-  const activeCategoryData = categories.find(c => c.id === activeCategory)
-  const activeProducts = activeCategoryData?.products?.filter(p => p.status === 1) || []
+  const activeCategoryData = categories.find((c) => c.id === activeCategory)
+  const activeProducts = activeCategoryData?.products?.filter((p) => p.status === 1) || []
 
   return (
     <div>
@@ -194,7 +194,7 @@ export default function ShopDetail() {
         padding: isMobile ? '16px' : '24px',
         borderRadius: isMobile ? 0 : 12,
         marginBottom: isMobile ? 0 : 16,
-        color: '#fff'
+        color: '#fff',
       }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {shop.logo ? (
@@ -203,7 +203,7 @@ export default function ShopDetail() {
             <div style={{
               width: isMobile ? 56 : 72, height: isMobile ? 56 : 72, background: 'rgba(255,255,255,0.3)',
               borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, fontSize: 28
+              flexShrink: 0, fontSize: 28,
             }}>
               🏪
             </div>
@@ -243,9 +243,9 @@ export default function ShopDetail() {
         <div style={{ display: 'flex', background: '#fff', minHeight: 'calc(100vh - 300px)' }}>
           <div style={{
             width: 80, flexShrink: 0, background: '#f5f5f5',
-            overflowY: 'auto', borderRight: '1px solid #f0f0f0'
+            overflowY: 'auto', borderRight: '1px solid #f0f0f0',
           }}>
-            {categories.map(cat => (
+            {categories.map((cat) => (
               <div
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
@@ -256,7 +256,7 @@ export default function ShopDetail() {
                   color: activeCategory === cat.id ? '#1890ff' : '#666',
                   fontWeight: activeCategory === cat.id ? 600 : 400,
                   borderLeft: activeCategory === cat.id ? '3px solid #1890ff' : '3px solid transparent',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
               >
                 {cat.name}
@@ -279,9 +279,9 @@ export default function ShopDetail() {
           <div style={{ display: 'flex', gap: 0 }}>
             <div style={{
               width: 120, flexShrink: 0, borderRight: '1px solid #f0f0f0',
-              marginRight: 16
+              marginRight: 16,
             }}>
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <div
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
@@ -292,7 +292,7 @@ export default function ShopDetail() {
                     fontWeight: activeCategory === cat.id ? 600 : 400,
                     borderRight: activeCategory === cat.id ? '3px solid #1890ff' : '3px solid transparent',
                     borderRadius: activeCategory === cat.id ? '4px 0 0 4px' : 0,
-                    marginBottom: 2
+                    marginBottom: 2,
                   }}
                 >
                   {cat.name}
@@ -333,7 +333,7 @@ export default function ShopDetail() {
                 position: 'absolute', top: -8, right: -8,
                 background: '#ff4d4f', color: '#fff', fontSize: 10,
                 borderRadius: 10, padding: '0 5px', lineHeight: '16px',
-                fontWeight: 700
+                fontWeight: 700,
               }}>
                 {cartTotal.quantity}
               </span>

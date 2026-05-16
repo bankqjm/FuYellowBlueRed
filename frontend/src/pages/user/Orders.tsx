@@ -44,8 +44,8 @@ export default function Orders() {
   }, [params.id, params.pay])
 
   useEffect(() => {
-    const hasActiveOrders = orders.some(order =>
-      ['PENDING_PAYMENT', 'PENDING_ACCEPT', 'ACCEPTED', 'READY', 'DELIVERING'].includes(order.status)
+    const hasActiveOrders = orders.some((order) =>
+      ['PENDING_PAYMENT', 'PENDING_ACCEPT', 'ACCEPTED', 'READY', 'DELIVERING'].includes(order.status),
     )
 
     if (hasActiveOrders) {
@@ -234,47 +234,47 @@ export default function Orders() {
                     isMobile ? undefined : (
                       order.status === 'PENDING_PAYMENT'
                         ? [
-                            <Button key="pay" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                            <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>,
-                            <Button type="primary" key="paybtn" onClick={() => {
-                              setPayingOrder(order)
-                              setPayModalVisible(true)
-                            }}>
+                          <Button key="pay" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                          <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>,
+                          <Button type="primary" key="paybtn" onClick={() => {
+                            setPayingOrder(order)
+                            setPayModalVisible(true)
+                          }}>
                               立即支付
-                            </Button>
-                          ]
+                          </Button>,
+                        ]
                         : order.status === 'PENDING_ACCEPT'
-                        ? [
+                          ? [
                             <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                            <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>
+                            <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>,
                           ]
-                        : order.status === 'DELIVERING'
-                        ? [
-                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                            <Button type="primary" key="confirm" onClick={() => handleConfirmReceive(order)}>
+                          : order.status === 'DELIVERING'
+                            ? [
+                              <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                              <Button type="primary" key="confirm" onClick={() => handleConfirmReceive(order)}>
                               确认收货
-                            </Button>
-                          ]
-                        : order.status === 'COMPLETED'
-                        ? [
-                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                            <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
+                              </Button>,
+                            ]
+                            : order.status === 'COMPLETED'
+                              ? [
+                                <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                                <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
                               再来一单
-                            </Button>,
-                            <Button key="review" onClick={() => navigate(`/user/review/${order.id}`)}>
+                                </Button>,
+                                <Button key="review" onClick={() => navigate(`/user/review/${order.id}`)}>
                               去评价
-                            </Button>
-                          ]
-                        : order.status === 'CANCELLED'
-                        ? [
-                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                            <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
+                                </Button>,
+                              ]
+                              : order.status === 'CANCELLED'
+                                ? [
+                                  <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                                  <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
                               再来一单
-                            </Button>
-                          ]
-                        : [
-                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>
-                          ]
+                                  </Button>,
+                                ]
+                                : [
+                                  <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                                ]
                     )
                   }
                 >
@@ -285,7 +285,7 @@ export default function Orders() {
                       ) : (
                         <div style={{
                           width: isMobile ? 48 : 60, height: isMobile ? 48 : 60, background: '#f0f0f0',
-                          borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
                           <span style={{ color: '#999', fontSize: 12 }}>店铺</span>
                         </div>

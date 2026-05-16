@@ -40,7 +40,7 @@ export default function Profile() {
         <div style={{
           background: 'linear-gradient(135deg, #1890ff, #0984e3)',
           padding: '24px 16px 20px',
-          color: '#fff'
+          color: '#fff',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Avatar size={56} icon={<UserOutlined />} src={userInfo?.avatar} style={{ border: '2px solid rgba(255,255,255,0.5)' }} />
@@ -77,7 +77,7 @@ export default function Profile() {
               style={{
                 display: 'flex', alignItems: 'center', padding: '14px 16px',
                 borderBottom: index < menuItems.length - 1 ? '1px solid #f5f5f5' : 'none',
-                cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+                cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
               }}
             >
               <span style={{ fontSize: 18, color: item.color, width: 28 }}>{item.icon}</span>

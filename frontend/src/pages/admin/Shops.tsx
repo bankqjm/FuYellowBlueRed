@@ -132,7 +132,7 @@ export default function Shops() {
     if (shops.length === 0) {
       return <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无待审核店铺</div>
     }
-    return shops.map(shop => (
+    return shops.map((shop) => (
       <div className="mobile-card" key={shop.id}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {shop.logo ? (
@@ -141,7 +141,7 @@ export default function Shops() {
             <div style={{
               width: 48, height: 48, background: '#f0f0f0', borderRadius: 6,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0, color: '#999', fontSize: 12
+              flexShrink: 0, color: '#999', fontSize: 12,
             }}>
               店铺
             </div>

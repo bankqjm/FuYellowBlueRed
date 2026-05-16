@@ -15,7 +15,6 @@ import {
   Image,
   Tabs,
   Tag,
-  List,
 } from 'antd'
 import {
   PlusOutlined,
@@ -83,7 +82,7 @@ export default function Products() {
 
   const handleSaveCategory = async (values: any) => {
     try {
-      if (!shop) return
+      if (!shop) {return}
 
       if (editingCategory) {
         await shopApi.updateCategory(editingCategory.id, values)
@@ -123,7 +122,7 @@ export default function Products() {
 
   const handleSaveProduct = async (values: any) => {
     try {
-      if (!shop) return
+      if (!shop) {return}
 
       if (editingProduct) {
         await shopApi.updateProduct(editingProduct.id, values)
@@ -153,8 +152,9 @@ export default function Products() {
     return status === 1 ? <Tag color="green">上架</Tag> : <Tag color="gray">下架</Tag>
   }
 
-  const getCategoryName = (categoryId: number) => {
-    const category = categories.find(c => c.id === categoryId)
+  const getCategoryName = (categoryId?: number) => {
+    if (categoryId === undefined) {return '-'}
+    const category = categories.find((c) => c.id === categoryId)
     return category?.name || '-'
   }
 
@@ -265,7 +265,7 @@ export default function Products() {
       {categories.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无分类</div>
       ) : (
-        categories.map(cat => (
+        categories.map((cat) => (
           <div className="mobile-card" key={cat.id}>
             <div className="card-row">
               <span className="label">分类名称</span>
@@ -304,7 +304,7 @@ export default function Products() {
       {products.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无商品</div>
       ) : (
-        products.map(product => (
+        products.map((product) => (
           <div className="mobile-card" key={product.id}>
             <div style={{ display: 'flex', gap: 10 }}>
               {product.image ? (
@@ -313,7 +313,7 @@ export default function Products() {
                 <div style={{
                   width: 60, height: 60, background: '#f0f0f0', borderRadius: 6,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, color: '#999', fontSize: 12
+                  flexShrink: 0, color: '#999', fontSize: 12,
                 }}>
                   商品
                 </div>
@@ -443,7 +443,7 @@ export default function Products() {
           </Form.Item>
           <Form.Item label="商品分类" name="category_id">
             <Select placeholder="请选择分类">
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <Option key={cat.id} value={cat.id}>
                   {cat.name}
                 </Option>

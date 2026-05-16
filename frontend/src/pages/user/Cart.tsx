@@ -39,7 +39,7 @@ export default function Cart() {
       const res = await addressApi.getAddresses()
       setAddresses(res.data)
       if (res.data.length > 0) {
-        const defaultAddr = res.data.find(a => a.is_default === 1)
+        const defaultAddr = res.data.find((a) => a.is_default === 1)
         setSelectedAddress(defaultAddr?.id || res.data[0].id)
       }
     } catch (error) {
@@ -190,7 +190,7 @@ export default function Cart() {
                         icon={<DeleteOutlined />}
                         onClick={() => deleteCartItem(item)}
                       />
-                    </Space>
+                    </Space>,
                   ]
                 }
               >
@@ -201,7 +201,7 @@ export default function Cart() {
                     ) : (
                       <div style={{
                         width: isMobile ? 48 : 60, height: isMobile ? 48 : 60, background: '#f0f0f0',
-                        borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         <span style={{ color: '#999', fontSize: 12 }}>商品</span>
                       </div>
@@ -279,7 +279,7 @@ export default function Cart() {
               onChange={setSelectedAddress}
               style={{ width: '100%' }}
             >
-              {addresses.map(address => (
+              {addresses.map((address) => (
                 <Option key={address.id} value={address.id}>
                   {address.contact_name} {address.contact_phone} - {address.address}
                 </Option>

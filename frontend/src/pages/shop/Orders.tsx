@@ -108,20 +108,20 @@ export default function ShopOrders() {
                 actions={
                   order.status === 'PENDING_ACCEPT'
                     ? [
-                        <Button key="reject" danger icon={<CloseCircleOutlined />} onClick={() => handleReject(order.id)}>
+                      <Button key="reject" danger icon={<CloseCircleOutlined />} onClick={() => handleReject(order.id)}>
                           拒单
-                        </Button>,
-                        <Button key="accept" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleAccept(order.id)}>
+                      </Button>,
+                      <Button key="accept" type="primary" icon={<CheckCircleOutlined />} onClick={() => handleAccept(order.id)}>
                           接单
-                        </Button>
-                      ]
+                      </Button>,
+                    ]
                     : order.status === 'ACCEPTED'
-                    ? [
+                      ? [
                         <Button key="ready" type="primary" icon={<ClockCircleOutlined />} onClick={() => handleReady(order.id)}>
                           备餐完成
-                        </Button>
+                        </Button>,
                       ]
-                    : []
+                      : []
                 }
               >
                 <List.Item.Meta

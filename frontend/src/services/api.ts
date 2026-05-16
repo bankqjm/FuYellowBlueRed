@@ -19,7 +19,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error)
-  }
+  },
 )
 
 api.interceptors.response.use(
@@ -41,7 +41,7 @@ api.interceptors.response.use(
       message.error(error.response?.data?.message || error.message || '网络错误')
     }
     return Promise.reject(error)
-  }
+  },
 )
 
 export default api

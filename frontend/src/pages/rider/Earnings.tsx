@@ -70,10 +70,10 @@ export default function RiderEarnings() {
           {earnings.length === 0 ? (
             <Empty description="暂无收入记录" style={{ marginTop: 30 }} />
           ) : (
-            earnings.map(item => (
+            earnings.map((item) => (
               <div key={item.order_id} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '8px 0', borderBottom: '1px solid #f5f5f5'
+                padding: '8px 0', borderBottom: '1px solid #f5f5f5',
               }}>
                 <div>
                   <div style={{ fontSize: 13 }}>订单 #{item.order_id}</div>

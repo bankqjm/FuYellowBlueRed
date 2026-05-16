@@ -55,7 +55,8 @@ export default function Register() {
       })
       message.success('注册成功！')
       navigate(getHomePath(data.role))
-    } catch {
+    } catch (error) {
+      console.error('注册失败', error)
     } finally {
       setLoading(false)
     }

@@ -45,7 +45,7 @@ export default function AdminLayout() {
 
   const getActiveKey = () => {
     const path = location.pathname
-    const match = tabItems.find(item => path.startsWith(item.key))
+    const match = tabItems.find((item) => path.startsWith(item.key))
     return match ? match.key : '/admin/dashboard'
   }
 
@@ -64,7 +64,7 @@ export default function AdminLayout() {
           <Outlet />
         </div>
         <div className="mobile-bottom-bar">
-          {tabItems.map(item => (
+          {tabItems.map((item) => (
             <div
               key={item.key}
               className={`bar-item ${getActiveKey() === item.key ? 'admin-active' : ''}`}

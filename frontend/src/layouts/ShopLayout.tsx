@@ -44,7 +44,7 @@ export default function ShopLayout() {
 
   const getActiveKey = () => {
     const path = location.pathname
-    const match = tabItems.find(item => path.startsWith(item.key))
+    const match = tabItems.find((item) => path.startsWith(item.key))
     return match ? match.key : '/shop/info'
   }
 
@@ -63,7 +63,7 @@ export default function ShopLayout() {
           <Outlet />
         </div>
         <div className="mobile-bottom-bar">
-          {tabItems.map(item => (
+          {tabItems.map((item) => (
             <div
               key={item.key}
               className={`bar-item ${getActiveKey() === item.key ? 'shop-active' : ''}`}

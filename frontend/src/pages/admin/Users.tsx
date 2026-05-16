@@ -33,8 +33,8 @@ export default function AdminUsers() {
     try {
       setLoading(true)
       const params: Record<string, any> = { page, page_size: pageSize }
-      if (keyword) params.keyword = keyword
-      if (role) params.role = role
+      if (keyword) {params.keyword = keyword}
+      if (role) {params.role = role}
       const res = await api.get<{ items: UserRecord[]; total: number }>('/admin/users', { params })
       setUsers(res.data.items)
       setTotal(res.data.total)
@@ -133,7 +133,7 @@ export default function AdminUsers() {
     if (users.length === 0) {
       return <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无用户数据</div>
     }
-    return users.map(user => {
+    return users.map((user) => {
       const roleInfo = getRoleInfo(user.role)
       return (
         <div className="mobile-card" key={user.id}>

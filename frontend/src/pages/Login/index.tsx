@@ -43,7 +43,8 @@ export default function Login() {
         status: 1,
       })
       navigate(getHomePath(data.role))
-    } catch {
+    } catch (error) {
+      console.error('登录失败', error)
     } finally {
       setLoading(false)
     }

@@ -1,4 +1,4 @@
-import { Input, List, Typography, Space, Empty, Spin, Tag, Image, Carousel, Select, Dropdown } from 'antd'
+import { Input, List, Typography, Space, Empty, Spin, Tag, Image, Carousel, Select } from 'antd'
 import {
   SearchOutlined,
   EnvironmentOutlined,
@@ -69,11 +69,11 @@ export default function UserHome() {
   }
 
   const fetchAddresses = async () => {
-    if (!token) return
+    if (!token) {return}
     try {
       const res = await addressApi.getAddresses()
       setAddresses(res.data)
-      const defaultAddr = res.data.find(a => a.is_default === 1)
+      const defaultAddr = res.data.find((a) => a.is_default === 1)
       setSelectedAddress(defaultAddr || res.data[0] || null)
     } catch (error) {
       console.error('获取地址失败', error)
@@ -139,7 +139,7 @@ export default function UserHome() {
               <div style={{
                 width: 72, height: 72, background: '#fff7e6', borderRadius: 8,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, fontSize: 28
+                flexShrink: 0, fontSize: 28,
               }}>
                 🏪
               </div>
@@ -182,7 +182,7 @@ export default function UserHome() {
           ) : (
             <div style={{
               width: 80, height: 80, background: '#fff7e6', borderRadius: 8,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32,
             }}>
               🏪
             </div>
@@ -246,7 +246,7 @@ export default function UserHome() {
                   key={item.label}
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    padding: '6px 0', cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+                    padding: '6px 0', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                   }}
                   onClick={() => handleSearch(item.label === '美食' ? '' : item.label)}
                 >
@@ -254,7 +254,7 @@ export default function UserHome() {
                     width: 44, height: 44, borderRadius: 12,
                     background: `${item.color}15`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22, color: item.color, marginBottom: 4
+                    fontSize: 22, color: item.color, marginBottom: 4,
                   }}>
                     {item.icon}
                   </div>
@@ -305,7 +305,7 @@ export default function UserHome() {
                 <Empty description="暂无商家信息" />
               </div>
             ) : (
-              getSortedShops().map(shop => renderShopCard(shop))
+              getSortedShops().map((shop) => renderShopCard(shop))
             )}
           </Spin>
         </div>
@@ -313,20 +313,20 @@ export default function UserHome() {
         <div>
           <div style={{
             background: 'linear-gradient(135deg, #1890ff, #0984e3)',
-            padding: '24px', borderRadius: 12, marginBottom: 16
+            padding: '24px', borderRadius: 12, marginBottom: 16,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <EnvironmentOutlined style={{ color: '#fff', fontSize: 18 }} />
               <Select
                 value={selectedAddress?.id}
                 onChange={(val) => {
-                  const addr = addresses.find(a => a.id === val)
+                  const addr = addresses.find((a) => a.id === val)
                   setSelectedAddress(addr || null)
                 }}
                 style={{ minWidth: 300 }}
                 placeholder="请选择收货地址"
               >
-                {addresses.map(addr => (
+                {addresses.map((addr) => (
                   <Select.Option key={addr.id} value={addr.id}>
                     {addr.contact_name} - {addr.address}
                   </Select.Option>
@@ -352,14 +352,14 @@ export default function UserHome() {
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   padding: '16px 8px', background: '#fff', borderRadius: 12,
-                  cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s'
+                  cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s',
                 }}
               >
                 <div style={{
                   width: 52, height: 52, borderRadius: 14,
                   background: `${item.color}15`, display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
-                  fontSize: 26, color: item.color, marginBottom: 8
+                  fontSize: 26, color: item.color, marginBottom: 8,
                 }}>
                   {item.icon}
                 </div>
