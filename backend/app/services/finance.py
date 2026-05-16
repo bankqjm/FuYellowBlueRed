@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.models import (
@@ -12,12 +12,27 @@ from app.models.models import (
 )
 from app.services.config import ConfigService
 
+MAX_SINGLE_RECHARGE = 10000.0
+MAX_DAILY_RECHARGE = 50000.0
+MAX_SINGLE_PAYMENT = 100000.0
+
 
 class FinanceService:
 
     @staticmethod
     def generate_trade_no() -> str:
         return f"TR{uuid.uuid4().hex[:28].upper()}"
+
+    @staticmethod
+    async def check_payment_idempotency(db: AsyncSession, order_id: int) -> PaymentTransaction | None:
+        result = await db.execute(
+            select(PaymentTransaction).where(
+                PaymentTransaction.order_id == order_id,
+                PaymentTransaction.trade_type == TradeType.PAY.value,
+                PaymentTransaction.status == PaymentStatus.SUCCESS.value
+            )
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def ensure_wallet_exists(db: AsyncSession, user_id: int) -> Wallet:
@@ -28,6 +43,28 @@ class FinanceService:
             db.add(wallet)
             await db.flush()
         return wallet
+
+    @staticmethod
+    async def check_daily_recharge_limit(db: AsyncSession, user_id: int, amount: float) -> tuple[bool, float]:
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+
+        result = await db.execute(
+            select(func.sum(FundFlow.amount)).where(
+                FundFlow.user_id == user_id,
+                FundFlow.business_type == BusinessType.RECHARGE.value,
+                FundFlow.flow_type == FlowType.INCOME.value,
+                FundFlow.created_at >= today_start,
+                FundFlow.created_at < today_end
+            )
+        )
+        daily_total = result.scalar() or 0.0
+
+        if daily_total + amount > MAX_DAILY_RECHARGE:
+            remaining = MAX_DAILY_RECHARGE - daily_total
+            return False, remaining
+
+        return True, daily_total
 
     @staticmethod
     async def create_fund_flow(
@@ -57,6 +94,7 @@ class FinanceService:
             description=description
         )
         db.add(fund_flow)
+        await db.flush()
         return fund_flow
 
     @staticmethod
@@ -66,6 +104,19 @@ class FinanceService:
         user: User,
         channel: str = PayChannel.BALANCE.value
     ) -> dict:
+        existing_payment = await FinanceService.check_payment_idempotency(db, order.id)
+        if existing_payment:
+            return {
+                "payment_id": existing_payment.id,
+                "trade_no": existing_payment.trade_no,
+                "amount": existing_payment.amount,
+                "channel": existing_payment.channel,
+                "idempotent": True
+            }
+
+        if order.total_amount > MAX_SINGLE_PAYMENT:
+            raise ValueError(f"单笔支付金额不能超过 {MAX_SINGLE_PAYMENT:.2f} 元")
+
         wallet = await FinanceService.ensure_wallet_exists(db, user.id)
 
         if channel == PayChannel.BALANCE.value:
@@ -73,21 +124,12 @@ class FinanceService:
                 raise ValueError(f"余额不足，当前余额: {wallet.balance:.2f}元")
             wallet.balance -= order.total_amount
 
-            await FinanceService.create_fund_flow(
-                db=db,
-                user_id=user.id,
-                account_type=AccountType.USER.value,
-                flow_type=FlowType.EXPENSE.value,
-                amount=order.total_amount,
-                business_type=BusinessType.ORDER_PAY.value,
-                related_id=order.id,
-                description=f"订单支付: {order.order_no}"
-            )
+        trade_no = FinanceService.generate_trade_no()
 
         payment = PaymentTransaction(
             order_id=order.id,
             user_id=user.id,
-            trade_no=FinanceService.generate_trade_no(),
+            trade_no=trade_no,
             trade_type=TradeType.PAY.value,
             amount=order.total_amount,
             channel=channel,
@@ -95,18 +137,31 @@ class FinanceService:
             completed_at=datetime.now()
         )
         db.add(payment)
+        await db.flush()
+
+        await FinanceService.create_fund_flow(
+            db=db,
+            user_id=user.id,
+            account_type=AccountType.USER.value,
+            flow_type=FlowType.EXPENSE.value,
+            amount=order.total_amount,
+            business_type=BusinessType.ORDER_PAY.value,
+            related_id=order.id,
+            description=f"订单支付: {order.order_no}"
+        )
 
         return {
             "payment_id": payment.id,
-            "trade_no": payment.trade_no,
+            "trade_no": trade_no,
             "amount": order.total_amount,
-            "channel": channel
+            "channel": channel,
+            "idempotent": False
         }
 
     @staticmethod
     async def calculate_order_commission(db: AsyncSession, order: Order) -> dict:
         goods_amount = order.total_amount - order.delivery_fee
-        
+
         commission_rate = await ConfigService.get_config_float(
             db, "SHOP_COMMISSION_RATE", 0.10
         )
@@ -144,6 +199,7 @@ class FinanceService:
             status=SettlementStatus.UNSETTLED.value
         )
         db.add(shop_earning)
+        await db.flush()
 
         platform_commission = PlatformCommission(
             order_id=order.id,
@@ -152,6 +208,7 @@ class FinanceService:
             total=commission_info["shop_commission"] + commission_info["rider_service_fee"]
         )
         db.add(platform_commission)
+        await db.flush()
 
         return {
             "shop_earning_id": shop_earning.id,
@@ -159,6 +216,17 @@ class FinanceService:
             "shop_net_amount": commission_info["net_amount"],
             "rider_income": commission_info["rider_income"]
         }
+
+    @staticmethod
+    async def check_refund_idempotency(db: AsyncSession, order_id: int) -> RefundRecord | None:
+        result = await db.execute(
+            select(RefundRecord).where(
+                RefundRecord.order_id == order_id,
+                RefundRecord.trade_type == TradeType.REFUND.value if hasattr(RefundRecord, 'trade_type') else True,
+                RefundRecord.status == RefundStatus.SUCCESS.value
+            )
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def process_refund(
@@ -172,9 +240,6 @@ class FinanceService:
         if refund_amount is None:
             refund_amount = order.total_amount
 
-        wallet = await FinanceService.ensure_wallet_exists(db, user.id)
-        wallet.balance += refund_amount
-
         payment_result = await db.execute(
             select(PaymentTransaction).where(
                 PaymentTransaction.order_id == order.id,
@@ -183,6 +248,12 @@ class FinanceService:
             )
         )
         payment = payment_result.scalar_one_or_none()
+
+        if refund_amount > (payment.amount if payment else order.total_amount):
+            raise ValueError("退款金额不能超过实际支付金额")
+
+        wallet = await FinanceService.ensure_wallet_exists(db, user.id)
+        wallet.balance += refund_amount
 
         refund_record = RefundRecord(
             order_id=order.id,
@@ -195,6 +266,7 @@ class FinanceService:
             processed_at=datetime.now()
         )
         db.add(refund_record)
+        await db.flush()
 
         await FinanceService.create_fund_flow(
             db=db,
@@ -238,6 +310,13 @@ class FinanceService:
         user_id: int,
         amount: float
     ) -> dict:
+        min_withdrawal = await ConfigService.get_config_float(
+            db, "MIN_WITHDRAWAL_AMOUNT", 10.0
+        )
+
+        if amount < min_withdrawal:
+            raise ValueError(f"提现金额不能低于 {min_withdrawal:.2f} 元")
+
         wallet = await FinanceService.ensure_wallet_exists(db, user_id)
 
         if wallet.balance < amount:
@@ -256,3 +335,38 @@ class FinanceService:
         )
 
         return {"amount": amount, "balance_after": wallet.balance}
+
+    @staticmethod
+    async def recharge_wallet(
+        db: AsyncSession,
+        user_id: int,
+        amount: float
+    ) -> dict:
+        if amount <= 0:
+            raise ValueError("充值金额必须大于0")
+
+        if amount > MAX_SINGLE_RECHARGE:
+            raise ValueError(f"单笔充值金额不能超过 {MAX_SINGLE_RECHARGE:.2f} 元")
+
+        within_limit, daily_total = await FinanceService.check_daily_recharge_limit(db, user_id, amount)
+        if not within_limit:
+            raise ValueError(f"今日充值总额已达上限，剩余可用额度: {daily_total:.2f} 元")
+
+        wallet = await FinanceService.ensure_wallet_exists(db, user_id)
+        wallet.balance += amount
+
+        await FinanceService.create_fund_flow(
+            db=db,
+            user_id=user_id,
+            account_type=AccountType.USER.value,
+            flow_type=FlowType.INCOME.value,
+            amount=amount,
+            business_type=BusinessType.RECHARGE.value,
+            description=f"钱包充值: {amount:.2f}元"
+        )
+
+        return {
+            "amount": amount,
+            "balance": wallet.balance,
+            "daily_total": daily_total + amount
+        }

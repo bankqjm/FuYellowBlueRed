@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models.models import User, Wallet, FundFlow, PaymentTransaction
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
-from app.core import BadRequestException, get_logger
+from app.core import BadRequestException, ForbiddenException, get_logger
 from app.services.finance import FinanceService
 
 router = APIRouter(prefix="/wallet", tags=["钱包"])
@@ -19,7 +19,7 @@ async def get_wallet(
     db: AsyncSession = Depends(get_db),
 ):
     wallet = await FinanceService.ensure_wallet_exists(db, current_user.id)
-    
+
     total_income_result = await db.execute(
         select(func.sum(FundFlow.amount)).where(
             FundFlow.user_id == current_user.id,
@@ -27,7 +27,7 @@ async def get_wallet(
         )
     )
     total_income = total_income_result.scalar() or 0.0
-    
+
     total_expense_result = await db.execute(
         select(func.sum(FundFlow.amount)).where(
             FundFlow.user_id == current_user.id,
@@ -35,7 +35,7 @@ async def get_wallet(
         )
     )
     total_expense = total_expense_result.scalar() or 0.0
-    
+
     return ResponseSchema(code=0, data={
         "id": wallet.id,
         "balance": wallet.balance,
@@ -51,31 +51,38 @@ async def recharge_wallet(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if amount <= 0:
-        raise BadRequestException("充值金额必须大于0")
-    
-    wallet = await FinanceService.ensure_wallet_exists(db, current_user.id)
-    wallet.balance += amount
-    
-    await FinanceService.create_fund_flow(
-        db=db,
-        user_id=current_user.id,
-        account_type="USER",
-        flow_type="INCOME",
-        amount=amount,
-        business_type="RECHARGE",
-        description=f"钱包充值: {amount:.2f}元"
-    )
-    
-    await db.commit()
-    await db.refresh(wallet)
-    
-    logger.info(f"Wallet recharged: user={current_user.id}, amount={amount}")
-    
-    return ResponseSchema(code=0, message="充值成功", data={
-        "balance": wallet.balance,
-        "recharged_amount": amount,
-    })
+    if current_user.role != "ADMIN":
+        raise ForbiddenException("钱包充值仅限管理员操作，普通用户请通过第三方支付充值")
+
+    try:
+        result = await FinanceService.recharge_wallet(db, current_user.id, amount)
+        await db.commit()
+        logger.info(f"Admin {current_user.id} recharged user wallet: user_id={current_user.id}, amount={amount}")
+        return ResponseSchema(code=0, message="充值成功", data=result)
+    except ValueError as e:
+        raise BadRequestException(str(e))
+
+
+@router.post("/recharge/{user_id}", response_model=ResponseSchema[dict])
+async def admin_recharge_user_wallet(
+    user_id: int,
+    amount: float,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user.role != "ADMIN":
+        raise ForbiddenException("仅管理员可为用户充值")
+
+    try:
+        result = await FinanceService.recharge_wallet(db, user_id, amount)
+        await db.commit()
+        logger.info(f"Admin {current_user.id} recharged user wallet: target_user_id={user_id}, amount={amount}")
+        return ResponseSchema(code=0, message="用户充值成功", data={
+            "user_id": user_id,
+            **result
+        })
+    except ValueError as e:
+        raise BadRequestException(str(e))
 
 
 @router.get("/transactions", response_model=ResponseSchema[PageResponse[dict]])
@@ -89,22 +96,22 @@ async def get_transactions(
 ):
     stmt = select(FundFlow).where(FundFlow.user_id == current_user.id)
     count_stmt = select(func.count(FundFlow.id)).where(FundFlow.user_id == current_user.id)
-    
+
     if business_type:
         stmt = stmt.where(FundFlow.business_type == business_type)
         count_stmt = count_stmt.where(FundFlow.business_type == business_type)
-    
+
     if flow_type:
         stmt = stmt.where(FundFlow.flow_type == flow_type)
         count_stmt = count_stmt.where(FundFlow.flow_type == flow_type)
-    
+
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
-    
+
     stmt = stmt.order_by(FundFlow.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     transactions = result.scalars().all()
-    
+
     return ResponseSchema(
         code=0,
         data=PageResponse(
