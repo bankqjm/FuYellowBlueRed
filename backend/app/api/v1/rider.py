@@ -1,14 +1,12 @@
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import Optional
 from app.database import get_db
 from app.models.models import (
-    User, Order, OrderItem, Shop, OrderStatus, RiderEarning, EarningType, 
-    WithdrawalRecord, WithdrawalStatus, Wallet,
+    User, Order, Shop, OrderStatus, RiderEarning, WithdrawalRecord, WithdrawalStatus, Wallet,
 )
-from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery
+from app.schemas.order import OrderResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, ForbiddenException, get_logger
@@ -189,7 +187,11 @@ async def get_earnings(
 
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
-    stmt = stmt.order_by(RiderEarning.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+    stmt = (
+        stmt.order_by(RiderEarning.created_at.desc())
+        .offset((query.page - 1) * query.page_size)
+        .limit(query.page_size)
+    )
 
     result = await db.execute(stmt)
     earnings = result.scalars().all()
@@ -284,7 +286,11 @@ async def get_withdrawal_records(
 
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
-    stmt = stmt.order_by(WithdrawalRecord.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+    stmt = (
+        stmt.order_by(WithdrawalRecord.created_at.desc())
+        .offset((query.page - 1) * query.page_size)
+        .limit(query.page_size)
+    )
 
     result = await db.execute(stmt)
     records = result.scalars().all()

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.models import (
-    Wallet, Order, OrderItem, Shop, User,
+    Wallet, Order, User,
     PaymentTransaction, ShopEarning, PlatformCommission,
     FundFlow, RefundRecord,
     TradeType, PayChannel, PaymentStatus,

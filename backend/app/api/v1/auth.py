@@ -15,7 +15,7 @@ logger = get_logger("auth")
 @router.post("/register", response_model=ResponseSchema[UserInfo])
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
     logger.info(f"Register request for phone: {request.phone}")
-    
+
     result = await db.execute(select(User).where(User.phone == request.phone))
     existing_user = result.scalar_one_or_none()
 
@@ -49,7 +49,7 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
 @router.post("/login", response_model=ResponseSchema[TokenResponse])
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     logger.info(f"Login request for phone: {request.phone}")
-    
+
     result = await db.execute(select(User).where(User.phone == request.phone))
     user = result.scalar_one_or_none()
 
@@ -64,7 +64,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(
         data={"sub": str(user.id), "role": user.role}
     )
-    
+
     logger.info(f"User logged in successfully: {user.id}")
     return ResponseSchema(
         code=0,

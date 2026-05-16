@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional
 from app.database import get_db
-from app.models.models import Shop, ShopStatus, User, UserStatus, UserRole, Order
+from app.models.models import Shop, ShopStatus, User, Order
 from app.schemas.shop import ShopInfo, ShopListQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
@@ -42,7 +42,7 @@ async def approve_shop(
     shop.status = ShopStatus.APPROVED.value
     await db.commit()
     await db.refresh(shop)
-    
+
     logger.info(f"Shop {shop_id} approved by admin {current_user.id}")
     return ResponseSchema(code=0, message="审核通过", data=ShopInfo.model_validate(shop))
 
@@ -64,7 +64,7 @@ async def reject_shop(
     shop.status = ShopStatus.REJECTED.value
     await db.commit()
     await db.refresh(shop)
-    
+
     logger.info(f"Shop {shop_id} rejected by admin {current_user.id}")
     return ResponseSchema(code=0, message="已拒绝", data=ShopInfo.model_validate(shop))
 
@@ -199,7 +199,9 @@ async def get_platform_stats(
     order_count = order_count.scalar()
 
     pending_order_count = await db.execute(
-        select(func.count(Order.id)).where(Order.status.in_(["PENDING_PAYMENT", "PENDING_ACCEPT", "ACCEPTED", "DELIVERING"]))
+        select(func.count(Order.id)).where(
+            Order.status.in_(["PENDING_PAYMENT", "PENDING_ACCEPT", "ACCEPTED", "DELIVERING"])
+        )
     )
     pending_order_count = pending_order_count.scalar()
 

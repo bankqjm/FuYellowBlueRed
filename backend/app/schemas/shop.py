@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 from typing import Optional, List
 from datetime import datetime
 from app.schemas.base import BaseSchema

@@ -18,7 +18,7 @@ async def get_all_configs(
 ):
     if current_user.role != "ADMIN":
         raise ForbiddenException("仅管理员可访问")
-    
+
     configs = await ConfigService.get_all_configs(db)
     config_list = []
     for key, value in configs.items():
@@ -27,7 +27,7 @@ async def get_all_configs(
             "value": value,
             "description": _get_config_description(key),
         })
-    
+
     return ResponseSchema(code=0, data={
         "configs": config_list,
         "defaults": DEFAULT_CONFIGS,
@@ -42,11 +42,11 @@ async def get_config(
 ):
     if current_user.role != "ADMIN":
         raise ForbiddenException("仅管理员可访问")
-    
+
     value = await ConfigService.get_config(db, key)
     if value is None:
         raise BadRequestException(f"配置项 {key} 不存在")
-    
+
     return ResponseSchema(code=0, data={
         "key": key,
         "value": value,
@@ -64,11 +64,11 @@ async def update_config(
 ):
     if current_user.role != "ADMIN":
         raise ForbiddenException("仅管理员可访问")
-    
+
     valid_keys = list(DEFAULT_CONFIGS.keys())
     if key not in valid_keys:
         raise BadRequestException(f"无效的配置项: {key}")
-    
+
     if key in ["SHOP_COMMISSION_RATE", "RIDER_SERVICE_FEE_RATE"]:
         try:
             rate = float(value)
@@ -76,12 +76,12 @@ async def update_config(
                 raise ValueError()
         except ValueError:
             raise BadRequestException("费率必须是0到1之间的数字")
-    
-    config = await ConfigService.set_config(db, key, value, description)
+
+    await ConfigService.set_config(db, key, value, description)
     await db.commit()
-    
+
     logger.info(f"Config updated: {key} = {value}")
-    
+
     return ResponseSchema(code=0, message="配置更新成功", data={
         "key": key,
         "value": value,

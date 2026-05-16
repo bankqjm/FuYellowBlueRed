@@ -29,9 +29,5 @@ async def get_db():
 
 
 async def init_db():
-    from app.models.models import (
-        User, Wallet, UserAddress, Shop, Category, Product,
-        Order, OrderItem, Review, RiderEarning, WithdrawalRecord, CartItem
-    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

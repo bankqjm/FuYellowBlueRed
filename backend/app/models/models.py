@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, Integer, Enum, DateTime, ForeignKey, Float, Index, Text
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Float, Index, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database import Base
