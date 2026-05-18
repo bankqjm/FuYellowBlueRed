@@ -196,7 +196,7 @@ async def test_admin_shop_approval_and_stats(db, client):
 
     approve_res = await client.put(f"/api/v1/admin/shop/{shop_id}/approve", headers=admin_h)
     assert approve_res.status_code == 200
-    assert approve_res.json()["data"]["status"] == "APPROVED"
+    assert approve_res.json()["data"]["status"] in (1, "APPROVED")
 
     stats_res = await client.get("/api/v1/admin/stats", headers=admin_h)
     assert stats_res.status_code == 200

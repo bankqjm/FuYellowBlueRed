@@ -261,7 +261,15 @@ async def update_category(
 
     await db.commit()
     await db.refresh(category)
-    return ResponseSchema(code=0, message="更新成功", data=CategoryInfo.model_validate(category))
+    cat_data = CategoryInfo(
+        id=category.id,
+        shop_id=category.shop_id,
+        name=category.name,
+        sort_order=category.sort_order,
+        created_at=category.created_at,
+        products=[],
+    )
+    return ResponseSchema(code=0, message="更新成功", data=cat_data)
 
 
 @router.delete("/category/{category_id}", response_model=ResponseSchema)
