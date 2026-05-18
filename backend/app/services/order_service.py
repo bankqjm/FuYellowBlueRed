@@ -318,3 +318,40 @@ class OrderService(BaseService):
         await self.refresh(order)
 
         return OrderResponse.model_validate(order)
+
+    async def cancel_order(
+        self,
+        order_id: int,
+        cancel_type: str = "user",
+        reason: str = None,
+    ) -> OrderResponse:
+        result = await self.db.execute(
+            select(Order).where(Order.id == order_id)
+        )
+        order = result.scalar_one_or_none()
+        if not order:
+            raise NotFoundException("订单不存在")
+        if order.status not in (OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ACCEPT):
+            raise BadRequestException("当前订单状态不可取消")
+
+        if order.status == OrderStatus.PENDING_ACCEPT:
+            from app.services.finance import FinanceService
+            from app.models.models import User
+            user_result = await self.db.execute(select(User).where(User.id == order.user_id))
+            user = user_result.scalar_one_or_none()
+            if user:
+                await FinanceService.process_refund(
+                    db=self.db,
+                    order=order,
+                    user=user,
+                    refund_amount=order.total_amount,
+                    refund_type="AUTO_REFUND",
+                    reason=reason or "系统取消订单"
+                )
+
+        order.status = OrderStatus.CANCELLED
+        await self.commit()
+        await self.refresh(order)
+
+        logger.info(f"Order {order_id} cancelled by system, type: {cancel_type}")
+        return OrderResponse.model_validate(order)

@@ -6,6 +6,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 import os
+import asyncio
 import traceback
 
 from app.config import settings
@@ -26,6 +27,7 @@ from app.api import (
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
 from app.database import AsyncSessionLocal
 from app.services.config import ConfigService
+from app.tasks import run_order_timeout_task
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -40,8 +42,30 @@ async def lifespan(app: FastAPI):
         await ConfigService.init_default_configs(db)
         await db.commit()
     logger.info("Application started, default configs initialized")
+
+    scheduler_task = asyncio.create_task(run_scheduler())
+
     yield
+
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
     logger.info("Application shutdown")
+
+
+async def run_scheduler():
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                await run_order_timeout_task(db)
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Scheduler error: {e}")
+            await asyncio.sleep(60)
 
 
 app = FastAPI(

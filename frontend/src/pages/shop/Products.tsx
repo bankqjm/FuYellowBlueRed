@@ -15,6 +15,7 @@ import {
   Image,
   Tabs,
   Tag,
+  Upload,
 } from 'antd'
 import {
   PlusOutlined,
@@ -22,8 +23,10 @@ import {
   DeleteOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
+  UploadOutlined,
 } from '@ant-design/icons'
 import { shopApi, ShopInfo, CategoryInfo, ProductInfo } from '../../services/shop'
+import { uploadApi } from '../../services/upload'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { TextArea } = Input
@@ -39,6 +42,7 @@ export default function Products() {
   const [productModalVisible, setProductModalVisible] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryInfo | null>(null)
   const [editingProduct, setEditingProduct] = useState<ProductInfo | null>(null)
+  const [productImage, setProductImage] = useState<string>('')
 
   const [categoryForm] = Form.useForm()
   const [productForm] = Form.useForm()
@@ -111,13 +115,37 @@ export default function Products() {
   const handleAddProduct = () => {
     setEditingProduct(null)
     productForm.resetFields()
+    setProductImage('')
     setProductModalVisible(true)
   }
 
   const handleEditProduct = (product: ProductInfo) => {
     setEditingProduct(product)
     productForm.setFieldsValue(product)
+    setProductImage(product.image || '')
     setProductModalVisible(true)
+  }
+
+  const handleImageUpload = async (file: File) => {
+    const isImage = file.type.startsWith('image/')
+    if (!isImage) {
+      message.error('只能上传图片文件')
+      return false
+    }
+    const isLt5M = file.size / 1024 / 1024 < 5
+    if (!isLt5M) {
+      message.error('图片大小不能超过 5MB')
+      return false
+    }
+    try {
+      const res = await uploadApi.upload(file)
+      setProductImage(res.data.url)
+      productForm.setFieldsValue({ image: res.data.url })
+      message.success('图片上传成功')
+    } catch {
+      message.error('图片上传失败')
+    }
+    return false
   }
 
   const handleSaveProduct = async (values: any) => {
@@ -450,8 +478,38 @@ export default function Products() {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item label="商品图片" name="image">
-            <Input placeholder="请输入图片链接" />
+          <Form.Item label="商品图片">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div>
+                {productImage ? (
+                  <Image src={productImage} width={100} height={100} style={{ borderRadius: 8 }} />
+                ) : (
+                  <div style={{
+                    width: 100,
+                    height: 100,
+                    border: '1px dashed #d9d9d9',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#999',
+                  }}>
+                    未上传
+                  </div>
+                )}
+              </div>
+              <div>
+                <Upload
+                  accept="image/*"
+                  showUploadList={false}
+                  beforeUpload={handleImageUpload}
+                >
+                  <Button icon={<UploadOutlined />}>上传图片</Button>
+                </Upload>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>支持 jpg/png/gif/webp</div>
+              </div>
+            </div>
+            <Input type="hidden" name="image" />
           </Form.Item>
           <Form.Item
             label="价格"

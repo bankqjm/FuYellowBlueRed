@@ -6,6 +6,7 @@ import { RedoOutlined } from '@ant-design/icons'
 import { orderApi, cartApi } from '../../services/order'
 import type { OrderInfo } from '../../services/shop'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import CountdownTimer, { formatTime } from '@/components/CountdownTimer'
 
 const { Title, Text } = Typography
 
@@ -92,12 +93,24 @@ export default function Orders() {
       setLoading(true)
       await orderApi.cancelOrder(order.id)
       message.success('订单已取消')
+      setPayModalVisible(false)
       fetchOrders()
     } catch (error) {
       console.error('取消订单失败', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const getPaymentDeadline = (order: OrderInfo): Date => {
+    const createdTime = order.created_at ? new Date(order.created_at).getTime() : Date.now()
+    return new Date(createdTime + 15 * 60 * 1000)
+  }
+
+  const handleCountdownExpire = () => {
+    message.warning('订单支付超时，已自动取消')
+    setPayModalVisible(false)
+    fetchOrders()
   }
 
   const handleConfirmReceive = async (order: OrderInfo) => {
@@ -356,6 +369,16 @@ export default function Orders() {
       >
         {payingOrder && (
           <div>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>剩余支付时间</Text>
+              <div style={{ marginTop: 4 }}>
+                <CountdownTimer
+                  endTime={getPaymentDeadline(payingOrder)}
+                  onExpire={handleCountdownExpire}
+                  warningThreshold={300}
+                />
+              </div>
+            </div>
             <Text>订单号：{payingOrder.order_no}</Text>
             <br />
             <br />
@@ -363,15 +386,29 @@ export default function Orders() {
             <Text type="danger" strong style={{ fontSize: 24 }}>¥{payingOrder.total_amount.toFixed(2)}</Text>
             <br />
             <br />
-            <Button
-              type="primary"
-              size="large"
-              style={{ width: '100%' }}
-              onClick={() => handlePay(payingOrder)}
-              loading={loading}
-            >
-              立即支付
-            </Button>
+            <Space style={{ width: '100%' }} direction="vertical">
+              <Button
+                type="primary"
+                size="large"
+                style={{ width: '100%' }}
+                onClick={() => handlePay(payingOrder)}
+                loading={loading}
+              >
+                立即支付
+              </Button>
+              <Button
+                danger
+                size="large"
+                style={{ width: '100%' }}
+                onClick={() => Modal.confirm({
+                  title: '确认取消',
+                  content: '确定要取消该订单吗？',
+                  onOk: () => handleCancelOrder(payingOrder),
+                })}
+              >
+                取消订单
+              </Button>
+            </Space>
           </div>
         )}
       </Modal>
