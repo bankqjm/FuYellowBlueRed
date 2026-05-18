@@ -7,6 +7,8 @@ import {
   UserOutlined,
   EnvironmentOutlined,
   WalletOutlined,
+  HeartOutlined,
+  TicketOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
@@ -35,6 +37,8 @@ export default function UserLayout() {
     { key: '/user/cart', icon: <ShoppingCartOutlined />, label: '购物车' },
     { key: '/user/orders', icon: <InboxOutlined />, label: '我的订单' },
     { key: '/user/wallet', icon: <WalletOutlined />, label: '我的钱包' },
+    { key: '/user/favorites', icon: <HeartOutlined />, label: '我的收藏' },
+    { key: '/user/coupons', icon: <TicketOutlined />, label: '优惠券' },
     { key: '/user/addresses', icon: <EnvironmentOutlined />, label: '收货地址' },
     { key: '/user/profile', icon: <UserOutlined />, label: '个人中心' },
   ]

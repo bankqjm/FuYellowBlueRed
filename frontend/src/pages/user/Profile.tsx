@@ -1,4 +1,4 @@
-import { Card, Typography, List, Avatar, Space, Button, Tag, Divider } from 'antd'
+import { Card, Typography, List, Avatar, Space, Button, Tag, Divider, Switch } from 'antd'
 import {
   UserOutlined,
   EditOutlined,
@@ -10,28 +10,42 @@ import {
   RightOutlined,
   ShoppingOutlined,
   WalletOutlined,
+  MoonOutlined,
+  SunOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { getRoleInfo } from '@/utils/role'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useTheme } from '@/contexts/ThemeContext'
 
 const { Title, Text } = Typography
+
+interface MenuItem {
+  icon: React.ReactNode
+  label: string
+  action: () => void
+  color: string
+  isSwitch?: boolean
+  isDark?: boolean
+}
 
 export default function Profile() {
   const { userInfo, logout } = useAuthStore()
   const roleInfo = getRoleInfo(userInfo?.role)
   const navigate = useNavigate()
   const isMobile = useIsMobile()
+  const { theme, toggleTheme } = useTheme()
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { icon: <ShoppingOutlined />, label: '我的订单', action: () => navigate('/user/orders'), color: '#1890ff' },
     { icon: <EnvironmentOutlined />, label: '收货地址', action: () => navigate('/user/addresses'), color: '#52c41a' },
-    { icon: <HeartOutlined />, label: '我的收藏', action: () => {}, color: '#eb2f96' },
-    { icon: <TagOutlined />, label: '优惠券', action: () => {}, color: '#fa8c16' },
-    { icon: <WalletOutlined />, label: '钱包', action: () => {}, color: '#722ed1' },
-    { icon: <CustomerServiceOutlined />, label: '客服中心', action: () => {}, color: '#13c2c2' },
+    { icon: <HeartOutlined />, label: '我的收藏', action: () => navigate('/user/favorites'), color: '#eb2f96' },
+    { icon: <TagOutlined />, label: '优惠券', action: () => navigate('/user/coupons'), color: '#fa8c16' },
+    { icon: <WalletOutlined />, label: '钱包', action: () => navigate('/user/wallet'), color: '#722ed1' },
+    { icon: <CustomerServiceOutlined />, label: '客服中心', action: () => navigate('/user/support'), color: '#13c2c2' },
     { icon: <SettingOutlined />, label: '设置', action: () => {}, color: '#999' },
+    { icon: theme === 'dark' ? <SunOutlined /> : <MoonOutlined />, label: '暗色模式', action: () => toggleTheme(), color: '#666', isSwitch: true, isDark: theme === 'dark' },
   ]
 
   if (isMobile) {
@@ -82,7 +96,15 @@ export default function Profile() {
             >
               <span style={{ fontSize: 18, color: item.color, width: 28 }}>{item.icon}</span>
               <span style={{ flex: 1, fontSize: 14, marginLeft: 8 }}>{item.label}</span>
-              <RightOutlined style={{ color: '#ccc', fontSize: 12 }} />
+              {item.isSwitch ? (
+                <Switch
+                  checked={item.isDark}
+                  onChange={() => toggleTheme()}
+                  size="small"
+                />
+              ) : (
+                <RightOutlined style={{ color: '#ccc', fontSize: 12 }} />
+              )}
             </div>
           ))}
         </div>
@@ -122,12 +144,19 @@ export default function Profile() {
           size="small"
           dataSource={menuItems}
           renderItem={(item) => (
-            <List.Item style={{ cursor: 'pointer' }} onClick={item.action}>
+            <List.Item
+              style={{ cursor: item.isSwitch ? 'default' : 'pointer' }}
+              onClick={() => !item.isSwitch && item.action()}
+            >
               <Space>
                 <span style={{ color: item.color }}>{item.icon}</span>
                 <Text>{item.label}</Text>
               </Space>
-              <RightOutlined style={{ color: '#ccc' }} />
+              {item.isSwitch ? (
+                <Switch checked={item.isDark} onChange={() => toggleTheme()} size="small" />
+              ) : (
+                <RightOutlined style={{ color: '#ccc' }} />
+              )}
             </List.Item>
           )}
         />

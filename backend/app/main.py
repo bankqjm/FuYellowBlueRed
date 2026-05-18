@@ -23,6 +23,8 @@ from app.api import (
     wallet_router,
     earnings_router,
     config_router,
+    favorites_router,
+    coupons_router,
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
 from app.database import AsyncSessionLocal
@@ -126,6 +128,8 @@ app.include_router(review_router, prefix="/api/v1")
 app.include_router(wallet_router, prefix="/api/v1")
 app.include_router(earnings_router, prefix="/api/v1")
 app.include_router(config_router, prefix="/api/v1")
+app.include_router(favorites_router, prefix="/api/v1")
+app.include_router(coupons_router, prefix="/api/v1")
 
 
 @app.get("/")

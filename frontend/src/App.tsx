@@ -27,6 +27,9 @@ import AdminShops from '@/pages/admin/Shops'
 import AdminUsers from '@/pages/admin/Users'
 import AdminOrders from '@/pages/admin/Orders'
 import ReviewPage from '@/pages/user/Review'
+import Favorites from '@/pages/user/Favorites'
+import Coupons from '@/pages/user/Coupons'
+import Support from '@/pages/user/Support'
 import './App.css'
 
 function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
@@ -68,6 +71,9 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="addresses" element={<Addresses />} />
             <Route path="review/:id" element={<ReviewPage />} />
+            <Route path="favorites" element={<Favorites />} />
+            <Route path="coupons" element={<Coupons />} />
+            <Route path="support" element={<Support />} />
           </Route>
           <Route
             path="/shop"

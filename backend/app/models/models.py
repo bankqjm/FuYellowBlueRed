@@ -125,19 +125,70 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     wallet: Mapped["Wallet"] = relationship("Wallet", back_populates="user", uselist=False)
-    shops: Mapped[list["Shop"]] = relationship("Shop", back_populates="owner")
     addresses: Mapped[list["UserAddress"]] = relationship("UserAddress", back_populates="user")
-    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", foreign_keys="Order.user_id")
-    rider_orders: Mapped[list["Order"]] = relationship("Order", back_populates="rider", foreign_keys="Order.rider_id")
+    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
+    fund_flows: Mapped[list["FundFlow"]] = relationship("FundFlow", back_populates="user")
+    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
+    cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="user")
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (Index("idx_favorite_user_shop", "user_id", "shop_id", unique=True),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="favorites")
+    shop: Mapped["Shop"] = relationship("Shop", back_populates="favorites")
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+    __table_args__ = (
+        Index("idx_coupon_code", "code", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    discount_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    min_order_amount: Mapped[float] = mapped_column(Float, default=0)
+    total_count: Mapped[int] = mapped_column(Integer, default=0)
+    remain_count: Mapped[int] = mapped_column(Integer, default=0)
+    valid_from: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    valid_until: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class UserCoupon(Base):
+    __tablename__ = "user_coupons"
+    __table_args__ = (
+        Index("idx_user_coupon_user_coupon", "user_id", "coupon_id", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    coupon_id: Mapped[int] = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="UNUSED")
+    claimed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    used_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship("User", backref="user_coupons")
+    coupon: Mapped["Coupon"] = relationship("Coupon", backref="user_coupons")
 
 
 class Wallet(Base):
     __tablename__ = "wallets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
-    balance: Mapped[float] = mapped_column(default=0.0)
-    frozen_balance: Mapped[float] = mapped_column(default=0.0)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    balance: Mapped[float] = mapped_column(Float, default=0.0)
+    frozen_balance: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 

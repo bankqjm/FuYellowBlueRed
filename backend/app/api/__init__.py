@@ -10,6 +10,8 @@ from app.api.v1 import (
     wallet_router,
     earnings_router,
     config_router,
+    favorites_router,
+    coupons_router,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "wallet_router",
     "earnings_router",
     "config_router",
+    "favorites_router",
+    "coupons_router",
 ]
