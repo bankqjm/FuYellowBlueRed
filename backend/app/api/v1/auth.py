@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
+from typing import Optional
 from app.database import get_db
 from app.models.models import User, Wallet
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserInfo
 from app.schemas.base import ResponseSchema
-from app.utils.auth import hash_password, verify_password, create_access_token
+from app.utils.auth import hash_password, verify_password, generate_tokens, logout_token, verify_token
 from app.core import BadRequestException, UnauthorizedException, get_logger
 from app.config import settings
 
@@ -93,9 +94,7 @@ async def login(request: LoginRequest, response: Response, db: AsyncSession = De
     user.locked_until = None
     await db.commit()
 
-    access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role}
-    )
+    access_token, refresh_token = generate_tokens(user.id, user.role)
 
     response.set_cookie(
         key="access_token",
@@ -107,12 +106,86 @@ async def login(request: LoginRequest, response: Response, db: AsyncSession = De
         path="/",
     )
 
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
     logger.info(f"User logged in successfully: {user.id}")
     return ResponseSchema(
         code=0,
         message="登录成功",
         data=TokenResponse(
             access_token=access_token,
+            refresh_token=refresh_token,
+            user_id=user.id,
+            role=user.role,
+            nickname=user.nickname,
+            avatar=user.avatar,
+        ),
+    )
+
+
+@router.post("/refresh", response_model=ResponseSchema[TokenResponse])
+async def refresh_token(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise UnauthorizedException("缺少refresh token")
+
+    payload = verify_token(refresh_token)
+    if not payload:
+        raise UnauthorizedException("无效的refresh token")
+
+    token_type = payload.get("type")
+    if token_type != "refresh":
+        raise UnauthorizedException("请使用refresh token")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise UnauthorizedException("Token解析失败")
+
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user = result.scalar_one_or_none()
+
+    if not user or user.status == 0:
+        raise UnauthorizedException("用户不存在或账号已被禁用")
+
+    access_token, new_refresh_token = generate_tokens(user.id, user.role)
+
+    await logout_token(refresh_token)
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
+    logger.info(f"Token refreshed for user: {user.id}")
+    return ResponseSchema(
+        code=0,
+        message="Token刷新成功",
+        data=TokenResponse(
+            access_token=access_token,
+            refresh_token=new_refresh_token,
             user_id=user.id,
             role=user.role,
             nickname=user.nickname,
@@ -122,8 +195,19 @@ async def login(request: LoginRequest, response: Response, db: AsyncSession = De
 
 
 @router.post("/logout", response_model=ResponseSchema[None])
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    access_token = request.cookies.get("access_token")
+    refresh_token = request.cookies.get("refresh_token")
+
+    if access_token:
+        await logout_token(access_token)
+    if refresh_token:
+        await logout_token(refresh_token)
+
     response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+
+    logger.info("User logged out")
     return ResponseSchema(code=0, message="退出成功")
 
 

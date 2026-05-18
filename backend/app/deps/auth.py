@@ -4,7 +4,7 @@ from sqlalchemy import select
 from typing import Optional
 from app.database import get_db
 from app.models.models import User
-from app.utils.auth import verify_token
+from app.utils.auth import verify_token, is_token_valid
 from app.utils.exceptions import UnauthorizedException
 
 ALGORITHM = "HS256"
@@ -27,9 +27,16 @@ async def get_current_user(
     if not token:
         raise UnauthorizedException("缺少认证信息")
 
+    if not await is_token_valid(token):
+        raise UnauthorizedException("Token 已过期或无效")
+
     payload = verify_token(token)
     if not payload:
-        raise UnauthorizedException("Token 已过期或无效")
+        raise UnauthorizedException("Token 解析失败")
+
+    token_type = payload.get("type")
+    if token_type != "access":
+        raise UnauthorizedException("请使用access token")
 
     user_id = payload.get("sub")
     if not user_id:
