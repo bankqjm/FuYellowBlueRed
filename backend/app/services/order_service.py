@@ -227,6 +227,9 @@ class OrderService(BaseService):
         order_data = OrderResponse.model_validate(order)
         order_data.shop_name = shop.name
 
+        items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
         return order_data
 
     async def pay_order(self, user_id: int, order_id: int) -> OrderResponse:

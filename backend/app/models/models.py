@@ -126,10 +126,14 @@ class User(Base):
 
     wallet: Mapped["Wallet"] = relationship("Wallet", back_populates="user", uselist=False)
     addresses: Mapped[list["UserAddress"]] = relationship("UserAddress", back_populates="user")
-    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
+    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", foreign_keys="Order.user_id")
     fund_flows: Mapped[list["FundFlow"]] = relationship("FundFlow", back_populates="user")
-    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user")
+    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user", foreign_keys="Review.user_id")
     cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="user")
+    rider_orders: Mapped[list["Order"]] = relationship("Order", back_populates="rider", foreign_keys="Order.rider_id")
+    rider_reviews: Mapped[list["Review"]] = relationship("Review", back_populates="rider", foreign_keys="Review.rider_id")
+    favorites: Mapped[list["Favorite"]] = relationship("Favorite", back_populates="user")
+    shops: Mapped[list["Shop"]] = relationship("Shop", back_populates="owner")
 
 
 class Favorite(Base):
@@ -241,6 +245,7 @@ class Shop(Base):
     categories: Mapped[list["Category"]] = relationship("Category", back_populates="shop", cascade="all, delete-orphan")
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="shop")
     reviews: Mapped[list["Review"]] = relationship("Review", back_populates="shop")
+    favorites: Mapped[list["Favorite"]] = relationship("Favorite", back_populates="shop")
 
 
 class Category(Base):
@@ -313,10 +318,10 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    user: Mapped["User"] = relationship("User", back_populates="orders", foreign_keys=[user_id])
-    rider: Mapped["User"] = relationship("User", back_populates="rider_orders", foreign_keys=[rider_id])
+    user: Mapped["User"] = relationship("User", back_populates="orders", foreign_keys="Order.user_id")
+    rider: Mapped["User"] = relationship("User", back_populates="rider_orders", foreign_keys="Order.rider_id")
     shop: Mapped["Shop"] = relationship("Shop", back_populates="orders")
-    items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    items: Mapped[list["OrderItem"]] = relationship("OrderItem", lazy="selectin")
     review: Mapped["Review"] = relationship("Review", back_populates="order", uselist=False)
 
 
@@ -359,6 +364,8 @@ class Review(Base):
 
     order: Mapped["Order"] = relationship("Order", back_populates="review")
     shop: Mapped["Shop"] = relationship("Shop", back_populates="reviews")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="reviews")
+    rider: Mapped["User"] = relationship("User", foreign_keys=[rider_id], back_populates="rider_reviews")
 
 
 class RiderEarning(Base):
@@ -410,6 +417,10 @@ class CartItem(Base):
     quantity: Mapped[int] = mapped_column(default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
+    user: Mapped["User"] = relationship("User", back_populates="cart_items")
+    shop: Mapped["Shop"] = relationship("Shop", foreign_keys=[shop_id])
+    product: Mapped["Product"] = relationship("Product", foreign_keys=[product_id])
+
 
 class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
@@ -431,6 +442,8 @@ class PaymentTransaction(Base):
     extra_data: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     completed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
 
 
 class ShopEarning(Base):
@@ -491,7 +504,7 @@ class FundFlow(Base):
     description: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
-    user: Mapped["User"] = relationship("User", backref="fund_flows")
+    user: Mapped["User"] = relationship("User", back_populates="fund_flows", foreign_keys=[user_id])
 
 
 class RefundRecord(Base):

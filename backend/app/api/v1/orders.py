@@ -268,6 +268,10 @@ async def create_order(
 
     order_data = OrderResponse.model_validate(order)
     order_data.shop_name = shop.name
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
     logger.info(f"Order created: {order.id} by user {current_user.id}")
     return ResponseSchema(code=0, message="创建订单成功", data=order_data)
 
@@ -331,6 +335,7 @@ async def get_order_detail(
     shop = shop_result.scalar_one_or_none()
     if shop:
         order_data.shop_name = shop.name
+        order_data.shop_image = shop.logo
 
     items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
     order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
@@ -440,5 +445,14 @@ async def cancel_order(
     await db.commit()
     await db.refresh(order)
 
+    order_data = OrderResponse.model_validate(order)
+    shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop:
+        order_data.shop_name = shop.name
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
     logger.info(f"Order cancelled: {order_id} by user {current_user.id}")
-    return ResponseSchema(code=0, message="取消订单成功", data=OrderResponse.model_validate(order))
+    return ResponseSchema(code=0, message="取消订单成功", data=order_data)

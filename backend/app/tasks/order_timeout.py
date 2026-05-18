@@ -4,7 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import Order, OrderStatus
 from app.services.order_service import OrderService
-from app.core.logger import logger
+from app.core import get_logger as get_task_logger
+
+logger = get_task_logger("order_timeout")
 
 
 class OrderTimeoutTask:

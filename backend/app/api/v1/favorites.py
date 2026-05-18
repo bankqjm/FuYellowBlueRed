@@ -22,7 +22,7 @@ class FavoriteResponse(BaseSchema):
     shop_image: Optional[str] = None
     shop_rating: Optional[float] = None
     monthly_sales: Optional[int] = None
-    delivery_time: Optional[int] = None
+    delivery_time: Optional[str] = None
     min_order_amount: Optional[float] = None
 
 
@@ -51,7 +51,7 @@ async def list_favorites(
             shop_id=favorite.shop_id,
             created_at=favorite.created_at,
             shop_name=shop.name,
-            shop_image=shop.image,
+            shop_image=shop.logo,
             shop_rating=shop.rating,
             monthly_sales=shop.monthly_sales,
             delivery_time=shop.delivery_time,
@@ -92,7 +92,7 @@ async def add_favorite(
         shop_id=favorite.shop_id,
         created_at=favorite.created_at,
         shop_name=shop.name,
-        shop_image=shop.image,
+        shop_image=shop.logo,
     ))
 
 
