@@ -63,10 +63,13 @@ class OrderResponse(BaseSchema):
     total_amount: float
     delivery_fee: float
     status: str
+    reject_reason: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     shop_name: Optional[str] = None
     shop_image: Optional[str] = None
+    user_phone: Optional[str] = None
+    user_nickname: Optional[str] = None
     items: Optional[List[OrderItemResponse]] = None
     address_info: Optional[AddressInfo] = None
 

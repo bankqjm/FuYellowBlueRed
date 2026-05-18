@@ -212,3 +212,79 @@ async def get_platform_stats(
         "order_count": order_count,
         "pending_order_count": pending_order_count,
     })
+
+
+from app.schemas.order import OrderResponse, OrderQuery
+
+
+@router.get("/orders", response_model=ResponseSchema[PageResponse[OrderResponse]])
+async def list_all_orders(
+    query: OrderQuery = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "ADMIN":
+        raise ForbiddenException("无权限")
+
+    stmt = select(Order)
+    count_stmt = select(func.count(Order.id))
+
+    if query.status:
+        stmt = stmt.where(Order.status == query.status)
+        count_stmt = count_stmt.where(Order.status == query.status)
+
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
+
+    stmt = stmt.order_by(Order.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+    result = await db.execute(stmt)
+    orders = result.scalars().all()
+
+    order_list = []
+    for order in orders:
+        order_data = OrderResponse.model_validate(order)
+        shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
+        shop = shop_result.scalar_one_or_none()
+        if shop:
+            order_data.shop_name = shop.name
+        order_list.append(order_data)
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=order_list,
+            total=total,
+            page=query.page,
+            page_size=query.page_size
+        )
+    )
+
+
+@router.get("/orders/{order_id}", response_model=ResponseSchema[OrderResponse])
+async def get_admin_order_detail(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "ADMIN":
+        raise ForbiddenException("无权限")
+
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+
+    order_data = OrderResponse.model_validate(order)
+
+    shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop:
+        order_data.shop_name = shop.name
+
+    user_result = await db.execute(select(User).where(User.id == order.user_id))
+    user = user_result.scalar_one_or_none()
+    if user:
+        order_data.user_phone = user.phone
+        order_data.user_nickname = user.nickname
+
+    return ResponseSchema(code=0, data=order_data)

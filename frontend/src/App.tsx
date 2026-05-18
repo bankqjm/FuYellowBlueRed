@@ -14,6 +14,7 @@ import Cart from '@/pages/user/Cart'
 import Orders from '@/pages/user/Orders'
 import Profile from '@/pages/user/Profile'
 import Addresses from '@/pages/user/Addresses'
+import Wallet from '@/pages/user/Wallet'
 import ShopOrders from '@/pages/shop/Orders'
 import ShopInfo from '@/pages/shop/ShopInfo'
 import ShopDashboard from '@/pages/shop/Dashboard'
@@ -24,6 +25,7 @@ import RiderWithdraw from '@/pages/rider/Withdraw'
 import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminShops from '@/pages/admin/Shops'
 import AdminUsers from '@/pages/admin/Users'
+import AdminOrders from '@/pages/admin/Orders'
 import ReviewPage from '@/pages/user/Review'
 import './App.css'
 
@@ -62,6 +64,7 @@ function App() {
             <Route path="cart" element={<Cart />} />
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id/pay" element={<Orders />} />
+            <Route path="wallet" element={<Wallet />} />
             <Route path="profile" element={<Profile />} />
             <Route path="addresses" element={<Addresses />} />
             <Route path="review/:id" element={<ReviewPage />} />
@@ -105,6 +108,7 @@ function App() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="shops" element={<AdminShops />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="orders" element={<AdminOrders />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

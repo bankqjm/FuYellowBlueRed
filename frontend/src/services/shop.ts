@@ -189,7 +189,7 @@ export const shopApi = {
 
   acceptOrder: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/accept`),
 
-  rejectOrder: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/reject`),
+  rejectOrder: (orderId: number, reason: string) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/reject`, { reason }),
 
   orderReady: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/ready`),
 
@@ -203,4 +203,7 @@ export const adminApi = {
   rejectShop: (shopId: number) => api.put<ShopInfo>(`/admin/shop/${shopId}/reject`),
   listPendingShops: (params?: { page?: number; page_size?: number; keyword?: string }) =>
     api.get<PageResponse<ShopInfo>>('/admin/shop/pending', { params }),
+  listAdminOrders: (params?: { page?: number; page_size?: number; status?: string }) =>
+    api.get<PageResponse<OrderInfo>>('/admin/orders', { params }),
+  getAdminOrderDetail: (orderId: number) => api.get<OrderInfo>(`/admin/orders/${orderId}`),
 }

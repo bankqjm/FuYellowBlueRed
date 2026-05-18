@@ -498,6 +498,7 @@ async def accept_order(
 @router.put("/my/orders/{order_id}/reject", response_model=ResponseSchema[OrderResponse])
 async def reject_order(
     order_id: int,
+    reason: str = Body(..., embed=True, description="拒单原因"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -514,9 +515,10 @@ async def reject_order(
         raise BadRequestException("订单状态异常")
 
     order.status = OrderStatus.CANCELLED
+    order.reject_reason = reason
     await db.commit()
     await db.refresh(order)
-    logger.info(f"Order rejected: {order_id}")
+    logger.info(f"Order rejected: {order_id}, reason: {reason}")
 
     return ResponseSchema(code=0, message="拒单成功", data=OrderResponse.model_validate(order))
 

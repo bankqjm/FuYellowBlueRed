@@ -6,6 +6,7 @@ import {
   InboxOutlined,
   UserOutlined,
   EnvironmentOutlined,
+  WalletOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
@@ -19,7 +20,7 @@ const tabItems = [
   { key: '/user/home', icon: <HomeOutlined />, label: '首页' },
   { key: '/user/cart', icon: <ShoppingCartOutlined />, label: '购物车' },
   { key: '/user/orders', icon: <InboxOutlined />, label: '订单' },
-  { key: '/user/addresses', icon: <EnvironmentOutlined />, label: '地址' },
+  { key: '/user/wallet', icon: <WalletOutlined />, label: '钱包' },
   { key: '/user/profile', icon: <UserOutlined />, label: '我的' },
 ]
 
@@ -33,6 +34,7 @@ export default function UserLayout() {
     { key: '/user/home', icon: <HomeOutlined />, label: '首页' },
     { key: '/user/cart', icon: <ShoppingCartOutlined />, label: '购物车' },
     { key: '/user/orders', icon: <InboxOutlined />, label: '我的订单' },
+    { key: '/user/wallet', icon: <WalletOutlined />, label: '我的钱包' },
     { key: '/user/addresses', icon: <EnvironmentOutlined />, label: '收货地址' },
     { key: '/user/profile', icon: <UserOutlined />, label: '个人中心' },
   ]

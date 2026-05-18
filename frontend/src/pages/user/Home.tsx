@@ -45,6 +45,9 @@ const sortOptions = [
   { label: '配送最快', value: 'speed' },
 ]
 
+const SEARCH_HISTORY_KEY = 'search_history'
+const MAX_HISTORY = 10
+
 export default function UserHome() {
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
@@ -52,9 +55,33 @@ export default function UserHome() {
   const [addresses, setAddresses] = useState<AddressInfo[]>([])
   const [selectedAddress, setSelectedAddress] = useState<AddressInfo | null>(null)
   const [sortBy, setSortBy] = useState('default')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [searchHistory, setSearchHistory] = useState<string[]>([])
+  const [showHistory, setShowHistory] = useState(false)
   const navigate = useNavigate()
   const { token } = useAuthStore()
   const isMobile = useIsMobile()
+
+  useEffect(() => {
+    const history = localStorage.getItem(SEARCH_HISTORY_KEY)
+    if (history) {
+      setSearchHistory(JSON.parse(history))
+    }
+  }, [])
+
+  const saveSearchHistory = (keyword: string) => {
+    const trimmed = keyword.trim()
+    if (!trimmed) {return}
+    const history = searchHistory.filter((h) => h !== trimmed)
+    const newHistory = [trimmed, ...history].slice(0, MAX_HISTORY)
+    setSearchHistory(newHistory)
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(newHistory))
+  }
+
+  const clearSearchHistory = () => {
+    setSearchHistory([])
+    localStorage.removeItem(SEARCH_HISTORY_KEY)
+  }
 
   const fetchShops = async (keyword?: string) => {
     try {
@@ -86,8 +113,27 @@ export default function UserHome() {
   }, [])
 
   const handleSearch = (value: string) => {
+    if (value.trim()) {
+      saveSearchHistory(value.trim())
+    }
     setSearchText(value)
+    setSelectedCategory(value.trim() || null)
     fetchShops(value || undefined)
+    setShowHistory(false)
+  }
+
+  const handleCategoryClick = (label: string) => {
+    const keyword = label === '美食' ? '' : label
+    setSelectedCategory(keyword)
+    setSearchText(keyword)
+    fetchShops(keyword || undefined)
+  }
+
+  const handleHistoryClick = (keyword: string) => {
+    setSearchText(keyword)
+    setSelectedCategory(keyword)
+    fetchShops(keyword || undefined)
+    setShowHistory(false)
   }
 
   const getSortedShops = () => {
@@ -248,17 +294,21 @@ export default function UserHome() {
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
                     padding: '6px 0', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
                   }}
-                  onClick={() => handleSearch(item.label === '美食' ? '' : item.label)}
+                  onClick={() => handleCategoryClick(item.label)}
                 >
                   <div style={{
                     width: 44, height: 44, borderRadius: 12,
-                    background: `${item.color}15`, display: 'flex',
+                    background: selectedCategory === (item.label === '美食' ? '' : item.label) ? item.color : `${item.color}20`,
+                    display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22, color: item.color, marginBottom: 4,
+                    fontSize: 22, color: selectedCategory === (item.label === '美食' ? '' : item.label) ? '#fff' : item.color, marginBottom: 4,
+                    transition: 'all 0.2s',
                   }}>
                     {item.icon}
                   </div>
-                  <span style={{ fontSize: 11, color: '#333' }}>{item.label}</span>
+                  <span style={{ fontSize: 11, color: selectedCategory === (item.label === '美食' ? '' : item.label) ? item.color : '#333', fontWeight: selectedCategory === (item.label === '美食' ? '' : item.label) ? 600 : 400 }}>
+                    {item.label}
+                  </span>
                 </div>
               ))}
             </div>

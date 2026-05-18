@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Typography, Tabs, List, Empty, Button, Space, Tag, Spin, message, Modal } from 'antd'
-import { InboxOutlined, CarOutlined } from '@ant-design/icons'
+import { InboxOutlined, CarOutlined, PhoneOutlined } from '@ant-design/icons'
 import { riderApi } from '../../services/rider'
 import type { OrderInfo } from '../../services/shop'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -232,6 +232,10 @@ export default function RiderOrders() {
     },
   ]
 
+  const handleCallUser = (phone: string) => {
+    window.location.href = `tel:${phone}`
+  }
+
   return (
     <div>
       <Card>
@@ -250,8 +254,17 @@ export default function RiderOrders() {
           <div>
             <p><Text strong>订单号：</Text>{selectedOrder.order_no}</p>
             <p><Text strong>商家名称：</Text>{selectedOrder.shop_name}</p>
-            <p><Text strong>商家地址：</Text>-</p>
-            <p><Text strong>收货人：</Text>{selectedOrder.phone}</p>
+            <p><Text strong>收货人：</Text>{selectedOrder.phone}
+              <Button
+                type="link"
+                size="small"
+                icon={<PhoneOutlined />}
+                onClick={() => handleCallUser(selectedOrder.phone)}
+                style={{ marginLeft: 8 }}
+              >
+                拨打电话
+              </Button>
+            </p>
             <p><Text strong>配送地址：</Text>{selectedOrder.address}</p>
             <p><Text strong>订单金额：</Text>¥{selectedOrder.total_amount.toFixed(2)}</p>
             <p><Text strong>配送费：</Text><Text type="success">¥{selectedOrder.delivery_fee.toFixed(2)}</Text></p>
