@@ -11,10 +11,10 @@ interface UserInfo {
 }
 
 interface AuthState {
-  token: string | null
+  isAuthenticated: boolean
   userInfo: UserInfo | null
   role: string | null
-  setAuth: (token: string, userInfo: UserInfo) => void
+  setAuth: (userInfo: UserInfo) => void
   updateUserInfo: (userInfo: Partial<UserInfo>) => void
   logout: () => void
 }
@@ -22,12 +22,12 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
+      isAuthenticated: false,
       userInfo: null,
       role: null,
-      setAuth: (token, userInfo) =>
+      setAuth: (userInfo) =>
         set({
-          token,
+          isAuthenticated: true,
           userInfo,
           role: userInfo.role,
         }),
@@ -37,13 +37,14 @@ export const useAuthStore = create<AuthState>()(
         })),
       logout: () =>
         set({
-          token: null,
+          isAuthenticated: false,
           userInfo: null,
           role: null,
         }),
     }),
     {
       name: 'auth-storage',
+      partialize: (state) => ({ userInfo: state.userInfo, role: state.role }),
     },
   ),
 )

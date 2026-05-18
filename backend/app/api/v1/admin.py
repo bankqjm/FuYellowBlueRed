@@ -1,8 +1,9 @@
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from typing import Optional
+from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.models import Shop, ShopStatus, User, Order
 from app.schemas.shop import ShopInfo, ShopListQuery
@@ -212,6 +213,58 @@ async def get_platform_stats(
         "order_count": order_count,
         "pending_order_count": pending_order_count,
     })
+
+
+@router.get("/stats/trend", response_model=ResponseSchema[list])
+async def get_platform_trend(
+    days: int = Query(7, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role != "ADMIN":
+        raise ForbiddenException("无权限")
+
+    result = []
+    today = datetime.now().date()
+
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+
+        order_count_result = await db.execute(
+            select(func.count(Order.id)).where(
+                Order.created_at >= date_start,
+                Order.created_at <= date_end,
+            )
+        )
+        order_count = order_count_result.scalar() or 0
+
+        revenue_result = await db.execute(
+            select(func.coalesce(func.sum(Order.total_amount), 0)).where(
+                Order.created_at >= date_start,
+                Order.created_at <= date_end,
+                Order.status == "COMPLETED",
+            )
+        )
+        revenue = float(revenue_result.scalar() or 0)
+
+        user_count_result = await db.execute(
+            select(func.count(User.id)).where(
+                User.created_at >= date_start,
+                User.created_at <= date_end,
+            )
+        )
+        new_users = user_count_result.scalar() or 0
+
+        result.append({
+            "date": date.strftime("%m-%d"),
+            "orders": order_count,
+            "revenue": round(revenue, 2),
+            "new_users": new_users,
+        })
+
+    return ResponseSchema(code=0, data=result)
 
 
 from app.schemas.order import OrderResponse, OrderQuery

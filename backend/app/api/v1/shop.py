@@ -1,8 +1,9 @@
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
+from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.models import (
     Shop, Category, Product, ShopStatus, ProductStatus, User, Order, OrderItem, OrderStatus,
@@ -589,3 +590,50 @@ async def get_shop_stats(
         "pending_orders": pending_orders,
         "rating": shop.rating,
     })
+
+
+@router.get("/my/stats/trend", response_model=ResponseSchema[list])
+async def get_shop_trend(
+    days: int = Query(7, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    result = []
+    today = datetime.now().date()
+
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+
+        order_count_result = await db.execute(
+            select(func.count(Order.id)).where(
+                Order.shop_id == shop.id,
+                Order.created_at >= date_start,
+                Order.created_at <= date_end,
+            )
+        )
+        order_count = order_count_result.scalar() or 0
+
+        revenue_result = await db.execute(
+            select(func.coalesce(func.sum(Order.total_amount), 0)).where(
+                Order.shop_id == shop.id,
+                Order.created_at >= date_start,
+                Order.created_at <= date_end,
+                Order.status == OrderStatus.COMPLETED,
+            )
+        )
+        revenue = float(revenue_result.scalar() or 0)
+
+        result.append({
+            "date": date.strftime("%m-%d"),
+            "orders": order_count,
+            "revenue": round(revenue, 2),
+        })
+
+    return ResponseSchema(code=0, data=result)

@@ -4,6 +4,7 @@ import { InboxOutlined, LogoutOutlined, ShopOutlined, ShoppingOutlined } from '@
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import api from '@/services/api'
 
 const { Header, Content } = Layout
 
@@ -34,10 +35,10 @@ export default function ShopLayout() {
     },
   ]
 
-  const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+  const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
     if (key === 'logout') {
+      try { await api.post('/auth/logout') } catch {}
       logout()
-      localStorage.removeItem('token')
       navigate('/login')
     }
   }

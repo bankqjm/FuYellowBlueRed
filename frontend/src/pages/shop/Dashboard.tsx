@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Card, Row, Col, Statistic, Spin, Typography } from 'antd'
+import { Card, Row, Col, Statistic, Spin, Typography, Select } from 'antd'
 import { ShoppingCartOutlined, DollarOutlined, ClockCircleOutlined, StarOutlined } from '@ant-design/icons'
-import { shopApi, ShopStats } from '../../services/shop'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { shopApi, ShopStats, ShopTrendItem } from '../../services/shop'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title } = Typography
@@ -9,6 +10,8 @@ const { Title } = Typography
 export default function Dashboard() {
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState<ShopStats | null>(null)
+  const [trendData, setTrendData] = useState<ShopTrendItem[]>([])
+  const [trendDays, setTrendDays] = useState(7)
   const isMobile = useIsMobile()
 
   const fetchStats = async () => {
@@ -23,9 +26,22 @@ export default function Dashboard() {
     }
   }
 
+  const fetchTrend = async () => {
+    try {
+      const res = await shopApi.getMyStatsTrend(trendDays)
+      setTrendData(res.data)
+    } catch (error) {
+      console.error('获取趋势数据失败', error)
+    }
+  }
+
   useEffect(() => {
     fetchStats()
   }, [])
+
+  useEffect(() => {
+    fetchTrend()
+  }, [trendDays])
 
   if (loading) {
     return (
@@ -41,6 +57,37 @@ export default function Dashboard() {
     { title: '待处理', value: stats?.pending_orders ?? 0, icon: <ClockCircleOutlined />, color: '#faad14' },
     { title: '评分', value: stats?.rating ?? 0, icon: <StarOutlined />, color: '#ff4d4f', suffix: '分' },
   ]
+
+  const renderTrendChart = () => (
+    <Card style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Title level={5} style={{ margin: 0 }}>趋势分析</Title>
+        <Select
+          value={trendDays}
+          onChange={setTrendDays}
+          size="small"
+          style={{ width: 100 }}
+          options={[
+            { label: '近7天', value: 7 },
+            { label: '近14天', value: 14 },
+            { label: '近30天', value: 30 },
+          ]}
+        />
+      </div>
+      <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
+        <LineChart data={trendData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+          <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+          <Tooltip />
+          <Legend />
+          <Line yAxisId="left" type="monotone" dataKey="orders" name="订单数" stroke="#1890ff" strokeWidth={2} dot={{ r: 3 }} />
+          <Line yAxisId="right" type="monotone" dataKey="revenue" name="收入(元)" stroke="#52c41a" strokeWidth={2} dot={{ r: 3 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </Card>
+  )
 
   if (isMobile) {
     return (
@@ -59,6 +106,7 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
+        {renderTrendChart()}
       </div>
     )
   }
@@ -83,6 +131,7 @@ export default function Dashboard() {
           </Col>
         ))}
       </Row>
+      {renderTrendChart()}
     </div>
   )
 }

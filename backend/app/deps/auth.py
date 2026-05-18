@@ -1,4 +1,4 @@
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -11,18 +11,21 @@ ALGORITHM = "HS256"
 
 
 async def get_current_user(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    if not authorization:
-        raise UnauthorizedException("缺少认证信息")
-
-    try:
-        scheme, token = authorization.split()
-        if scheme.lower() != "bearer":
+    token = request.cookies.get("access_token")
+    if not token and authorization:
+        try:
+            scheme, token = authorization.split()
+            if scheme.lower() != "bearer":
+                raise UnauthorizedException("认证格式错误")
+        except ValueError:
             raise UnauthorizedException("认证格式错误")
-    except ValueError:
-        raise UnauthorizedException("认证格式错误")
+
+    if not token:
+        raise UnauthorizedException("缺少认证信息")
 
     payload = verify_token(token)
     if not payload:
@@ -50,3 +53,6 @@ def require_role(*roles: str):
             raise UnauthorizedException("权限不足")
         return current_user
     return role_checker
+
+
+require_admin = require_role("ADMIN")

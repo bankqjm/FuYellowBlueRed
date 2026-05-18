@@ -99,6 +99,19 @@ export interface ShopStats {
   rating: number
 }
 
+export interface ShopTrendItem {
+  date: string
+  orders: number
+  revenue: number
+}
+
+export interface AdminTrendItem {
+  date: string
+  orders: number
+  revenue: number
+  new_users: number
+}
+
 export interface ShopDetail extends ShopInfo {
   categories?: CategoryInfo[]
 }
@@ -195,6 +208,8 @@ export const shopApi = {
 
   getMyStats: () => api.get<ShopStats>('/shop/my/stats'),
 
+  getMyStatsTrend: (days?: number) => api.get<ShopTrendItem[]>('/shop/my/stats/trend', { params: { days } }),
+
   cancelOrder: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/cancel`),
 }
 
@@ -206,4 +221,5 @@ export const adminApi = {
   listAdminOrders: (params?: { page?: number; page_size?: number; status?: string }) =>
     api.get<PageResponse<OrderInfo>>('/admin/orders', { params }),
   getAdminOrderDetail: (orderId: number) => api.get<OrderInfo>(`/admin/orders/${orderId}`),
+  getStatsTrend: (days?: number) => api.get<AdminTrendItem[]>('/admin/stats/trend', { params: { days } }),
 }

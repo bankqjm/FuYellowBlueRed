@@ -33,8 +33,7 @@ export default function Login() {
     try {
       const res = await authApi.login(values)
       const data = res.data
-      localStorage.setItem('token', data.access_token)
-      setAuth(data.access_token, {
+      setAuth({
         id: data.user_id,
         phone: '',
         role: data.role,

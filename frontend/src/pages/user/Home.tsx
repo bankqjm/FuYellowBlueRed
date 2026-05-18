@@ -14,8 +14,10 @@ import {
   HeartOutlined,
   CrownOutlined,
   ThunderboltOutlined,
+  DeleteOutlined,
+  CloseOutlined,
 } from '@ant-design/icons'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { shopApi, ShopInfo } from '../../services/shop'
 import { addressApi, AddressInfo } from '../../services/address'
@@ -58,9 +60,20 @@ export default function UserHome() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [searchHistory, setSearchHistory] = useState<string[]>([])
   const [showHistory, setShowHistory] = useState(false)
+  const searchWrapperRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
-  const { token } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const isMobile = useIsMobile()
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setShowHistory(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   useEffect(() => {
     const history = localStorage.getItem(SEARCH_HISTORY_KEY)
@@ -96,7 +109,7 @@ export default function UserHome() {
   }
 
   const fetchAddresses = async () => {
-    if (!token) {return}
+    if (!isAuthenticated) {return}
     try {
       const res = await addressApi.getAddresses()
       setAddresses(res.data)
@@ -149,6 +162,52 @@ export default function UserHome() {
         break
     }
     return sorted
+  }
+
+  const renderSearchHistory = () => {
+    if (!showHistory || searchHistory.length === 0) return null
+    return (
+      <div style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        background: '#fff',
+        borderRadius: isMobile ? 12 : 8,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+        zIndex: 1000,
+        padding: isMobile ? '8px 12px' : '12px 16px',
+        maxHeight: 280,
+        overflowY: 'auto',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 13, color: '#333' }}>
+            <ClockCircleOutlined style={{ marginRight: 4 }} />搜索历史
+          </Text>
+          <span
+            onClick={(e) => { e.stopPropagation(); clearSearchHistory() }}
+            style={{ fontSize: 12, color: '#999', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
+          >
+            <DeleteOutlined /> 清空
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {searchHistory.map((keyword) => (
+            <Tag
+              key={keyword}
+              style={{
+                cursor: 'pointer', margin: 0, borderRadius: 14,
+                padding: '2px 10px', fontSize: 12,
+                background: '#f5f5f5', border: 'none', color: '#555',
+              }}
+              onClick={() => handleHistoryClick(keyword)}
+            >
+              {keyword}
+            </Tag>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const renderShopCard = (shop: ShopInfo) => {
@@ -274,15 +333,19 @@ export default function UserHome() {
               </span>
               <span style={{ fontSize: 10 }}>▼</span>
             </div>
-            <Input
-              size="large"
-              placeholder="搜索商家或美食..."
-              prefix={<SearchOutlined style={{ color: '#999' }} />}
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ borderRadius: 20, borderColor: 'transparent' }}
-              allowClear
-            />
+            <div ref={searchWrapperRef} style={{ position: 'relative' }}>
+              <Input
+                size="large"
+                placeholder="搜索商家或美食..."
+                prefix={<SearchOutlined style={{ color: '#999' }} />}
+                value={searchText}
+                onChange={(e) => handleSearch(e.target.value)}
+                onFocus={() => { if (searchHistory.length > 0) setShowHistory(true) }}
+                style={{ borderRadius: 20, borderColor: 'transparent' }}
+                allowClear
+              />
+              {renderSearchHistory()}
+            </div>
           </div>
 
           <div style={{ background: '#fff', padding: '12px 0' }}>
@@ -383,15 +446,18 @@ export default function UserHome() {
                 ))}
               </Select>
             </div>
-            <Input.Search
-              size="large"
-              placeholder="搜索商家或美食..."
-              value={searchText}
-              onChange={(e) => handleSearch(e.target.value)}
-              onSearch={handleSearch}
-              style={{ maxWidth: 600 }}
-              allowClear
-            />
+            <div ref={searchWrapperRef} style={{ position: 'relative', maxWidth: 600 }}>
+              <Input.Search
+                size="large"
+                placeholder="搜索商家或美食..."
+                value={searchText}
+                onChange={(e) => handleSearch(e.target.value)}
+                onSearch={handleSearch}
+                onFocus={() => { if (searchHistory.length > 0) setShowHistory(true) }}
+                allowClear
+              />
+              {renderSearchHistory()}
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 16 }}>

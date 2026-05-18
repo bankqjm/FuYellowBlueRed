@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Card, Typography, Image, Button, Space, message, Spin, Tag } from 'antd'
 import { ShoppingCartOutlined, StarOutlined, PlusOutlined, MinusOutlined, ClockCircleOutlined } from '@ant-design/icons'
@@ -17,6 +17,10 @@ export default function ShopDetail() {
   const [shop, setShop] = useState<ShopDetailType | null>(null)
   const [cart, setCart] = useState<CartItemInfo[]>([])
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
+  const [cartBadgeBounce, setCartBadgeBounce] = useState(false)
+  const [flyingDots, setFlyingDots] = useState<{ id: number; x: number; y: number; flyX: number; flyY: number }[]>([])
+  const dotIdRef = useRef(0)
+  const cartIconRef = useRef<HTMLSpanElement>(null)
 
   const fetchShopDetail = async () => {
     if (!id) {return}
@@ -54,8 +58,30 @@ export default function ShopDetail() {
     return cartItem?.quantity || 0
   }
 
-  const addToCart = async (product: ProductInfo) => {
-    if (!id) {return}
+  const triggerCartAnimation = useCallback((btnEl: HTMLElement | null) => {
+    if (!btnEl || !cartIconRef.current) return
+
+    const btnRect = btnEl.getBoundingClientRect()
+    const cartRect = cartIconRef.current.getBoundingClientRect()
+
+    const dotId = ++dotIdRef.current
+    const startX = btnRect.left + btnRect.width / 2
+    const startY = btnRect.top + btnRect.height / 2
+    const flyX = cartRect.left + cartRect.width / 2 - startX
+    const flyY = cartRect.top + cartRect.height / 2 - startY
+
+    setFlyingDots((prev) => [...prev, { id: dotId, x: startX, y: startY, flyX, flyY }])
+
+    setTimeout(() => {
+      setFlyingDots((prev) => prev.filter((d) => d.id !== dotId))
+    }, 600)
+
+    setCartBadgeBounce(true)
+    setTimeout(() => setCartBadgeBounce(false), 500)
+  }, [])
+
+  const addToCart = async (product: ProductInfo, btnEl: HTMLElement | null) => {
+    if (!id) return
     try {
       await cartApi.addToCart({
         shop_id: parseInt(id),
@@ -63,6 +89,7 @@ export default function ShopDetail() {
         quantity: 1,
       })
       message.success('已加入购物车')
+      triggerCartAnimation(btnEl)
       fetchCart()
     } catch (error) {
       console.error('添加购物车失败', error)
@@ -159,8 +186,13 @@ export default function ShopDetail() {
                 <Button
                   type="primary" size="small"
                   icon={<PlusOutlined />}
-                  onClick={(e) => { e.stopPropagation(); addToCart(product) }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const btn = (e.target as HTMLElement).closest('button')
+                    addToCart(product, btn)
+                  }}
                   style={{ borderRadius: 16 }}
+                  className="add-btn-pulse"
                 >
                   加入
                 </Button>
@@ -328,13 +360,16 @@ export default function ShopDetail() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ position: 'relative' }}>
-              <ShoppingCartOutlined style={{ fontSize: 28, color: '#1890ff' }} />
-              <span style={{
-                position: 'absolute', top: -8, right: -8,
-                background: '#ff4d4f', color: '#fff', fontSize: 10,
-                borderRadius: 10, padding: '0 5px', lineHeight: '16px',
-                fontWeight: 700,
-              }}>
+              <ShoppingCartOutlined ref={cartIconRef} style={{ fontSize: 28, color: '#1890ff' }} />
+              <span
+                className={cartBadgeBounce ? 'cart-badge-bounce' : ''}
+                style={{
+                  position: 'absolute', top: -8, right: -8,
+                  background: '#ff4d4f', color: '#fff', fontSize: 10,
+                  borderRadius: 10, padding: '0 5px', lineHeight: '16px',
+                  fontWeight: 700,
+                }}
+              >
                 {cartTotal.quantity}
               </span>
             </div>
@@ -355,6 +390,19 @@ export default function ShopDetail() {
           </Button>
         </div>
       )}
+
+      {flyingDots.map((dot) => (
+        <div
+          key={dot.id}
+          className="fly-dot"
+          style={{
+            left: dot.x - 7,
+            top: dot.y - 7,
+            '--fly-x': `${dot.flyX}px`,
+            '--fly-y': `${dot.flyY}px`,
+          } as React.CSSProperties}
+        />
+      ))}
     </div>
   )
 }

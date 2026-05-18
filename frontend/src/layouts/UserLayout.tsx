@@ -14,6 +14,8 @@ import {
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useOrderNotification } from '@/hooks/useOrderNotification'
+import api from '@/services/api'
 
 const { Header, Content } = Layout
 const { Text } = Typography
@@ -29,8 +31,9 @@ const tabItems = [
 export default function UserLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { userInfo, logout } = useAuthStore()
+  const { userInfo, logout, isAuthenticated } = useAuthStore()
   const isMobile = useIsMobile()
+  useOrderNotification(isAuthenticated)
 
   const menuItems: MenuProps['items'] = [
     { key: '/user/home', icon: <HomeOutlined />, label: '首页' },
@@ -56,10 +59,10 @@ export default function UserLayout() {
     navigate(e.key)
   }
 
-  const handleUserMenuClick: MenuProps['onClick'] = ({ key }) => {
+  const handleUserMenuClick: MenuProps['onClick'] = async ({ key }) => {
     if (key === 'logout') {
+      try { await api.post('/auth/logout') } catch {}
       logout()
-      localStorage.removeItem('token')
       navigate('/login')
     }
   }

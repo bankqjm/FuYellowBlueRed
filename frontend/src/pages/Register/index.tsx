@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Form, Input, Button, Card, Typography, Space, Select, message } from 'antd'
-import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Card, Typography, Space, Select, message, Progress } from 'antd'
+import { UserOutlined, LockOutlined, PhoneOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { authApi } from '@/services/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -14,11 +14,27 @@ const roleOptions = [
   { label: '我是骑手', value: 'RIDER' },
 ]
 
+function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+  let score = 0
+  if (password.length >= 8) score++
+  if (/[a-z]/.test(password)) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/\d/.test(password)) score++
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++
+
+  if (score <= 2) return { score: 20 * score, label: '弱', color: '#ff4d4f' }
+  if (score <= 3) return { score: 20 * score, label: '中', color: '#faad14' }
+  return { score: 20 * score, label: '强', color: '#52c41a' }
+}
+
 export default function Register() {
   const [loading, setLoading] = useState(false)
+  const [password, setPassword] = useState('')
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
   const isMobile = useIsMobile()
+
+  const strength = getPasswordStrength(password)
 
   const getHomePath = (role: string) => {
     switch (role) {
@@ -44,8 +60,7 @@ export default function Register() {
       await authApi.register(values)
       const res = await authApi.login({ phone: values.phone, password: values.password })
       const data = res.data
-      localStorage.setItem('token', data.access_token)
-      setAuth(data.access_token, {
+      setAuth({
         id: data.user_id,
         phone: '',
         role: data.role,
@@ -103,10 +118,52 @@ export default function Register() {
               name="password"
               rules={[
                 { required: true, message: '请输入密码' },
-                { min: 6, message: '密码至少6位' },
+                { min: 8, message: '密码至少8位' },
+                { pattern: /[a-z]/, message: '密码必须包含小写字母' },
+                { pattern: /[A-Z]/, message: '密码必须包含大写字母' },
+                { pattern: /\d/, message: '密码必须包含数字' },
               ]}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+              <Input.Password prefix={<LockOutlined />} placeholder="密码（8位以上，含大小写字母和数字）" onChange={e => setPassword(e.target.value)} />
+            </Form.Item>
+            {password && (
+              <div style={{ marginTop: -16, marginBottom: 16 }}>
+                <Progress percent={strength.score} size="small" strokeColor={strength.color} format={() => strength.label} />
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                  <span style={{ color: /[a-z]/.test(password) ? '#52c41a' : '#999' }}>
+                    {/[a-z]/.test(password) ? <CheckCircleOutlined /> : <CloseCircleOutlined />} 小写字母
+                  </span>
+                  {' '}
+                  <span style={{ color: /[A-Z]/.test(password) ? '#52c41a' : '#999' }}>
+                    {/[A-Z]/.test(password) ? <CheckCircleOutlined /> : <CloseCircleOutlined />} 大写字母
+                  </span>
+                  {' '}
+                  <span style={{ color: /\d/.test(password) ? '#52c41a' : '#999' }}>
+                    {/\d/.test(password) ? <CheckCircleOutlined /> : <CloseCircleOutlined />} 数字
+                  </span>
+                  {' '}
+                  <span style={{ color: password.length >= 8 ? '#52c41a' : '#999' }}>
+                    {password.length >= 8 ? <CheckCircleOutlined /> : <CloseCircleOutlined />} 8位以上
+                  </span>
+                </div>
+              </div>
+            )}
+            <Form.Item
+              name="confirm_password"
+              dependencies={['password']}
+              rules={[
+                { required: true, message: '请确认密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) {
+                      return Promise.resolve()
+                    }
+                    return Promise.reject(new Error('两次输入的密码不一致'))
+                  },
+                }),
+              ]}
+            >
+              <Input.Password prefix={<LockOutlined />} placeholder="确认密码" />
             </Form.Item>
             <Form.Item
               name="nickname"

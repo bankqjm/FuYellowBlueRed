@@ -25,8 +25,10 @@ from app.api import (
     config_router,
     favorites_router,
     coupons_router,
+    audit_router,
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
+from app.core.security_middleware import SecurityHeadersMiddleware
 from app.database import AsyncSessionLocal
 from app.services.config import ConfigService
 from app.tasks import run_order_timeout_task
@@ -89,6 +91,7 @@ app.add_middleware(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.exception_handler(BaseAPIException)
@@ -130,6 +133,7 @@ app.include_router(earnings_router, prefix="/api/v1")
 app.include_router(config_router, prefix="/api/v1")
 app.include_router(favorites_router, prefix="/api/v1")
 app.include_router(coupons_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
 
 
 @app.get("/")

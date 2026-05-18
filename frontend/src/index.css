@@ -200,3 +200,51 @@ body {
     align-items: flex-end !important;
   }
 }
+
+@keyframes cartBadgeBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.5); }
+  60% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+@keyframes addBtnPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.85); }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes flyDot {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(0);
+  }
+}
+
+.cart-badge-bounce {
+  animation: cartBadgeBounce 0.4s ease;
+}
+
+.add-btn-pulse {
+  animation: addBtnPulse 0.3s ease;
+}
+
+.fly-dot {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1890ff;
+  z-index: 9999;
+  pointer-events: none;
+  animation: flyDot 0.5s ease-in forwards;
+}

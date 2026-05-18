@@ -33,9 +33,9 @@ import Support from '@/pages/user/Support'
 import './App.css'
 
 function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
-  const { token, role } = useAuthStore()
+  const { isAuthenticated, role } = useAuthStore()
 
-  if (!token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 

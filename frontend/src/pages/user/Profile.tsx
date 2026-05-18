@@ -18,6 +18,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { getRoleInfo } from '@/utils/role'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from '@/contexts/ThemeContext'
+import api from '@/services/api'
 
 const { Title, Text } = Typography
 
@@ -110,9 +111,9 @@ export default function Profile() {
         </div>
 
         <div style={{ padding: '16px', marginTop: 8 }}>
-          <Button danger block size="large" onClick={() => {
+          <Button danger block size="large" onClick={async () => {
+            try { await api.post('/auth/logout') } catch {}
             logout()
-            localStorage.removeItem('token')
             window.location.href = '/login'
           }}>
             退出登录
@@ -161,9 +162,9 @@ export default function Profile() {
           )}
         />
 
-        <Button danger block onClick={() => {
+        <Button danger block onClick={async () => {
+          try { await api.post('/auth/logout') } catch {}
           logout()
-          localStorage.removeItem('token')
           window.location.href = '/login'
         }}>
           退出登录
