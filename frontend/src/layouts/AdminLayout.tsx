@@ -1,7 +1,7 @@
 
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Space, Dropdown } from 'antd'
-import { DashboardOutlined, LogoutOutlined, UserOutlined, ShopOutlined, TeamOutlined, InboxOutlined } from '@ant-design/icons'
+import { DashboardOutlined, LogoutOutlined, UserOutlined, ShopOutlined, TeamOutlined, InboxOutlined, AuditOutlined, SettingOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -14,6 +14,8 @@ const tabItems = [
   { key: '/admin/shops', icon: <ShopOutlined />, label: '店铺' },
   { key: '/admin/users', icon: <TeamOutlined />, label: '用户' },
   { key: '/admin/orders', icon: <InboxOutlined />, label: '订单' },
+  { key: '/admin/audit-logs', icon: <AuditOutlined />, label: '审计' },
+  { key: '/admin/config', icon: <SettingOutlined />, label: '配置' },
 ]
 
 export default function AdminLayout() {
@@ -27,6 +29,8 @@ export default function AdminLayout() {
     { key: '/admin/shops', icon: <ShopOutlined />, label: '店铺审核' },
     { key: '/admin/users', icon: <TeamOutlined />, label: '用户管理' },
     { key: '/admin/orders', icon: <InboxOutlined />, label: '订单管理' },
+    { key: '/admin/audit-logs', icon: <AuditOutlined />, label: '审计日志' },
+    { key: '/admin/config', icon: <SettingOutlined />, label: '平台配置' },
   ]
 
   const userMenuItems: MenuProps['items'] = [

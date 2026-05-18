@@ -215,7 +215,15 @@ async def create_category(
     await db.commit()
     await db.refresh(category)
 
-    return ResponseSchema(code=0, message="创建成功", data=CategoryInfo.model_validate(category))
+    cat_data = CategoryInfo(
+        id=category.id,
+        shop_id=category.shop_id,
+        name=category.name,
+        sort_order=category.sort_order,
+        created_at=category.created_at,
+        products=[],
+    )
+    return ResponseSchema(code=0, message="创建成功", data=cat_data)
 
 
 @router.get("/category/{shop_id}", response_model=ResponseSchema[List[CategoryInfo]])
@@ -515,8 +523,32 @@ async def reject_order(
     if order.status != OrderStatus.PENDING_ACCEPT:
         raise BadRequestException("订单状态异常")
 
+    original_status = order.status
     order.status = OrderStatus.CANCELLED
     order.reject_reason = reason
+
+    if original_status == OrderStatus.PENDING_ACCEPT:
+        from app.services.finance import FinanceService
+        user_result = await db.execute(select(User).where(User.id == order.user_id))
+        order_user = user_result.scalar_one_or_none()
+        if order_user:
+            await FinanceService.process_refund(
+                db=db,
+                order=order,
+                user=order_user,
+                refund_amount=order.total_amount,
+                refund_type="AUTO_REFUND",
+                reason=f"商家拒单: {reason}"
+            )
+            logger.info(f"Refund processed for rejected order: {order_id}")
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    for item in items_result.scalars().all():
+        product_result = await db.execute(select(Product).where(Product.id == item.product_id))
+        product = product_result.scalar_one_or_none()
+        if product:
+            product.stock += item.quantity
+
     await db.commit()
     await db.refresh(order)
     logger.info(f"Order rejected: {order_id}, reason: {reason}")

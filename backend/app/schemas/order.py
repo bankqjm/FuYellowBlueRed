@@ -41,6 +41,7 @@ class OrderCreate(BaseSchema):
     address_id: int
     shop_id: int
     remark: Optional[str] = None
+    coupon_id: Optional[int] = None
 
 
 class AddressInfo(BaseSchema):
@@ -61,6 +62,7 @@ class OrderResponse(BaseSchema):
     phone: str
     remark: Optional[str] = None
     total_amount: float
+    discount_amount: float = 0.0
     delivery_fee: float
     status: str
     reject_reason: Optional[str] = None

@@ -36,6 +36,7 @@ class OrderStatus(str, PyEnum):
     ACCEPTED = "ACCEPTED"
     READY = "READY"
     DELIVERING = "DELIVERING"
+    DELIVERED = "DELIVERED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
@@ -314,6 +315,8 @@ class Order(Base):
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
     remark: Mapped[str] = mapped_column(String(500), nullable=True)
     total_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    discount_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    coupon_id: Mapped[int] = mapped_column(Integer, ForeignKey("user_coupons.id"), nullable=True)
     delivery_fee: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(20), default=OrderStatus.PENDING_PAYMENT.value)
     reject_reason: Mapped[str] = mapped_column(String(255), nullable=True)

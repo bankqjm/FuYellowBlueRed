@@ -1,11 +1,12 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Modal, Form, Select, Input } from 'antd'
-import { MinusOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Modal, Form, Select, Input, Tag } from 'antd'
+import { MinusOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined, TagOutlined } from '@ant-design/icons'
 import { cartApi, CartItemInfo, orderApi } from '../../services/order'
 import { addressApi, AddressInfo } from '../../services/address'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import api from '@/services/api'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -21,6 +22,9 @@ export default function Cart() {
   const [selectedAddress, setSelectedAddress] = useState<number | undefined>()
   const [remark, setRemark] = useState('')
   const [form] = Form.useForm()
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([])
+  const [selectedCouponId, setSelectedCouponId] = useState<number | undefined>()
+  const [discountAmount, setDiscountAmount] = useState(0)
 
   const fetchCart = async () => {
     try {
@@ -51,6 +55,45 @@ export default function Cart() {
     fetchCart()
     fetchAddresses()
   }, [])
+
+  useEffect(() => {
+    if (checkoutModalVisible) {
+      fetchAvailableCoupons()
+    }
+  }, [checkoutModalVisible, cart])
+
+  const fetchAvailableCoupons = async () => {
+    try {
+      const res = await api.get('/coupons/my', { params: { status: 'UNUSED', page_size: 50 } })
+      const coupons = res.data.items || []
+      const subtotal = cartTotal.price
+      const validCoupons = coupons.filter((uc: any) => {
+        const coupon = uc.coupon
+        if (!coupon) return false
+        if (subtotal < coupon.min_order_amount) return false
+        const now = new Date()
+        const validUntil = new Date(coupon.valid_until)
+        return validUntil >= now
+      })
+      setAvailableCoupons(validCoupons)
+    } catch {
+      setAvailableCoupons([])
+    }
+  }
+
+  const handleCouponChange = async (couponId: number | undefined) => {
+    setSelectedCouponId(couponId)
+    if (!couponId) {
+      setDiscountAmount(0)
+      return
+    }
+    try {
+      const res = await api.post(`/coupons/apply?coupon_id=${couponId}&order_amount=${cartTotal.price}`)
+      setDiscountAmount(res.data.discount_amount || 0)
+    } catch {
+      setDiscountAmount(0)
+    }
+  }
 
   const updateCartItem = async (item: CartItemInfo, quantity: number) => {
     try {
@@ -109,6 +152,7 @@ export default function Cart() {
         address_id: selectedAddress,
         shop_id: shopId,
         remark: remark,
+        coupon_id: selectedCouponId,
       })
       message.success('订单创建成功')
       setCheckoutModalVisible(false)
@@ -286,6 +330,25 @@ export default function Cart() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item label={<><TagOutlined /> 优惠券</>}>
+            <Select
+              placeholder={availableCoupons.length > 0 ? '选择优惠券' : '暂无可用优惠券'}
+              value={selectedCouponId}
+              onChange={handleCouponChange}
+              allowClear
+              style={{ width: '100%' }}
+            >
+              {availableCoupons.map((uc: any) => (
+                <Option key={uc.id} value={uc.id}>
+                  <Space>
+                    <Tag color="orange">-{uc.coupon?.discount_amount}元</Tag>
+                    <span>{uc.coupon?.name}</span>
+                    <Text type="secondary" style={{ fontSize: 12 }}>满{uc.coupon?.min_order_amount}可用</Text>
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item label="订单备注">
             <TextArea
               value={remark}
@@ -298,8 +361,11 @@ export default function Cart() {
 
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text type="secondary">共{cartTotal.quantity}件商品，总计：</Text>
-            <Text type="danger" strong style={{ fontSize: 24 }}>¥{cartTotal.price.toFixed(2)}</Text>
+            <Text type="secondary">共{cartTotal.quantity}件商品，小计：¥{cartTotal.price.toFixed(2)}</Text>
+            {discountAmount > 0 && (
+              <Text type="success">优惠券抵扣：-¥{discountAmount.toFixed(2)}</Text>
+            )}
+            <Text type="danger" strong style={{ fontSize: 24 }}>实付：¥{(cartTotal.price - discountAmount).toFixed(2)}</Text>
           </Space>
         </div>
       </Modal>

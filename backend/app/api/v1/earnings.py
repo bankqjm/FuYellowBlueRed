@@ -18,7 +18,7 @@ async def get_shop_earnings_summary(
     if current_user.role != "SHOP_OWNER":
         raise ForbiddenException("仅商家可访问")
 
-    shop_result = await db.execute(select(Shop).where(Shop.owner_id == current_user.id))
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = shop_result.scalar_one_or_none()
     if not shop:
         raise ForbiddenException("商家不存在")
@@ -69,7 +69,7 @@ async def get_shop_earnings_list(
     if current_user.role != "SHOP_OWNER":
         raise ForbiddenException("仅商家可访问")
 
-    shop_result = await db.execute(select(Shop).where(Shop.owner_id == current_user.id))
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = shop_result.scalar_one_or_none()
     if not shop:
         raise ForbiddenException("商家不存在")

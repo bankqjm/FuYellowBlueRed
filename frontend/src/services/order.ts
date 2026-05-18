@@ -36,6 +36,7 @@ export const orderApi = {
     address_id: number
     shop_id: number
     remark?: string
+    coupon_id?: number
   }) => api.post<OrderInfo>('/orders/create', data),
 
   payOrder: (orderId: number) => api.post<OrderInfo>(`/orders/${orderId}/pay`),

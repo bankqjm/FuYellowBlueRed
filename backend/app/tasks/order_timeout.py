@@ -29,7 +29,8 @@ class OrderTimeoutTask:
 
         for order in expired_orders:
             try:
-                await OrderService.cancel_order(self.db, order.id, cancel_type="timeout", reason="支付超时自动取消")
+                service = OrderService(self.db)
+                await service.cancel_order(order.id, cancel_type="timeout", reason="支付超时自动取消")
                 cancelled_count += 1
                 logger.info(f"Order {order.id} cancelled due to payment timeout")
             except Exception as e:

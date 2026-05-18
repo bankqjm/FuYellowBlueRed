@@ -21,8 +21,10 @@ from app.schemas.order import (
     OrderItemResponse,
     OrderQuery,
 )
-from app.core import BadRequestException, NotFoundException
+from app.core import BadRequestException, NotFoundException, get_logger
 from app.services.base import BaseService
+
+logger = get_logger("order_service")
 
 
 class OrderService(BaseService):
@@ -351,6 +353,13 @@ class OrderService(BaseService):
                     refund_type="AUTO_REFUND",
                     reason=reason or "系统取消订单"
                 )
+
+        items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        for item in items_result.scalars().all():
+            product_result = await self.db.execute(select(Product).where(Product.id == item.product_id))
+            product = product_result.scalar_one_or_none()
+            if product:
+                product.stock += item.quantity
 
         order.status = OrderStatus.CANCELLED
         await self.commit()

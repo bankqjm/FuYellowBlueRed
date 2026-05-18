@@ -165,7 +165,7 @@ async def deliver_order(
     )
     logger.info(f"Rider earning added: rider={current_user.id}, order={order_id}, amount={rider_income}")
 
-    order.status = OrderStatus.COMPLETED
+    order.status = OrderStatus.DELIVERED
     await db.commit()
     await db.refresh(order)
 
@@ -245,13 +245,14 @@ async def withdraw(
     if current_user.role != "RIDER":
         raise ForbiddenException("仅骑手可访问")
 
-    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
-    wallet = wallet_result.scalar_one_or_none()
-    if not wallet:
-        raise BadRequestException("钱包不存在")
-
-    if wallet.balance < amount:
-        raise BadRequestException("余额不足")
+    try:
+        result = await FinanceService.process_withdrawal(
+            db=db,
+            user_id=current_user.id,
+            amount=amount,
+        )
+    except ValueError as e:
+        raise BadRequestException(str(e))
 
     record = WithdrawalRecord(
         user_id=current_user.id,
@@ -261,14 +262,13 @@ async def withdraw(
         status=WithdrawalStatus.COMPLETED.value,
     )
     db.add(record)
-
-    wallet.balance -= amount
     await db.commit()
 
     logger.info(f"Rider {current_user.id} withdrew {amount}")
     return ResponseSchema(code=0, message="提现成功", data={
         "withdraw_id": record.id,
         "amount": amount,
+        "balance_after": result["balance_after"],
     })
 
 

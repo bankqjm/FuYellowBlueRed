@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Space, Dropdown } from 'antd'
-import { InboxOutlined, LogoutOutlined, ShopOutlined, ShoppingOutlined } from '@ant-design/icons'
+import { InboxOutlined, LogoutOutlined, ShopOutlined, ShoppingOutlined, DollarOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -12,6 +12,7 @@ const tabItems = [
   { key: '/shop/info', icon: <ShopOutlined />, label: '店铺' },
   { key: '/shop/products', icon: <ShoppingOutlined />, label: '商品' },
   { key: '/shop/orders', icon: <InboxOutlined />, label: '订单' },
+  { key: '/shop/earnings', icon: <DollarOutlined />, label: '收益' },
 ]
 
 export default function ShopLayout() {
@@ -24,6 +25,7 @@ export default function ShopLayout() {
     { key: '/shop/info', icon: <ShopOutlined />, label: '店铺信息' },
     { key: '/shop/products', icon: <ShoppingOutlined />, label: '商品管理' },
     { key: '/shop/orders', icon: <InboxOutlined />, label: '订单管理' },
+    { key: '/shop/earnings', icon: <DollarOutlined />, label: '收益管理' },
   ]
 
   const userMenuItems: MenuProps['items'] = [

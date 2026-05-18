@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useAuthStore } from '@/stores/authStore'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import UserLayout from '@/layouts/UserLayout'
@@ -18,7 +19,8 @@ import Wallet from '@/pages/user/Wallet'
 import ShopOrders from '@/pages/shop/Orders'
 import ShopInfo from '@/pages/shop/ShopInfo'
 import ShopDashboard from '@/pages/shop/Dashboard'
-import Products from '@/pages/shop/Products'
+import ShopProducts from '@/pages/shop/Products'
+import ShopEarnings from '@/pages/shop/Earnings'
 import RiderOrders from '@/pages/rider/Orders'
 import RiderEarnings from '@/pages/rider/Earnings'
 import RiderWithdraw from '@/pages/rider/Withdraw'
@@ -26,6 +28,8 @@ import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminShops from '@/pages/admin/Shops'
 import AdminUsers from '@/pages/admin/Users'
 import AdminOrders from '@/pages/admin/Orders'
+import AdminAuditLogs from '@/pages/admin/AuditLogs'
+import AdminConfig from '@/pages/admin/Config'
 import ReviewPage from '@/pages/user/Review'
 import Favorites from '@/pages/user/Favorites'
 import Coupons from '@/pages/user/Coupons'
@@ -48,9 +52,10 @@ function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: str
 
 function App() {
   return (
-    <ConfigProvider locale={zhCN}>
-      <BrowserRouter>
-        <Routes>
+    <ThemeProvider>
+      <ConfigProvider locale={zhCN}>
+        <BrowserRouter>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
@@ -86,8 +91,9 @@ function App() {
             <Route index element={<ShopDashboard />} />
             <Route path="dashboard" element={<ShopDashboard />} />
             <Route path="info" element={<ShopInfo />} />
-            <Route path="products" element={<Products />} />
+            <Route path="products" element={<ShopProducts />} />
             <Route path="orders" element={<ShopOrders />} />
+            <Route path="earnings" element={<ShopEarnings />} />
           </Route>
           <Route
             path="/rider"
@@ -115,12 +121,15 @@ function App() {
             <Route path="shops" element={<AdminShops />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="audit-logs" element={<AdminAuditLogs />} />
+            <Route path="config" element={<AdminConfig />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>
+    </ThemeProvider>
   )
 }
 
