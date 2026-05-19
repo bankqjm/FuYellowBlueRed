@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
-from typing import Optional
 from app.database import get_db
 from app.models.models import User, Wallet
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserInfo

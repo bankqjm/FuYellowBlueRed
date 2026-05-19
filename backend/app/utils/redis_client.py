@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional, Any
+from typing import Optional
 from redis.asyncio import Redis
 from app.config import settings
 
@@ -20,7 +20,7 @@ class RedisClient:
                 self._client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
                 try:
                     await self._client.ping()
-                except Exception as e:
+                except Exception:
                     self._client = None
 
     @property

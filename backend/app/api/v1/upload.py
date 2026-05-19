@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Depends, UploadFile, File
 from app.schemas.base import ResponseSchema
 from app.deps.auth import get_current_user
-from app.config import settings
 from app.core import BadRequestException, get_logger
+from app.utils.storage import get_storage
 import os
-import uuid
-import aiofiles
 
 router = APIRouter(prefix="/upload", tags=["文件上传"])
 logger = get_logger("upload")
@@ -55,19 +53,31 @@ async def upload_file(
         if not file_start[:3] == b'\xff\xd8\xff':
             raise BadRequestException("文件内容不是有效的JPEG图像")
 
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    storage = get_storage()
+    saved_name = await storage.save(file.filename or "unknown.jpg", content, file.content_type or "")
+    file_url = await storage.get_url(saved_name)
 
-    filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(settings.UPLOAD_DIR, filename)
-
-    async with aiofiles.open(filepath, "wb") as f:
-        await f.write(content)
-
-    file_url = f"/uploads/{filename}"
-    logger.info(f"File uploaded: {filename}, user={current_user.id}, size={len(content)}")
+    logger.info(f"File uploaded: {saved_name}, user={current_user.id}, size={len(content)}")
 
     return ResponseSchema(
         code=0,
         message="上传成功",
         data=file_url,
+    )
+
+
+@router.delete("/{file_path:path}", response_model=ResponseSchema[bool])
+async def delete_file(
+    file_path: str,
+    current_user=Depends(get_current_user),
+):
+    storage = get_storage()
+    deleted = await storage.delete(file_path)
+    if not deleted:
+        raise BadRequestException("文件不存在或删除失败")
+    logger.info(f"File deleted: {file_path}, user={current_user.id}")
+    return ResponseSchema(
+        code=0,
+        message="删除成功",
+        data=True,
     )

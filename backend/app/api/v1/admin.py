@@ -1,12 +1,13 @@
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func
 from typing import Optional
 from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.models import Shop, ShopStatus, User, Order
 from app.schemas.shop import ShopInfo, ShopListQuery
+from app.schemas.order import OrderResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import ForbiddenException, BadRequestException, get_logger
@@ -265,9 +266,6 @@ async def get_platform_trend(
         })
 
     return ResponseSchema(code=0, data=result)
-
-
-from app.schemas.order import OrderResponse, OrderQuery
 
 
 @router.get("/orders", response_model=ResponseSchema[PageResponse[OrderResponse]])

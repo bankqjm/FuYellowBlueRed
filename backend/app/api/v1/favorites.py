@@ -7,7 +7,7 @@ from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, NotFoundException, get_logger
 from app.schemas.base import BaseSchema
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 
 router = APIRouter(prefix="/favorites", tags=["收藏"])

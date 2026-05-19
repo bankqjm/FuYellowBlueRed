@@ -31,10 +31,12 @@ from app.api import (
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
 from app.core.security_middleware import SecurityHeadersMiddleware
+from app.core.metrics import ACTIVE_WEBSOCKET_CONNECTIONS
 from app.database import AsyncSessionLocal
 from app.services.config import ConfigService
 from app.tasks import run_order_timeout_task
 from app.utils.redis_client import redis_client
+from prometheus_fastapi_instrumentator import Instrumentator
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
@@ -91,6 +93,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    excluded_handlers=["/health", "/metrics"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -146,6 +154,7 @@ async def websocket_endpoint(websocket: WebSocket, channel: str, user_id: str):
     await websocket.accept()
     connection_key = f"{channel}:{user_id}"
     active_connections[channel].append(websocket)
+    ACTIVE_WEBSOCKET_CONNECTIONS.inc()
 
     try:
         while True:
@@ -158,11 +167,13 @@ async def websocket_endpoint(websocket: WebSocket, channel: str, user_id: str):
                 logger.warning(f"Invalid JSON message from {connection_key}")
     except WebSocketDisconnect:
         active_connections[channel].remove(websocket)
+        ACTIVE_WEBSOCKET_CONNECTIONS.dec()
         logger.info(f"WebSocket disconnected: {connection_key}")
     except Exception as e:
         logger.error(f"WebSocket error for {connection_key}: {e}")
         if websocket in active_connections[channel]:
             active_connections[channel].remove(websocket)
+            ACTIVE_WEBSOCKET_CONNECTIONS.dec()
 
 
 app.include_router(auth_router, prefix="/api/v1")
@@ -189,7 +200,19 @@ async def root():
 @app.get("/health")
 async def health():
     redis_status = "connected" if redis_client._client else "disconnected"
-    return {"status": "ok", "redis": redis_status}
+    db_status = "ok"
+    try:
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import text
+            await db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "error"
+    return {
+        "status": "ok",
+        "redis": redis_status,
+        "database": db_status,
+        "version": "1.0.0",
+    }
 
 
 if __name__ == "__main__":

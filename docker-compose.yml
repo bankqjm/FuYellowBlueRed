@@ -9,13 +9,28 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
-      - backend-data:/app/uploads
+      - backend-uploads:/app/uploads
+      - backend-logs:/app/logs
+      - backend-data:/app/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data.db
-      - SECRET_KEY=your-super-secret-key-for-docker
-      - DEBUG=True
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      - DATABASE_URL=sqlite+aiosqlite:///./data/data.db
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-key-for-docker}
+      - DEBUG=${DEBUG:-False}
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_DIR=/app/logs
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_JSON_FORMAT=${LOG_JSON_FORMAT:-True}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build:
@@ -24,11 +39,46 @@ services:
     container_name: food-delivery-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
       - WATCHPACK_POLLING=true
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: food-delivery-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    image: python:3.11-slim
+    container_name: food-delivery-backup
+    volumes:
+      - backend-data:/app/data
+      - backup-data:/backups
+      - ./backend/scripts/backup.py:/app/backup.py:ro
+    environment:
+      - BACKUP_DIR=/backups
+      - DATA_DIR=/app/data
+      - BACKUP_RETENTION_DAYS=7
+    entrypoint: ["python", "/app/backup.py"]
+    depends_on:
+      - backend
+    restart: "no"
 
 volumes:
+  backend-uploads:
+  backend-logs:
   backend-data:
+  redis-data:
+  backup-data:

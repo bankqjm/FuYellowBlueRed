@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from app.database import get_db
-from app.models.models import AuditLog, FinanceAuditLog, User, UserRole
+from app.models.models import AuditLog, FinanceAuditLog, User
 from app.schemas.base import ResponseSchema, PageResponse
-from app.deps.auth import get_current_user, require_admin
+from app.deps.auth import require_admin
 from app.core import get_logger
 
 router = APIRouter(prefix="/audit", tags=["审计日志"])

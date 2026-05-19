@@ -23,6 +23,21 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_WINDOW_SECONDS: int = 60
 
+    LOG_LEVEL: str = "INFO"
+    LOG_DIR: str = "./logs"
+    LOG_FILE_MAX_BYTES: int = 50 * 1024 * 1024
+    LOG_FILE_BACKUP_COUNT: int = 30
+    LOG_JSON_FORMAT: bool = False
+    LOG_ERROR_FILE_ENABLED: bool = True
+
+    STORAGE_TYPE: str = "local"
+    S3_ENDPOINT_URL: str = ""
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
+    S3_BUCKET: str = "fyybr-uploads"
+    S3_REGION: str = "us-east-1"
+    S3_URL_PREFIX: str = ""
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._validate_config()

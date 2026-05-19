@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from datetime import datetime
 from app.database import get_db
-from app.models.models import User, Shop, Coupon, UserCoupon
+from app.models.models import User, Coupon, UserCoupon
 from app.schemas.base import ResponseSchema, PageResponse, BaseSchema
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, NotFoundException, get_logger
-from typing import Optional, List
+from typing import Optional
 
 router = APIRouter(prefix="/coupons", tags=["优惠券"])
 logger = get_logger(__name__)
