@@ -45,24 +45,6 @@ async def get_wallet(
     })
 
 
-@router.post("/recharge", response_model=ResponseSchema[dict])
-async def recharge_wallet(
-    amount: float,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("钱包充值仅限管理员操作，普通用户请通过第三方支付充值")
-
-    try:
-        result = await FinanceService.recharge_wallet(db, current_user.id, amount)
-        await db.commit()
-        logger.info(f"Admin {current_user.id} recharged user wallet: user_id={current_user.id}, amount={amount}")
-        return ResponseSchema(code=0, message="充值成功", data=result)
-    except ValueError as e:
-        raise BadRequestException(str(e))
-
-
 @router.post("/recharge/{user_id}", response_model=ResponseSchema[dict])
 async def admin_recharge_user_wallet(
     user_id: int,
@@ -72,6 +54,9 @@ async def admin_recharge_user_wallet(
 ):
     if current_user.role != "ADMIN":
         raise ForbiddenException("仅管理员可为用户充值")
+
+    if user_id == current_user.id:
+        raise BadRequestException("管理员不能给自己充值")
 
     try:
         result = await FinanceService.recharge_wallet(db, user_id, amount)

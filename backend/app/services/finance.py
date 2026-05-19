@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.models import (
@@ -35,8 +35,11 @@ class FinanceService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def ensure_wallet_exists(db: AsyncSession, user_id: int) -> Wallet:
-        result = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
+    async def ensure_wallet_exists(db: AsyncSession, user_id: int, for_update: bool = False) -> Wallet:
+        stmt = select(Wallet).where(Wallet.user_id == user_id)
+        if for_update:
+            stmt = stmt.with_for_update()
+        result = await db.execute(stmt)
         wallet = result.scalar_one_or_none()
         if not wallet:
             wallet = Wallet(user_id=user_id, balance=0.0, frozen_balance=0.0)
@@ -77,9 +80,8 @@ class FinanceService:
         related_id: int = None,
         description: str = None
     ) -> FundFlow:
-        wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == user_id))
-        wallet = wallet_result.scalar_one_or_none()
-        balance_before = wallet.balance if wallet else 0.0
+        wallet = await FinanceService.ensure_wallet_exists(db, user_id, for_update=True)
+        balance_before = wallet.balance
         balance_after = balance_before + amount if flow_type == FlowType.INCOME.value else balance_before - amount
 
         fund_flow = FundFlow(
@@ -117,7 +119,7 @@ class FinanceService:
         if order.total_amount > MAX_SINGLE_PAYMENT:
             raise ValueError(f"单笔支付金额不能超过 {MAX_SINGLE_PAYMENT:.2f} 元")
 
-        wallet = await FinanceService.ensure_wallet_exists(db, user.id)
+        wallet = await FinanceService.ensure_wallet_exists(db, user.id, for_update=True)
 
         if channel == PayChannel.BALANCE.value:
             if wallet.balance < order.total_amount:
@@ -222,7 +224,6 @@ class FinanceService:
         result = await db.execute(
             select(RefundRecord).where(
                 RefundRecord.order_id == order_id,
-                RefundRecord.trade_type == TradeType.REFUND.value if hasattr(RefundRecord, 'trade_type') else True,
                 RefundRecord.status == RefundStatus.SUCCESS.value
             )
         )
@@ -252,7 +253,7 @@ class FinanceService:
         if refund_amount > (payment.amount if payment else order.total_amount):
             raise ValueError("退款金额不能超过实际支付金额")
 
-        wallet = await FinanceService.ensure_wallet_exists(db, user.id)
+        wallet = await FinanceService.ensure_wallet_exists(db, user.id, for_update=True)
         wallet.balance += refund_amount
 
         refund_record = RefundRecord(
@@ -288,7 +289,7 @@ class FinanceService:
         order_id: int,
         amount: float
     ) -> FundFlow:
-        wallet = await FinanceService.ensure_wallet_exists(db, rider_id)
+        wallet = await FinanceService.ensure_wallet_exists(db, rider_id, for_update=True)
         wallet.balance += amount
 
         fund_flow = await FinanceService.create_fund_flow(
@@ -317,7 +318,7 @@ class FinanceService:
         if amount < min_withdrawal:
             raise ValueError(f"提现金额不能低于 {min_withdrawal:.2f} 元")
 
-        wallet = await FinanceService.ensure_wallet_exists(db, user_id)
+        wallet = await FinanceService.ensure_wallet_exists(db, user_id, for_update=True)
 
         if wallet.balance < amount:
             raise ValueError(f"余额不足，当前余额: {wallet.balance:.2f}元")
@@ -352,7 +353,7 @@ class FinanceService:
         if not within_limit:
             raise ValueError(f"今日充值总额已达上限，剩余可用额度: {daily_total:.2f} 元")
 
-        wallet = await FinanceService.ensure_wallet_exists(db, user_id)
+        wallet = await FinanceService.ensure_wallet_exists(db, user_id, for_update=True)
         wallet.balance += amount
 
         await FinanceService.create_fund_flow(

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ class OrderTimeoutTask:
         self.timeout_minutes = 15
 
     async def cancel_expired_orders(self) -> int:
-        cutoff_time = datetime.now() - timedelta(minutes=self.timeout_minutes)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=self.timeout_minutes)
         result = await self.db.execute(
             select(Order).where(
                 and_(

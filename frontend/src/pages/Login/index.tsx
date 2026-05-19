@@ -35,7 +35,7 @@ export default function Login() {
       const data = res.data
       setAuth({
         id: data.user_id,
-        phone: '',
+        phone: values.phone,
         role: data.role,
         nickname: data.nickname,
         avatar: data.avatar,

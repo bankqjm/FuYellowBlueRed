@@ -1,4 +1,6 @@
 import uuid
+import random
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
@@ -191,7 +193,7 @@ class OrderService(BaseService):
 
         delivery_fee = 5.0
 
-        order_no = str(uuid.uuid4()).replace("-", "")[:32]
+        order_no = datetime.now().strftime("%Y%m%d%H%M%S") + f"{random.randint(100000, 999999)}"
         order = Order(
             order_no=order_no,
             user_id=user_id,
@@ -206,8 +208,7 @@ class OrderService(BaseService):
             status=OrderStatus.PENDING_PAYMENT,
         )
         self.db.add(order)
-        await self.commit()
-        await self.refresh(order)
+        await self.db.flush()
 
         for product, quantity in order_items:
             order_item = OrderItem(
@@ -225,6 +226,7 @@ class OrderService(BaseService):
             await self.db.delete(item)
 
         await self.commit()
+        await self.refresh(order)
 
         order_data = OrderResponse.model_validate(order)
         order_data.shop_name = shop.name
@@ -315,8 +317,8 @@ class OrderService(BaseService):
         order = result.scalar_one_or_none()
         if not order:
             raise NotFoundException("订单不存在")
-        if order.status != OrderStatus.DELIVERING:
-            raise BadRequestException("订单状态异常")
+        if order.status != OrderStatus.DELIVERED:
+            raise BadRequestException("订单状态异常，请等待骑手送达后确认")
 
         order.status = OrderStatus.COMPLETED
         await self.commit()
@@ -341,7 +343,7 @@ class OrderService(BaseService):
 
         if order.status == OrderStatus.PENDING_ACCEPT:
             from app.services.finance import FinanceService
-            from app.models.models import User
+            from app.models.models import User, UserCoupon
             user_result = await self.db.execute(select(User).where(User.id == order.user_id))
             user = user_result.scalar_one_or_none()
             if user:
@@ -353,6 +355,16 @@ class OrderService(BaseService):
                     refund_type="AUTO_REFUND",
                     reason=reason or "系统取消订单"
                 )
+
+        if order.coupon_id:
+            from app.models.models import UserCoupon
+            uc_result = await self.db.execute(
+                select(UserCoupon).where(UserCoupon.id == order.coupon_id)
+            )
+            user_coupon = uc_result.scalar_one_or_none()
+            if user_coupon and user_coupon.status == "USED":
+                user_coupon.status = "UNUSED"
+                user_coupon.used_at = None
 
         items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
         for item in items_result.scalars().all():

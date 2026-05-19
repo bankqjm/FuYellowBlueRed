@@ -117,7 +117,9 @@ async def accept_order(
     if current_user.role != "RIDER":
         raise ForbiddenException("仅骑手可访问")
 
-    result = await db.execute(select(Order).where(Order.id == order_id))
+    result = await db.execute(
+        select(Order).where(Order.id == order_id).with_for_update()
+    )
     order = result.scalar_one_or_none()
     if not order:
         raise BadRequestException("订单不存在")

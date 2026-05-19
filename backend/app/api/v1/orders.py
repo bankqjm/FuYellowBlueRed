@@ -1,4 +1,6 @@
 import uuid
+import random
+from datetime import datetime
 from fastapi import APIRouter, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -247,7 +249,6 @@ async def create_order(
         if not uc_row:
             raise BadRequestException("优惠券不可用")
         user_coupon, coupon = uc_row
-        from datetime import datetime
         now = datetime.now()
         if now < coupon.valid_from or now > coupon.valid_until:
             raise BadRequestException("优惠券已过期")
@@ -258,7 +259,7 @@ async def create_order(
 
     final_amount = total_amount + delivery_fee - discount_amount
 
-    order_no = str(uuid.uuid4()).replace("-", "")[:32]
+    order_no = datetime.now().strftime("%Y%m%d%H%M%S") + f"{random.randint(100000, 999999)}"
     order = Order(
         order_no=order_no,
         user_id=current_user.id,
@@ -275,8 +276,7 @@ async def create_order(
         status=OrderStatus.PENDING_PAYMENT,
     )
     db.add(order)
-    await db.commit()
-    await db.refresh(order)
+    await db.flush()
 
     for product, quantity in order_items:
         order_item = OrderItem(
@@ -294,6 +294,7 @@ async def create_order(
         await db.delete(item)
 
     await db.commit()
+    await db.refresh(order)
 
     order_data = OrderResponse.model_validate(order)
     order_data.shop_name = shop.name
@@ -342,7 +343,6 @@ async def pay_order(
         )
         user_coupon = uc_result.scalar_one_or_none()
         if user_coupon and user_coupon.status == "UNUSED":
-            from datetime import datetime
             user_coupon.status = "USED"
             user_coupon.used_at = datetime.now()
             await db.commit()
@@ -440,8 +440,8 @@ async def confirm_receipt(
     order = result.scalar_one_or_none()
     if not order:
         raise BadRequestException("订单不存在")
-    if order.status not in (OrderStatus.DELIVERING, OrderStatus.DELIVERED):
-        raise BadRequestException("订单状态异常")
+    if order.status != OrderStatus.DELIVERED:
+        raise BadRequestException("订单状态异常，请等待骑手送达后确认")
 
     order.status = OrderStatus.COMPLETED
     await db.commit()
@@ -485,6 +485,15 @@ async def cancel_order(
             reason="用户取消订单"
         )
         logger.info(f"Refund processed for cancelled order: {order_id}")
+
+    if order.coupon_id:
+        uc_result = await db.execute(
+            select(UserCoupon).where(UserCoupon.id == order.coupon_id)
+        )
+        user_coupon = uc_result.scalar_one_or_none()
+        if user_coupon and user_coupon.status == "USED":
+            user_coupon.status = "UNUSED"
+            user_coupon.used_at = None
 
     items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
     for item in items_result.scalars().all():
