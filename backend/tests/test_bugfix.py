@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 
 from app.main import app
 from app.database import Base, get_db
-from app.models.models import User, Shop, Product, Order, OrderItem, OrderStatus, Wallet, UserAddress
+from app.models.models import User, Shop, Product, Wallet, UserAddress
 from app.utils.auth import hash_password, create_access_token
 
 TEST_DB_URL = "sqlite+aiosqlite:///./test_bugfix.db"
@@ -163,7 +163,7 @@ async def test_bug5_cancel_order_restores_stock(db, client):
 @pytest.mark.asyncio
 async def test_bug4_earnings_api_uses_correct_field(db, client):
     shop_owner = await create_test_user(db, role="SHOP_OWNER", phone="13800000002")
-    shop = await create_test_shop(db, shop_owner.id)
+    await create_test_shop(db, shop_owner.id)
 
     headers = auth_headers(shop_owner.id, role="SHOP_OWNER")
 

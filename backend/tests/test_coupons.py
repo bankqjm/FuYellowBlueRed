@@ -1,10 +1,8 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
-from app.models.models import User, UserRole, UserStatus, Shop, Coupon, UserCoupon
-from app.utils.auth import hash_password
+from app.models.models import Coupon, UserCoupon
 
 
 @pytest.mark.asyncio

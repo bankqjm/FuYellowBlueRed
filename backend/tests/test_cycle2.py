@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from app.main import app
 from app.database import Base, get_db
 from app.models.models import (
-    User, Shop, Product, Order, OrderItem, OrderStatus,
-    Wallet, UserAddress, Coupon, UserCoupon, Category
+    User, Shop, Product, Wallet, UserAddress, Coupon, UserCoupon
 )
 from app.utils.auth import hash_password, create_access_token
 

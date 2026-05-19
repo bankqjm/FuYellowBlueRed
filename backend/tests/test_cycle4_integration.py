@@ -6,9 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from app.main import app
 from app.database import Base, get_db
 from app.models.models import (
-    User, Shop, ShopStatus, Product, Category, ProductStatus,
-    Order, OrderItem, OrderStatus, Wallet, UserAddress, Review,
-    RiderEarning, FundFlow,
+    User, Wallet,
 )
 from app.utils.auth import hash_password, create_access_token
 
@@ -92,9 +90,8 @@ async def test_full_order_lifecycle_with_review(db, client):
         "name": "热销",
         "sort_order": 1,
     }, headers=shop_h)
-    cat_id = None
     if cat_res.status_code == 200:
-        cat_id = cat_res.json()["data"]["id"]
+        cat_res.json()["data"]["id"]
 
     prod_res = await client.post("/api/v1/shop/product", json={
         "shop_id": shop_id,
@@ -177,7 +174,7 @@ async def test_full_order_lifecycle_with_review(db, client):
 async def test_admin_shop_approval_and_stats(db, client):
     shop_owner = await create_user(db, role="SHOP_OWNER", phone="18800000010")
     admin = await create_user(db, role="ADMIN", phone="18800000011")
-    user = await create_user(db, role="USER", phone="18800000012")
+    await create_user(db, role="USER", phone="18800000012")
 
     shop_h = auth_headers(shop_owner.id, role="SHOP_OWNER")
     admin_h = auth_headers(admin.id, role="ADMIN")

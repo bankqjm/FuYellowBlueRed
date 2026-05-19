@@ -2,7 +2,6 @@ import pytest
 import logging
 import os
 import json
-from unittest.mock import patch, MagicMock
 
 from app.core.logger import (
     JsonFormatter,
@@ -10,7 +9,6 @@ from app.core.logger import (
     AlertHandler,
     register_alert_callback,
     get_logger,
-    _setup_logging,
 )
 from app.core.metrics import (
     ORDER_CREATED,
@@ -107,7 +105,8 @@ class TestTextFormatter:
 class TestAlertHandler:
     def test_emit_calls_callbacks(self):
         received = []
-        callback = lambda record: received.append(record)
+        def callback(record):
+            return received.append(record)
         handler = AlertHandler(level=logging.ERROR, callbacks=[callback])
         record = logging.LogRecord(
             name="test",
@@ -124,7 +123,8 @@ class TestAlertHandler:
 
     def test_handle_ignores_below_level(self):
         received = []
-        callback = lambda record: received.append(record)
+        def callback(record):
+            return received.append(record)
         handler = AlertHandler(level=logging.ERROR, callbacks=[callback])
         record = logging.LogRecord(
             name="test",
@@ -160,7 +160,8 @@ class TestRegisterAlertCallback:
         import app.core.logger as logger_module
 
         original_count = len(logger_module._alert_callbacks)
-        callback = lambda record: None
+        def callback(record):
+            return None
         register_alert_callback(callback)
         assert len(logger_module._alert_callbacks) == original_count + 1
         logger_module._alert_callbacks.pop()

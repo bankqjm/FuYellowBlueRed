@@ -6,9 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from app.main import app
 from app.database import Base, get_db
 from app.models.models import (
-    User, UserRole, UserStatus, Shop, Product, Order, OrderItem, OrderStatus,
-    Wallet, UserAddress, AuditLog, FinanceAuditLog, PlatformConfig, ConfigKey,
-    ShopEarning, SettlementStatus,
+    User, Shop, Wallet, AuditLog, FinanceAuditLog, ShopEarning, SettlementStatus,
 )
 from app.utils.auth import hash_password, create_access_token
 
@@ -334,7 +332,7 @@ async def test_f3_commission_summary_admin_only(db, client):
 
 @pytest.mark.asyncio
 async def test_f4_login_sets_httponly_cookie(db, client):
-    user = await create_test_user(db, role="USER", phone="19900000019")
+    await create_test_user(db, role="USER", phone="19900000019")
 
     res = await client.post("/api/v1/auth/login", json={
         "phone": "19900000019",
@@ -346,7 +344,7 @@ async def test_f4_login_sets_httponly_cookie(db, client):
 
 @pytest.mark.asyncio
 async def test_f4_logout_clears_cookie(db, client):
-    user = await create_test_user(db, role="USER", phone="19900000020")
+    await create_test_user(db, role="USER", phone="19900000020")
 
     login_res = await client.post("/api/v1/auth/login", json={
         "phone": "19900000020",
@@ -360,7 +358,7 @@ async def test_f4_logout_clears_cookie(db, client):
 
 @pytest.mark.asyncio
 async def test_f4_login_lockout(db, client):
-    user = await create_test_user(db, role="USER", phone="19900000021")
+    await create_test_user(db, role="USER", phone="19900000021")
 
     for i in range(5):
         res = await client.post("/api/v1/auth/login", json={

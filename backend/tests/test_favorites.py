@@ -1,8 +1,6 @@
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 from app.models.models import User, UserRole, UserStatus, Shop, Favorite
 from app.utils.auth import hash_password
 
@@ -329,7 +327,7 @@ class TestFavoritesAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["code"] == 0
-        assert data["data"]["is_favorited"] == True
+        assert data["data"]["is_favorited"]
 
     async def test_check_favorite_not_favorited(self, client: AsyncClient, test_user, db_session: AsyncSession):
         shop_owner = User(
@@ -365,7 +363,7 @@ class TestFavoritesAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["code"] == 0
-        assert data["data"]["is_favorited"] == False
+        assert not data["data"]["is_favorited"]
 
     async def test_favorites_require_auth(self, client: AsyncClient):
         response = await client.get("/api/v1/favorites")
