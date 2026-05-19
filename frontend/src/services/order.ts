@@ -36,6 +36,7 @@ export const orderApi = {
     address_id: number
     shop_id: number
     remark?: string
+    coupon_id?: number
   }) => api.post<OrderInfo>('/orders/create', data),
 
   payOrder: (orderId: number) => api.post<OrderInfo>(`/orders/${orderId}/pay`),
@@ -49,4 +50,6 @@ export const orderApi = {
   getOrderDetail: (orderId: number) => api.get<OrderInfo>(`/orders/${orderId}`),
 
   confirmReceipt: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/confirm`),
+
+  cancelOrder: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/cancel`),
 }

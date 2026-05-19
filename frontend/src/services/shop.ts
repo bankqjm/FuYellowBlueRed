@@ -13,6 +13,11 @@ export interface ShopInfo {
   notice?: string
   rating: number
   status: number
+  monthly_sales: number
+  min_order_amount: number
+  delivery_fee: number
+  delivery_time: string
+  discounts: string
   created_at: string
   updated_at: string
 }
@@ -85,6 +90,26 @@ export interface OrderInfo {
   shop_image?: string
   items?: OrderItemInfo[]
   address_info?: AddressInfo
+}
+
+export interface ShopStats {
+  total_orders: number
+  total_revenue: number
+  pending_orders: number
+  rating: number
+}
+
+export interface ShopTrendItem {
+  date: string
+  orders: number
+  revenue: number
+}
+
+export interface AdminTrendItem {
+  date: string
+  orders: number
+  revenue: number
+  new_users: number
 }
 
 export interface ShopDetail extends ShopInfo {
@@ -177,9 +202,15 @@ export const shopApi = {
 
   acceptOrder: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/accept`),
 
-  rejectOrder: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/reject`),
+  rejectOrder: (orderId: number, reason: string) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/reject`, { reason }),
 
   orderReady: (orderId: number) => api.put<OrderInfo>(`/shop/my/orders/${orderId}/ready`),
+
+  getMyStats: () => api.get<ShopStats>('/shop/my/stats'),
+
+  getMyStatsTrend: (days?: number) => api.get<ShopTrendItem[]>('/shop/my/stats/trend', { params: { days } }),
+
+  cancelOrder: (orderId: number) => api.put<OrderInfo>(`/orders/${orderId}/cancel`),
 }
 
 export const adminApi = {
@@ -187,4 +218,8 @@ export const adminApi = {
   rejectShop: (shopId: number) => api.put<ShopInfo>(`/admin/shop/${shopId}/reject`),
   listPendingShops: (params?: { page?: number; page_size?: number; keyword?: string }) =>
     api.get<PageResponse<ShopInfo>>('/admin/shop/pending', { params }),
+  listAdminOrders: (params?: { page?: number; page_size?: number; status?: string }) =>
+    api.get<PageResponse<OrderInfo>>('/admin/orders', { params }),
+  getAdminOrderDetail: (orderId: number) => api.get<OrderInfo>(`/admin/orders/${orderId}`),
+  getStatsTrend: (days?: number) => api.get<AdminTrendItem[]>('/admin/stats/trend', { params: { days } }),
 }

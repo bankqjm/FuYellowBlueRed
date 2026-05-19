@@ -1,12 +1,15 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
+from collections import defaultdict
 import os
+import asyncio
 import traceback
+import json
 
 from app.config import settings
 from app.database import init_db
@@ -19,21 +22,68 @@ from app.api import (
     orders_router,
     rider_router,
     review_router,
+    wallet_router,
+    earnings_router,
+    config_router,
+    favorites_router,
+    coupons_router,
+    audit_router,
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
+from app.core.security_middleware import SecurityHeadersMiddleware
+from app.core.metrics import ACTIVE_WEBSOCKET_CONNECTIONS
+from app.database import AsyncSessionLocal
+from app.services.config import ConfigService
+from app.tasks import run_order_timeout_task
+from app.utils.redis_client import redis_client
+from prometheus_fastapi_instrumentator import Instrumentator
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 limiter = Limiter(key_func=get_remote_address)
 logger = get_logger("app")
 
+active_connections: dict[str, list[WebSocket]] = defaultdict(list)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    logger.info("Application started")
+    async with AsyncSessionLocal() as db:
+        await ConfigService.init_default_configs(db)
+        await db.commit()
+
+    try:
+        await redis_client.connect()
+        logger.info("Redis connected successfully")
+    except Exception as e:
+        logger.warning(f"Redis connection failed, some features may be disabled: {e}")
+
+    scheduler_task = asyncio.create_task(run_scheduler())
+
     yield
+
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
+
+    await redis_client.close()
     logger.info("Application shutdown")
+
+
+async def run_scheduler():
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                await run_order_timeout_task(db)
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Scheduler error: {e}")
+            await asyncio.sleep(60)
 
 
 app = FastAPI(
@@ -42,6 +92,12 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    excluded_handlers=["/health", "/metrics"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -55,6 +111,7 @@ app.add_middleware(
 )
 
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.exception_handler(BaseAPIException)
@@ -83,6 +140,42 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+async def broadcast_message(channel: str, message: dict):
+    message_str = json.dumps(message)
+    for connection in active_connections.get(channel, []):
+        try:
+            await connection.send_text(message_str)
+        except Exception as e:
+            logger.error(f"Failed to send message to connection: {e}")
+
+
+@app.websocket("/ws/{channel}/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, channel: str, user_id: str):
+    await websocket.accept()
+    connection_key = f"{channel}:{user_id}"
+    active_connections[channel].append(websocket)
+    ACTIVE_WEBSOCKET_CONNECTIONS.inc()
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                message["user_id"] = user_id
+                await broadcast_message(channel, message)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON message from {connection_key}")
+    except WebSocketDisconnect:
+        active_connections[channel].remove(websocket)
+        ACTIVE_WEBSOCKET_CONNECTIONS.dec()
+        logger.info(f"WebSocket disconnected: {connection_key}")
+    except Exception as e:
+        logger.error(f"WebSocket error for {connection_key}: {e}")
+        if websocket in active_connections[channel]:
+            active_connections[channel].remove(websocket)
+            ACTIVE_WEBSOCKET_CONNECTIONS.dec()
+
+
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 app.include_router(upload_router, prefix="/api/v1")
@@ -91,6 +184,12 @@ app.include_router(admin_router, prefix="/api/v1")
 app.include_router(orders_router, prefix="/api/v1")
 app.include_router(rider_router, prefix="/api/v1")
 app.include_router(review_router, prefix="/api/v1")
+app.include_router(wallet_router, prefix="/api/v1")
+app.include_router(earnings_router, prefix="/api/v1")
+app.include_router(config_router, prefix="/api/v1")
+app.include_router(favorites_router, prefix="/api/v1")
+app.include_router(coupons_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -100,7 +199,20 @@ async def root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    redis_status = "connected" if redis_client._client else "disconnected"
+    db_status = "ok"
+    try:
+        async with AsyncSessionLocal() as db:
+            from sqlalchemy import text
+            await db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "error"
+    return {
+        "status": "ok",
+        "redis": redis_status,
+        "database": db_status,
+        "version": "1.0.0",
+    }
 
 
 if __name__ == "__main__":

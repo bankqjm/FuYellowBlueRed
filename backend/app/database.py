@@ -5,6 +5,11 @@ from app.config import settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
+    pool_size=20,
+    max_overflow=50,
+    pool_timeout=30,
+    pool_recycle=1800,
+    pool_pre_ping=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(
@@ -29,9 +34,5 @@ async def get_db():
 
 
 async def init_db():
-    from app.models.models import (
-        User, Wallet, UserAddress, Shop, Category, Product,
-        Order, OrderItem, Review, RiderEarning, WithdrawalRecord, CartItem
-    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

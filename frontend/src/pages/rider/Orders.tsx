@@ -1,9 +1,10 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Typography, Tabs, List, Empty, Button, Space, Tag, Spin, message, Modal } from 'antd'
-import { InboxOutlined, CarOutlined } from '@ant-design/icons'
+import { InboxOutlined, CarOutlined, PhoneOutlined } from '@ant-design/icons'
 import { riderApi } from '../../services/rider'
 import type { OrderInfo } from '../../services/shop'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title, Text } = Typography
 
@@ -14,6 +15,7 @@ export default function RiderOrders() {
   const [activeOrders, setActiveOrders] = useState<OrderInfo[]>([])
   const [detailModalVisible, setDetailModalVisible] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<OrderInfo | null>(null)
+  const isMobile = useIsMobile()
 
   const fetchAvailableOrders = async () => {
     try {
@@ -87,96 +89,158 @@ export default function RiderOrders() {
     )
   }
 
+  const renderOrderCard = (order: OrderInfo, type: 'available' | 'active') => (
+    <div className="mobile-card" key={order.id}>
+      <div className="card-row">
+        <span className="label">订单号</span>
+        <span className="value">{order.order_no}</span>
+      </div>
+      <div className="card-row">
+        <span className="label">商家</span>
+        <span className="value">{order.shop_name}</span>
+      </div>
+      <div className="card-row">
+        <span className="label">配送地址</span>
+        <span className="value" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{order.address}</span>
+      </div>
+      {type === 'available' ? (
+        <div className="card-row">
+          <span className="label">配送费</span>
+          <span className="value" style={{ color: '#52c41a' }}>¥{order.delivery_fee.toFixed(2)}</span>
+        </div>
+      ) : (
+        <div className="card-row">
+          <span className="label">联系电话</span>
+          <span className="value">{order.phone}</span>
+        </div>
+      )}
+      <div className="card-actions">
+        <Button size="small" onClick={() => showOrderDetail(order)}>详情</Button>
+        {type === 'available' ? (
+          <Button type="primary" size="small" onClick={() => handleAccept(order)}>接单</Button>
+        ) : (
+          <Button type="primary" size="small" onClick={() => handleDeliver(order)}>确认送达</Button>
+        )}
+      </div>
+    </div>
+  )
+
+  const tabItemsConfig = [
+    {
+      key: 'available',
+      label: <span><InboxOutlined /> 待接单</span>,
+      children: isMobile ? (
+        availableOrders.length === 0 ? (
+          <Empty description="暂无待接单订单" style={{ marginTop: 30 }} />
+        ) : (
+          <div>{availableOrders.map((order) => renderOrderCard(order, 'available'))}</div>
+        )
+      ) : (
+        availableOrders.length === 0 ? (
+          <Empty description="暂无待接单订单" style={{ marginTop: 50 }} />
+        ) : (
+          <List
+            dataSource={availableOrders}
+            renderItem={(order) => (
+              <List.Item
+                key={order.id}
+                actions={[
+                  <Button key="detail" onClick={() => showOrderDetail(order)}>
+                    查看详情
+                  </Button>,
+                  <Button type="primary" key="accept" onClick={() => handleAccept(order)}>
+                    立即接单
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Space>
+                      <Text strong>订单号：{order.order_no}</Text>
+                      <Tag color="gold">待接单</Tag>
+                    </Space>
+                  }
+                  description={
+                    <div>
+                      <Text>
+                        商家：{order.shop_name}
+                        <br />
+                        配送地址：{order.address}
+                        <br />
+                        配送费：<Text type="success">¥{order.delivery_fee.toFixed(2)}</Text>
+                      </Text>
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        )
+      ),
+    },
+    {
+      key: 'active',
+      label: <span><CarOutlined /> 进行中</span>,
+      children: isMobile ? (
+        activeOrders.length === 0 ? (
+          <Empty description="暂无进行中订单" style={{ marginTop: 30 }} />
+        ) : (
+          <div>{activeOrders.map((order) => renderOrderCard(order, 'active'))}</div>
+        )
+      ) : (
+        activeOrders.length === 0 ? (
+          <Empty description="暂无进行中订单" style={{ marginTop: 50 }} />
+        ) : (
+          <List
+            dataSource={activeOrders}
+            renderItem={(order) => (
+              <List.Item
+                key={order.id}
+                actions={[
+                  <Button key="detail" onClick={() => showOrderDetail(order)}>
+                    查看详情
+                  </Button>,
+                  <Button type="primary" key="deliver" onClick={() => handleDeliver(order)}>
+                    确认送达
+                  </Button>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={
+                    <Space>
+                      <Text strong>订单号：{order.order_no}</Text>
+                      <Tag color="processing">配送中</Tag>
+                    </Space>
+                  }
+                  description={
+                    <div>
+                      <Text>
+                        商家：{order.shop_name}
+                        <br />
+                        配送地址：{order.address}
+                        <br />
+                        联系电话：{order.phone}
+                      </Text>
+                    </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
+        )
+      ),
+    },
+  ]
+
+  const handleCallUser = (phone: string) => {
+    window.location.href = `tel:${phone}`
+  }
+
   return (
     <div>
       <Card>
         <Title level={4}>骑手接单</Title>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <Tabs.TabPane tab={<span><InboxOutlined /> 待接单</span>} key="available">
-            {availableOrders.length === 0 ? (
-              <Empty description="暂无待接单订单" style={{ marginTop: 50 }} />
-            ) : (
-              <List
-                dataSource={availableOrders}
-                renderItem={(order) => (
-                  <List.Item
-                    key={order.id}
-                    actions={[
-                      <Button key="detail" onClick={() => showOrderDetail(order)}>
-                        查看详情
-                      </Button>,
-                      <Button type="primary" key="accept" onClick={() => handleAccept(order)}>
-                        立即接单
-                      </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={
-                        <Space>
-                          <Text strong>订单号：{order.order_no}</Text>
-                          <Tag color="gold">待接单</Tag>
-                        </Space>
-                      }
-                      description={
-                        <div>
-                          <Text>
-                            商家：{order.shop_name}
-                            <br />
-                            配送地址：{order.address}
-                            <br />
-                            配送费：<Text type="success">¥{order.delivery_fee.toFixed(2)}</Text>
-                          </Text>
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            )}
-          </Tabs.TabPane>
-          <Tabs.TabPane tab={<span><CarOutlined /> 进行中</span>} key="active">
-            {activeOrders.length === 0 ? (
-              <Empty description="暂无进行中订单" style={{ marginTop: 50 }} />
-            ) : (
-              <List
-                dataSource={activeOrders}
-                renderItem={(order) => (
-                  <List.Item
-                    key={order.id}
-                    actions={[
-                      <Button key="detail" onClick={() => showOrderDetail(order)}>
-                        查看详情
-                      </Button>,
-                      <Button type="primary" key="deliver" onClick={() => handleDeliver(order)}>
-                        确认送达
-                      </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={
-                        <Space>
-                          <Text strong>订单号：{order.order_no}</Text>
-                          <Tag color="processing">配送中</Tag>
-                        </Space>
-                      }
-                      description={
-                        <div>
-                          <Text>
-                            商家：{order.shop_name}
-                            <br />
-                            配送地址：{order.address}
-                            <br />
-                            联系电话：{order.phone}
-                          </Text>
-                        </div>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            )}
-          </Tabs.TabPane>
-        </Tabs>
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItemsConfig} />
       </Card>
 
       <Modal
@@ -184,13 +248,23 @@ export default function RiderOrders() {
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={null}
+        width={isMobile ? undefined : undefined}
       >
         {selectedOrder && (
           <div>
             <p><Text strong>订单号：</Text>{selectedOrder.order_no}</p>
             <p><Text strong>商家名称：</Text>{selectedOrder.shop_name}</p>
-            <p><Text strong>商家地址：</Text>-</p>
-            <p><Text strong>收货人：</Text>{selectedOrder.phone}</p>
+            <p><Text strong>收货人：</Text>{selectedOrder.phone}
+              <Button
+                type="link"
+                size="small"
+                icon={<PhoneOutlined />}
+                onClick={() => handleCallUser(selectedOrder.phone)}
+                style={{ marginLeft: 8 }}
+              >
+                拨打电话
+              </Button>
+            </p>
             <p><Text strong>配送地址：</Text>{selectedOrder.address}</p>
             <p><Text strong>订单金额：</Text>¥{selectedOrder.total_amount.toFixed(2)}</p>
             <p><Text strong>配送费：</Text><Text type="success">¥{selectedOrder.delivery_fee.toFixed(2)}</Text></p>
@@ -210,4 +284,3 @@ export default function RiderOrders() {
     </div>
   )
 }
-

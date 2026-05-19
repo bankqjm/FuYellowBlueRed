@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, Integer, Enum, DateTime, ForeignKey, Float, Index
+from sqlalchemy import String, Integer, DateTime, ForeignKey, Float, Index, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -36,6 +36,7 @@ class OrderStatus(str, PyEnum):
     ACCEPTED = "ACCEPTED"
     READY = "READY"
     DELIVERING = "DELIVERING"
+    DELIVERED = "DELIVERED"
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
 
@@ -52,6 +53,65 @@ class WithdrawalStatus(str, PyEnum):
     COMPLETED = "COMPLETED"
 
 
+class PaymentStatus(str, PyEnum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CLOSED = "CLOSED"
+
+
+class TradeType(str, PyEnum):
+    PAY = "PAY"
+    REFUND = "REFUND"
+
+
+class PayChannel(str, PyEnum):
+    BALANCE = "BALANCE"
+    ALIPAY = "ALIPAY"
+    WECHAT = "WECHAT"
+
+
+class AccountType(str, PyEnum):
+    USER = "USER"
+    SHOP = "SHOP"
+    RIDER = "RIDER"
+    PLATFORM = "PLATFORM"
+
+
+class FlowType(str, PyEnum):
+    INCOME = "INCOME"
+    EXPENSE = "EXPENSE"
+    FREEZE = "FREEZE"
+    UNFREEZE = "UNFREEZE"
+
+
+class BusinessType(str, PyEnum):
+    ORDER_PAY = "ORDER_PAY"
+    ORDER_REFUND = "ORDER_REFUND"
+    COMMISSION = "COMMISSION"
+    WITHDRAW = "WITHDRAW"
+    RECHARGE = "RECHARGE"
+    BONUS = "BONUS"
+
+
+class RefundStatus(str, PyEnum):
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
+class RefundType(str, PyEnum):
+    AUTO_REFUND = "AUTO_REFUND"
+    MANUAL = "MANUAL"
+
+
+class SettlementStatus(str, PyEnum):
+    UNSETTLED = "UNSETTLED"
+    SETTLED = "SETTLED"
+    WITHDRAWN = "WITHDRAWN"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -62,23 +122,80 @@ class User(Base):
     avatar: Mapped[str] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.USER.value, index=True)
     status: Mapped[int] = mapped_column(default=UserStatus.ACTIVE.value, index=True)
+    failed_login_count: Mapped[int] = mapped_column(default=0)
+    locked_until: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
     wallet: Mapped["Wallet"] = relationship("Wallet", back_populates="user", uselist=False)
-    shops: Mapped[list["Shop"]] = relationship("Shop", back_populates="owner")
     addresses: Mapped[list["UserAddress"]] = relationship("UserAddress", back_populates="user")
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", foreign_keys="Order.user_id")
+    fund_flows: Mapped[list["FundFlow"]] = relationship("FundFlow", back_populates="user")
+    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user", foreign_keys="Review.user_id")
+    cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="user")
     rider_orders: Mapped[list["Order"]] = relationship("Order", back_populates="rider", foreign_keys="Order.rider_id")
+    rider_reviews: Mapped[list["Review"]] = relationship("Review", back_populates="rider", foreign_keys="Review.rider_id")
+    favorites: Mapped[list["Favorite"]] = relationship("Favorite", back_populates="user")
+    shops: Mapped[list["Shop"]] = relationship("Shop", back_populates="owner")
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+    __table_args__ = (Index("idx_favorite_user_shop", "user_id", "shop_id", unique=True),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="favorites")
+    shop: Mapped["Shop"] = relationship("Shop", back_populates="favorites")
+
+
+class Coupon(Base):
+    __tablename__ = "coupons"
+    __table_args__ = (
+        Index("idx_coupon_code", "code", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    discount_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    min_order_amount: Mapped[float] = mapped_column(Float, default=0)
+    total_count: Mapped[int] = mapped_column(Integer, default=0)
+    remain_count: Mapped[int] = mapped_column(Integer, default=0)
+    valid_from: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    valid_until: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class UserCoupon(Base):
+    __tablename__ = "user_coupons"
+    __table_args__ = (
+        Index("idx_user_coupon_user_coupon", "user_id", "coupon_id", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    coupon_id: Mapped[int] = mapped_column(Integer, ForeignKey("coupons.id"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="UNUSED")
+    claimed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    used_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship("User", backref="user_coupons")
+    coupon: Mapped["Coupon"] = relationship("Coupon", backref="user_coupons")
 
 
 class Wallet(Base):
     __tablename__ = "wallets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
-    balance: Mapped[float] = mapped_column(default=0.0)
-    frozen_balance: Mapped[float] = mapped_column(default=0.0)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    balance: Mapped[float] = mapped_column(Float, default=0.0)
+    frozen_balance: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -119,6 +236,11 @@ class Shop(Base):
     notice: Mapped[str] = mapped_column(String(500), nullable=True)
     rating: Mapped[float] = mapped_column(default=5.0)
     status: Mapped[int] = mapped_column(default=ShopStatus.PENDING.value)
+    monthly_sales: Mapped[int] = mapped_column(default=0)
+    min_order_amount: Mapped[float] = mapped_column(Float, default=20.0)
+    delivery_fee: Mapped[float] = mapped_column(Float, default=3.0)
+    delivery_time: Mapped[str] = mapped_column(String(20), default="30分钟")
+    discounts: Mapped[str] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -126,6 +248,7 @@ class Shop(Base):
     categories: Mapped[list["Category"]] = relationship("Category", back_populates="shop", cascade="all, delete-orphan")
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="shop")
     reviews: Mapped[list["Review"]] = relationship("Review", back_populates="shop")
+    favorites: Mapped[list["Favorite"]] = relationship("Favorite", back_populates="shop")
 
 
 class Category(Base):
@@ -192,15 +315,18 @@ class Order(Base):
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
     remark: Mapped[str] = mapped_column(String(500), nullable=True)
     total_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    discount_amount: Mapped[float] = mapped_column(Float, default=0.0)
+    coupon_id: Mapped[int] = mapped_column(Integer, ForeignKey("user_coupons.id"), nullable=True)
     delivery_fee: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String(20), default=OrderStatus.PENDING_PAYMENT.value)
+    reject_reason: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    user: Mapped["User"] = relationship("User", back_populates="orders", foreign_keys=[user_id])
-    rider: Mapped["User"] = relationship("User", back_populates="rider_orders", foreign_keys=[rider_id])
+    user: Mapped["User"] = relationship("User", back_populates="orders", foreign_keys="Order.user_id")
+    rider: Mapped["User"] = relationship("User", back_populates="rider_orders", foreign_keys="Order.rider_id")
     shop: Mapped["Shop"] = relationship("Shop", back_populates="orders")
-    items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    items: Mapped[list["OrderItem"]] = relationship("OrderItem", lazy="selectin")
     review: Mapped["Review"] = relationship("Review", back_populates="order", uselist=False)
 
 
@@ -243,6 +369,8 @@ class Review(Base):
 
     order: Mapped["Order"] = relationship("Order", back_populates="review")
     shop: Mapped["Shop"] = relationship("Shop", back_populates="reviews")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="reviews")
+    rider: Mapped["User"] = relationship("User", foreign_keys=[rider_id], back_populates="rider_reviews")
 
 
 class RiderEarning(Base):
@@ -292,4 +420,172 @@ class CartItem(Base):
     shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
     quantity: Mapped[int] = mapped_column(default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="cart_items")
+    shop: Mapped["Shop"] = relationship("Shop", foreign_keys=[shop_id])
+    product: Mapped["Product"] = relationship("Product", foreign_keys=[product_id])
+
+
+class PaymentTransaction(Base):
+    __tablename__ = "payment_transactions"
+    __table_args__ = (
+        Index("idx_payment_order_id", "order_id"),
+        Index("idx_payment_user_id", "user_id"),
+        Index("idx_payment_trade_no", "trade_no"),
+        Index("idx_payment_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    trade_no: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    trade_type: Mapped[str] = mapped_column(String(20), default=TradeType.PAY.value)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    channel: Mapped[str] = mapped_column(String(20), default=PayChannel.BALANCE.value)
+    status: Mapped[str] = mapped_column(String(20), default=PaymentStatus.SUCCESS.value)
+    extra_data: Mapped[str] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    completed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+
+
+class ShopEarning(Base):
+    __tablename__ = "shop_earnings"
+    __table_args__ = (
+        Index("idx_shop_earning_shop_id", "shop_id"),
+        Index("idx_shop_earning_order_id", "order_id"),
+        Index("idx_shop_earning_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    order_no: Mapped[str] = mapped_column(String(32), nullable=False)
+    goods_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    commission_rate: Mapped[float] = mapped_column(Float, default=0.10)
+    commission_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    net_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default=SettlementStatus.UNSETTLED.value)
+    settled_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    shop: Mapped["Shop"] = relationship("Shop", backref="earnings")
+
+
+class PlatformCommission(Base):
+    __tablename__ = "platform_commissions"
+    __table_args__ = (
+        Index("idx_platform_commission_order_id", "order_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    shop_commission: Mapped[float] = mapped_column(Float, nullable=False)
+    rider_service_fee: Mapped[float] = mapped_column(Float, nullable=False)
+    total: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class FundFlow(Base):
+    __tablename__ = "fund_flows"
+    __table_args__ = (
+        Index("idx_fund_flow_user_id", "user_id"),
+        Index("idx_fund_flow_account_type", "account_type"),
+        Index("idx_fund_flow_business_type", "business_type"),
+        Index("idx_fund_flow_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    flow_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    balance_before: Mapped[float] = mapped_column(Float, nullable=False)
+    balance_after: Mapped[float] = mapped_column(Float, nullable=False)
+    business_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    related_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="fund_flows", foreign_keys=[user_id])
+
+
+class RefundRecord(Base):
+    __tablename__ = "refund_records"
+    __table_args__ = (
+        Index("idx_refund_order_id", "order_id"),
+        Index("idx_refund_user_id", "user_id"),
+        Index("idx_refund_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    transaction_id: Mapped[int] = mapped_column(Integer, ForeignKey("payment_transactions.id"), nullable=True)
+    refund_amount: Mapped[float] = mapped_column(Float, nullable=False)
+    refund_type: Mapped[str] = mapped_column(String(20), default=RefundType.MANUAL.value)
+    status: Mapped[str] = mapped_column(String(20), default=RefundStatus.SUCCESS.value)
+    reason: Mapped[str] = mapped_column(String(255), nullable=True)
+    processed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class ConfigKey(str, PyEnum):
+    SHOP_COMMISSION_RATE = "SHOP_COMMISSION_RATE"
+    RIDER_SERVICE_FEE_RATE = "RIDER_SERVICE_FEE_RATE"
+    MIN_WITHDRAWAL_AMOUNT = "MIN_WITHDRAWAL_AMOUNT"
+    PLATFORM_NAME = "PLATFORM_NAME"
+    PLATFORM_CONTACT = "PLATFORM_CONTACT"
+
+
+class PlatformConfig(Base):
+    __tablename__ = "platform_configs"
+    __table_args__ = (
+        Index("idx_platform_config_key", "key", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    __table_args__ = (
+        Index("idx_audit_user_id", "user_id"),
+        Index("idx_audit_action", "action"),
+        Index("idx_audit_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)
+    resource: Mapped[str] = mapped_column(String(100), nullable=True)
+    resource_id: Mapped[str] = mapped_column(String(50), nullable=True)
+    details: Mapped[str] = mapped_column(Text, nullable=True)
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=True)
+    user_agent: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class FinanceAuditLog(Base):
+    __tablename__ = "finance_audit_logs"
+    __table_args__ = (
+        Index("idx_finance_audit_user_id", "user_id"),
+        Index("idx_finance_audit_type", "audit_type"),
+        Index("idx_finance_audit_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    audit_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    is_alert: Mapped[int] = mapped_column(default=0)
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

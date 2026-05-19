@@ -1,32 +1,42 @@
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 from app.database import get_db
 from app.models.models import User
-from app.utils.auth import verify_token
+from app.utils.auth import verify_token, is_token_valid
 from app.utils.exceptions import UnauthorizedException
 
 ALGORITHM = "HS256"
 
 
 async def get_current_user(
+    request: Request,
     authorization: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    if not authorization:
+    token = request.cookies.get("access_token")
+    if not token and authorization:
+        try:
+            scheme, token = authorization.split()
+            if scheme.lower() != "bearer":
+                raise UnauthorizedException("认证格式错误")
+        except ValueError:
+            raise UnauthorizedException("认证格式错误")
+
+    if not token:
         raise UnauthorizedException("缺少认证信息")
 
-    try:
-        scheme, token = authorization.split()
-        if scheme.lower() != "bearer":
-            raise UnauthorizedException("认证格式错误")
-    except ValueError:
-        raise UnauthorizedException("认证格式错误")
+    if not await is_token_valid(token):
+        raise UnauthorizedException("Token 已过期或无效")
 
     payload = verify_token(token)
     if not payload:
-        raise UnauthorizedException("Token 已过期或无效")
+        raise UnauthorizedException("Token 解析失败")
+
+    token_type = payload.get("type")
+    if token_type != "access":
+        raise UnauthorizedException("请使用access token")
 
     user_id = payload.get("sub")
     if not user_id:
@@ -50,3 +60,6 @@ def require_role(*roles: str):
             raise UnauthorizedException("权限不足")
         return current_user
     return role_checker
+
+
+require_admin = require_role("ADMIN")

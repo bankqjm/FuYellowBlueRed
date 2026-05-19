@@ -18,32 +18,20 @@ export const useAddresses = () => {
   }, [])
 
   const addAddress = useCallback(async (address: any) => {
-    try {
-      const res = await addressApi.createAddress(address)
-      await fetchAddresses()
-      return res
-    } catch (error) {
-      throw error
-    }
+    const res = await addressApi.createAddress(address)
+    await fetchAddresses()
+    return res
   }, [fetchAddresses])
 
   const updateAddress = useCallback(async (id: number, address: any) => {
-    try {
-      const res = await addressApi.updateAddress(id, address)
-      await fetchAddresses()
-      return res
-    } catch (error) {
-      throw error
-    }
+    const res = await addressApi.updateAddress(id, address)
+    await fetchAddresses()
+    return res
   }, [fetchAddresses])
 
   const deleteAddress = useCallback(async (id: number) => {
-    try {
-      await addressApi.deleteAddress(id)
-      await fetchAddresses()
-    } catch (error) {
-      throw error
-    }
+    await addressApi.deleteAddress(id)
+    await fetchAddresses()
   }, [fetchAddresses])
 
   useEffect(() => {

@@ -18,41 +18,25 @@ export const useCart = () => {
   }, [])
 
   const addToCart = useCallback(async (productId: number, shopId: number, quantity: number) => {
-    try {
-      const res = await cartApi.addToCart({ product_id: productId, shop_id: shopId, quantity })
-      await fetchCart()
-      return res
-    } catch (error) {
-      throw error
-    }
+    const res = await cartApi.addToCart({ product_id: productId, shop_id: shopId, quantity })
+    await fetchCart()
+    return res
   }, [fetchCart])
 
   const updateCartItem = useCallback(async (itemId: number, quantity: number) => {
-    try {
-      const res = await cartApi.updateCartItem(itemId, { quantity })
-      await fetchCart()
-      return res
-    } catch (error) {
-      throw error
-    }
+    const res = await cartApi.updateCartItem(itemId, { quantity })
+    await fetchCart()
+    return res
   }, [fetchCart])
 
   const removeFromCart = useCallback(async (itemId: number) => {
-    try {
-      await cartApi.deleteCartItem(itemId)
-      await fetchCart()
-    } catch (error) {
-      throw error
-    }
+    await cartApi.deleteCartItem(itemId)
+    await fetchCart()
   }, [fetchCart])
 
   const clearCartByShop = useCallback(async (shopId: number) => {
-    try {
-      await cartApi.clearShopCart(shopId)
-      await fetchCart()
-    } catch (error) {
-      throw error
-    }
+    await cartApi.clearShopCart(shopId)
+    await fetchCart()
   }, [fetchCart])
 
   const cartSummary = useMemo(() => {

@@ -98,7 +98,7 @@ export default function Addresses() {
                   </Button>,
                   <Button key="delete" type="link" danger icon={<DeleteOutlined />} onClick={() => handleDelete(item.id)}>
                     删除
-                  </Button>
+                  </Button>,
                 ]}
               >
                 <List.Item.Meta

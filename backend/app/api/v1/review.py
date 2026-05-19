@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+import json
 from app.database import get_db
 from app.models.models import (
     User, Order, Review, Shop, OrderStatus,
@@ -47,6 +48,7 @@ async def create_review(
         shop_rating=request.shop_rating,
         rider_rating=request.rider_rating,
         content=request.content,
+        images=json.dumps(request.images) if request.images else None,
     )
     db.add(review)
 
@@ -65,6 +67,8 @@ async def create_review(
 
     review_data = ReviewResponse.model_validate(review)
     review_data.user_nickname = current_user.nickname
+    if review_data.images and isinstance(review_data.images, str):
+        review_data.images = json.loads(review_data.images)
 
     logger.info(f"Review created: order={request.order_id}, shop_rating={request.shop_rating}")
     return ResponseSchema(code=0, message="评价成功", data=review_data)
@@ -90,6 +94,8 @@ async def get_shop_reviews(
     review_list = []
     for review in reviews:
         review_data = ReviewResponse.model_validate(review)
+        if review_data.images and isinstance(review_data.images, str):
+            review_data.images = json.loads(review_data.images)
         user_result = await db.execute(select(User).where(User.id == review.user_id))
         user = user_result.scalar_one_or_none()
         if user:

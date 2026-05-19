@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { useAuthStore } from '@/stores/authStore'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import UserLayout from '@/layouts/UserLayout'
@@ -14,22 +15,31 @@ import Cart from '@/pages/user/Cart'
 import Orders from '@/pages/user/Orders'
 import Profile from '@/pages/user/Profile'
 import Addresses from '@/pages/user/Addresses'
+import Wallet from '@/pages/user/Wallet'
 import ShopOrders from '@/pages/shop/Orders'
 import ShopInfo from '@/pages/shop/ShopInfo'
-import Products from '@/pages/shop/Products'
+import ShopDashboard from '@/pages/shop/Dashboard'
+import ShopProducts from '@/pages/shop/Products'
+import ShopEarnings from '@/pages/shop/Earnings'
 import RiderOrders from '@/pages/rider/Orders'
 import RiderEarnings from '@/pages/rider/Earnings'
 import RiderWithdraw from '@/pages/rider/Withdraw'
 import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminShops from '@/pages/admin/Shops'
 import AdminUsers from '@/pages/admin/Users'
+import AdminOrders from '@/pages/admin/Orders'
+import AdminAuditLogs from '@/pages/admin/AuditLogs'
+import AdminConfig from '@/pages/admin/Config'
 import ReviewPage from '@/pages/user/Review'
+import Favorites from '@/pages/user/Favorites'
+import Coupons from '@/pages/user/Coupons'
+import Support from '@/pages/user/Support'
 import './App.css'
 
 function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
-  const { token, role } = useAuthStore()
+  const { isAuthenticated, role } = useAuthStore()
 
-  if (!token) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
@@ -42,9 +52,10 @@ function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: str
 
 function App() {
   return (
-    <ConfigProvider locale={zhCN}>
-      <BrowserRouter>
-        <Routes>
+    <ThemeProvider>
+      <ConfigProvider locale={zhCN}>
+        <BrowserRouter>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
@@ -61,9 +72,13 @@ function App() {
             <Route path="cart" element={<Cart />} />
             <Route path="orders" element={<Orders />} />
             <Route path="orders/:id/pay" element={<Orders />} />
+            <Route path="wallet" element={<Wallet />} />
             <Route path="profile" element={<Profile />} />
             <Route path="addresses" element={<Addresses />} />
             <Route path="review/:id" element={<ReviewPage />} />
+            <Route path="favorites" element={<Favorites />} />
+            <Route path="coupons" element={<Coupons />} />
+            <Route path="support" element={<Support />} />
           </Route>
           <Route
             path="/shop"
@@ -73,10 +88,12 @@ function App() {
               </AuthGuard>
             }
           >
-            <Route index element={<ShopInfo />} />
+            <Route index element={<ShopDashboard />} />
+            <Route path="dashboard" element={<ShopDashboard />} />
             <Route path="info" element={<ShopInfo />} />
-            <Route path="products" element={<Products />} />
+            <Route path="products" element={<ShopProducts />} />
             <Route path="orders" element={<ShopOrders />} />
+            <Route path="earnings" element={<ShopEarnings />} />
           </Route>
           <Route
             path="/rider"
@@ -103,12 +120,16 @@ function App() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="shops" element={<AdminShops />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="audit-logs" element={<AdminAuditLogs />} />
+            <Route path="config" element={<AdminConfig />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </ConfigProvider>
+    </ThemeProvider>
   )
 }
 

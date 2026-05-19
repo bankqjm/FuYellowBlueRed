@@ -1,5 +1,4 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
 __all__ = ["BaseService"]
 

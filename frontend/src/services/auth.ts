@@ -28,8 +28,8 @@ export interface ApiResponse<T> {
 }
 
 export const authApi = {
-  login: (data: LoginParams) => api.post<ApiResponse<AuthResponse>>('/auth/login', data),
-  register: (data: RegisterParams) => api.post<ApiResponse<{ id: number; phone: string }>>('/auth/register', data),
+  login: (data: LoginParams) => api.post<AuthResponse>('/auth/login', data),
+  register: (data: RegisterParams) => api.post<{ id: number; phone: string }>('/auth/register', data),
 }
 
 export const userApi = {

@@ -1,17 +1,16 @@
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import Optional
 from app.database import get_db
 from app.models.models import (
-    User, Order, OrderItem, Shop, OrderStatus, RiderEarning, EarningType, 
-    WithdrawalRecord, WithdrawalStatus, Wallet,
+    User, Order, Shop, OrderStatus, RiderEarning, WithdrawalRecord, WithdrawalStatus, Wallet,
 )
-from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery
+from app.schemas.order import OrderResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, ForbiddenException, get_logger
+from app.services.finance import FinanceService
 
 router = APIRouter(prefix="/rider", tags=["骑手"])
 logger = get_logger("rider")
@@ -155,24 +154,20 @@ async def deliver_order(
     if order.status != OrderStatus.DELIVERING:
         raise BadRequestException("订单状态异常")
 
-    order.status = OrderStatus.COMPLETED
-    await db.commit()
-    await db.refresh(order)
+    commission_info = await FinanceService.calculate_order_commission(db, order)
+    rider_income = commission_info["rider_income"]
 
-    earning = RiderEarning(
+    await FinanceService.add_rider_earning(
+        db=db,
         rider_id=current_user.id,
         order_id=order.id,
-        amount=order.delivery_fee,
-        type=EarningType.DELIVERY_FEE.value,
+        amount=rider_income
     )
-    db.add(earning)
+    logger.info(f"Rider earning added: rider={current_user.id}, order={order_id}, amount={rider_income}")
 
-    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
-    wallet = wallet_result.scalar_one_or_none()
-    if wallet:
-        wallet.balance += order.delivery_fee
-
+    order.status = OrderStatus.DELIVERED
     await db.commit()
+    await db.refresh(order)
 
     logger.info(f"Rider {current_user.id} delivered order {order_id}")
     return ResponseSchema(code=0, message="确认送达成功", data=OrderResponse.model_validate(order))
@@ -192,7 +187,11 @@ async def get_earnings(
 
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
-    stmt = stmt.order_by(RiderEarning.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+    stmt = (
+        stmt.order_by(RiderEarning.created_at.desc())
+        .offset((query.page - 1) * query.page_size)
+        .limit(query.page_size)
+    )
 
     result = await db.execute(stmt)
     earnings = result.scalars().all()
@@ -246,13 +245,14 @@ async def withdraw(
     if current_user.role != "RIDER":
         raise ForbiddenException("仅骑手可访问")
 
-    wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
-    wallet = wallet_result.scalar_one_or_none()
-    if not wallet:
-        raise BadRequestException("钱包不存在")
-
-    if wallet.balance < amount:
-        raise BadRequestException("余额不足")
+    try:
+        result = await FinanceService.process_withdrawal(
+            db=db,
+            user_id=current_user.id,
+            amount=amount,
+        )
+    except ValueError as e:
+        raise BadRequestException(str(e))
 
     record = WithdrawalRecord(
         user_id=current_user.id,
@@ -262,14 +262,13 @@ async def withdraw(
         status=WithdrawalStatus.COMPLETED.value,
     )
     db.add(record)
-
-    wallet.balance -= amount
     await db.commit()
 
     logger.info(f"Rider {current_user.id} withdrew {amount}")
     return ResponseSchema(code=0, message="提现成功", data={
         "withdraw_id": record.id,
         "amount": amount,
+        "balance_after": result["balance_after"],
     })
 
 
@@ -287,7 +286,11 @@ async def get_withdrawal_records(
 
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
-    stmt = stmt.order_by(WithdrawalRecord.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+    stmt = (
+        stmt.order_by(WithdrawalRecord.created_at.desc())
+        .offset((query.page - 1) * query.page_size)
+        .limit(query.page_size)
+    )
 
     result = await db.execute(stmt)
     records = result.scalars().all()

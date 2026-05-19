@@ -1,5 +1,5 @@
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 from typing import Optional, List
 from datetime import datetime
 from app.schemas.base import BaseSchema
@@ -23,6 +23,10 @@ class ShopUpdate(BaseSchema):
     longitude: Optional[float] = None
     business_hours: Optional[str] = None
     notice: Optional[str] = None
+    min_order_amount: Optional[float] = None
+    delivery_fee: Optional[float] = None
+    delivery_time: Optional[str] = None
+    discounts: Optional[str] = None
 
 
 class ShopInfo(BaseSchema):
@@ -37,6 +41,11 @@ class ShopInfo(BaseSchema):
     notice: Optional[str] = None
     rating: float
     status: int
+    monthly_sales: int = 0
+    min_order_amount: float = 20.0
+    delivery_fee: float = 3.0
+    delivery_time: str = "30分钟"
+    discounts: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -53,6 +62,11 @@ class ShopDetail(BaseSchema):
     notice: Optional[str] = None
     rating: float
     status: int
+    monthly_sales: int = 0
+    min_order_amount: float = 20.0
+    delivery_fee: float = 3.0
+    delivery_time: str = "30分钟"
+    discounts: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     categories: Optional[List["CategoryInfo"]] = None

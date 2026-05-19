@@ -1,8 +1,9 @@
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
+from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.models import (
     Shop, Category, Product, ShopStatus, ProductStatus, User, Order, OrderItem, OrderStatus,
@@ -214,7 +215,15 @@ async def create_category(
     await db.commit()
     await db.refresh(category)
 
-    return ResponseSchema(code=0, message="创建成功", data=CategoryInfo.model_validate(category))
+    cat_data = CategoryInfo(
+        id=category.id,
+        shop_id=category.shop_id,
+        name=category.name,
+        sort_order=category.sort_order,
+        created_at=category.created_at,
+        products=[],
+    )
+    return ResponseSchema(code=0, message="创建成功", data=cat_data)
 
 
 @router.get("/category/{shop_id}", response_model=ResponseSchema[List[CategoryInfo]])
@@ -252,7 +261,15 @@ async def update_category(
 
     await db.commit()
     await db.refresh(category)
-    return ResponseSchema(code=0, message="更新成功", data=CategoryInfo.model_validate(category))
+    cat_data = CategoryInfo(
+        id=category.id,
+        shop_id=category.shop_id,
+        name=category.name,
+        sort_order=category.sort_order,
+        created_at=category.created_at,
+        products=[],
+    )
+    return ResponseSchema(code=0, message="更新成功", data=cat_data)
 
 
 @router.delete("/category/{category_id}", response_model=ResponseSchema)
@@ -498,6 +515,7 @@ async def accept_order(
 @router.put("/my/orders/{order_id}/reject", response_model=ResponseSchema[OrderResponse])
 async def reject_order(
     order_id: int,
+    reason: str = Body(..., embed=True, description="拒单原因"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -513,10 +531,35 @@ async def reject_order(
     if order.status != OrderStatus.PENDING_ACCEPT:
         raise BadRequestException("订单状态异常")
 
+    original_status = order.status
     order.status = OrderStatus.CANCELLED
+    order.reject_reason = reason
+
+    if original_status == OrderStatus.PENDING_ACCEPT:
+        from app.services.finance import FinanceService
+        user_result = await db.execute(select(User).where(User.id == order.user_id))
+        order_user = user_result.scalar_one_or_none()
+        if order_user:
+            await FinanceService.process_refund(
+                db=db,
+                order=order,
+                user=order_user,
+                refund_amount=order.total_amount,
+                refund_type="AUTO_REFUND",
+                reason=f"商家拒单: {reason}"
+            )
+            logger.info(f"Refund processed for rejected order: {order_id}")
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    for item in items_result.scalars().all():
+        product_result = await db.execute(select(Product).where(Product.id == item.product_id))
+        product = product_result.scalar_one_or_none()
+        if product:
+            product.stock += item.quantity
+
     await db.commit()
     await db.refresh(order)
-    logger.info(f"Order rejected: {order_id}")
+    logger.info(f"Order rejected: {order_id}, reason: {reason}")
 
     return ResponseSchema(code=0, message="拒单成功", data=OrderResponse.model_validate(order))
 
@@ -545,3 +588,92 @@ async def order_ready(
     logger.info(f"Order ready: {order_id}")
 
     return ResponseSchema(code=0, message="备餐完成", data=OrderResponse.model_validate(order))
+
+
+@router.get("/my/stats", response_model=ResponseSchema[dict])
+async def get_shop_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    today_count_result = await db.execute(
+        select(func.count(Order.id)).where(
+            Order.shop_id == shop.id,
+            Order.status != OrderStatus.CANCELLED,
+        )
+    )
+    total_orders = today_count_result.scalar() or 0
+
+    today_revenue_result = await db.execute(
+        select(func.sum(Order.total_amount)).where(
+            Order.shop_id == shop.id,
+            Order.status == OrderStatus.COMPLETED,
+        )
+    )
+    total_revenue = today_revenue_result.scalar() or 0.0
+
+    pending_result = await db.execute(
+        select(func.count(Order.id)).where(
+            Order.shop_id == shop.id,
+            Order.status.in_([OrderStatus.PENDING_ACCEPT, OrderStatus.ACCEPTED, OrderStatus.READY]),
+        )
+    )
+    pending_orders = pending_result.scalar() or 0
+
+    return ResponseSchema(code=0, data={
+        "total_orders": total_orders,
+        "total_revenue": total_revenue,
+        "pending_orders": pending_orders,
+        "rating": shop.rating,
+    })
+
+
+@router.get("/my/stats/trend", response_model=ResponseSchema[list])
+async def get_shop_trend(
+    days: int = Query(7, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("您还没有店铺")
+
+    result = []
+    today = datetime.now().date()
+
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+
+        order_count_result = await db.execute(
+            select(func.count(Order.id)).where(
+                Order.shop_id == shop.id,
+                Order.created_at >= date_start,
+                Order.created_at <= date_end,
+            )
+        )
+        order_count = order_count_result.scalar() or 0
+
+        revenue_result = await db.execute(
+            select(func.coalesce(func.sum(Order.total_amount), 0)).where(
+                Order.shop_id == shop.id,
+                Order.created_at >= date_start,
+                Order.created_at <= date_end,
+                Order.status == OrderStatus.COMPLETED,
+            )
+        )
+        revenue = float(revenue_result.scalar() or 0)
+
+        result.append({
+            "date": date.strftime("%m-%d"),
+            "orders": order_count,
+            "revenue": round(revenue, 2),
+        })
+
+    return ResponseSchema(code=0, data=result)

@@ -1,7 +1,7 @@
 import uuid
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from app.database import get_db
 from app.models.models import (
     User,
@@ -13,7 +13,10 @@ from app.models.models import (
     Shop,
     OrderStatus,
     ProductStatus,
+    Coupon,
+    UserCoupon,
 )
+from app.services.finance import FinanceService
 from app.schemas.order import (
     CartItemCreate,
     CartItemUpdate,
@@ -221,14 +224,39 @@ async def create_order(
         )
         product = product_result.scalar_one_or_none()
         if not product or product.status != ProductStatus.ON:
-            raise BadRequestException(f"商品 {cart_item.product_id} 不存在或已下架")
+            raise BadRequestException(f"商品 {cart_item.product_id} 不可购买")
         if product.stock < cart_item.quantity:
             raise BadRequestException(f"商品 {product.name} 库存不足")
 
         total_amount += product.price * cart_item.quantity
         order_items.append((product, cart_item.quantity))
 
-    delivery_fee = 5.0
+    delivery_fee = shop.delivery_fee or 0.0
+    discount_amount = 0.0
+    user_coupon = None
+
+    if request.coupon_id:
+        uc_result = await db.execute(
+            select(UserCoupon, Coupon).join(Coupon, UserCoupon.coupon_id == Coupon.id).where(
+                UserCoupon.id == request.coupon_id,
+                UserCoupon.user_id == current_user.id,
+                UserCoupon.status == "UNUSED",
+            )
+        )
+        uc_row = uc_result.one_or_none()
+        if not uc_row:
+            raise BadRequestException("优惠券不可用")
+        user_coupon, coupon = uc_row
+        from datetime import datetime
+        now = datetime.now()
+        if now < coupon.valid_from or now > coupon.valid_until:
+            raise BadRequestException("优惠券已过期")
+        subtotal = total_amount + delivery_fee
+        if subtotal < coupon.min_order_amount:
+            raise BadRequestException(f"订单金额需满{coupon.min_order_amount}元才可使用该优惠券")
+        discount_amount = min(coupon.discount_amount, subtotal)
+
+    final_amount = total_amount + delivery_fee - discount_amount
 
     order_no = str(uuid.uuid4()).replace("-", "")[:32]
     order = Order(
@@ -240,7 +268,9 @@ async def create_order(
         longitude=address.longitude,
         phone=address.contact_phone,
         remark=request.remark,
-        total_amount=total_amount + delivery_fee,
+        total_amount=final_amount,
+        discount_amount=discount_amount,
+        coupon_id=request.coupon_id,
         delivery_fee=delivery_fee,
         status=OrderStatus.PENDING_PAYMENT,
     )
@@ -267,6 +297,10 @@ async def create_order(
 
     order_data = OrderResponse.model_validate(order)
     order_data.shop_name = shop.name
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
     logger.info(f"Order created: {order.id} by user {current_user.id}")
     return ResponseSchema(code=0, message="创建订单成功", data=order_data)
 
@@ -274,6 +308,7 @@ async def create_order(
 @router.post("/{order_id}/pay", response_model=ResponseSchema[OrderResponse])
 async def pay_order(
     order_id: int,
+    channel: str = Body(default="BALANCE"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -289,9 +324,29 @@ async def pay_order(
     if order.status != OrderStatus.PENDING_PAYMENT:
         raise BadRequestException("订单状态异常")
 
+    payment_result = await FinanceService.process_payment(
+        db=db,
+        order=order,
+        user=current_user,
+        channel=channel
+    )
+    logger.info(f"Payment processed: order={order_id}, {payment_result}")
+
     order.status = OrderStatus.PENDING_ACCEPT
     await db.commit()
     await db.refresh(order)
+
+    if order.coupon_id:
+        uc_result = await db.execute(
+            select(UserCoupon).where(UserCoupon.id == order.coupon_id)
+        )
+        user_coupon = uc_result.scalar_one_or_none()
+        if user_coupon and user_coupon.status == "UNUSED":
+            from datetime import datetime
+            user_coupon.status = "USED"
+            user_coupon.used_at = datetime.now()
+            await db.commit()
+            logger.info(f"Coupon {user_coupon.coupon_id} marked as used for order {order_id}")
 
     logger.info(f"Order paid: {order_id}")
     return ResponseSchema(code=0, message="支付成功", data=OrderResponse.model_validate(order))
@@ -319,6 +374,7 @@ async def get_order_detail(
     shop = shop_result.scalar_one_or_none()
     if shop:
         order_data.shop_name = shop.name
+        order_data.shop_image = shop.logo
 
     items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
     order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
@@ -384,12 +440,71 @@ async def confirm_receipt(
     order = result.scalar_one_or_none()
     if not order:
         raise BadRequestException("订单不存在")
-    if order.status != OrderStatus.DELIVERING:
+    if order.status not in (OrderStatus.DELIVERING, OrderStatus.DELIVERED):
         raise BadRequestException("订单状态异常")
 
     order.status = OrderStatus.COMPLETED
     await db.commit()
     await db.refresh(order)
 
+    try:
+        await FinanceService.process_order_settlement(db, order)
+        logger.info(f"Order settlement processed for order: {order_id}")
+    except Exception as e:
+        logger.warning(f"Order settlement failed for order {order_id}: {e}")
+
     logger.info(f"Order confirmed: {order_id}")
     return ResponseSchema(code=0, message="确认收货成功", data=OrderResponse.model_validate(order))
+
+
+@router.put("/{order_id}/cancel", response_model=ResponseSchema[OrderResponse])
+async def cancel_order(
+    order_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Order).where(
+            Order.id == order_id,
+            Order.user_id == current_user.id,
+        )
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise BadRequestException("订单不存在")
+    if order.status not in (OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ACCEPT):
+        raise BadRequestException("当前订单状态不可取消")
+
+    if order.status == OrderStatus.PENDING_ACCEPT:
+        await FinanceService.process_refund(
+            db=db,
+            order=order,
+            user=current_user,
+            refund_amount=order.total_amount,
+            refund_type="AUTO_REFUND",
+            reason="用户取消订单"
+        )
+        logger.info(f"Refund processed for cancelled order: {order_id}")
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    for item in items_result.scalars().all():
+        product_result = await db.execute(select(Product).where(Product.id == item.product_id))
+        product = product_result.scalar_one_or_none()
+        if product:
+            product.stock += item.quantity
+
+    order.status = OrderStatus.CANCELLED
+    await db.commit()
+    await db.refresh(order)
+
+    order_data = OrderResponse.model_validate(order)
+    shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
+    shop = shop_result.scalar_one_or_none()
+    if shop:
+        order_data.shop_name = shop.name
+
+    items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+    order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
+    logger.info(f"Order cancelled: {order_id} by user {current_user.id}")
+    return ResponseSchema(code=0, message="取消订单成功", data=order_data)

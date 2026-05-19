@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { Card, Table, Button, Space, message, Tag, Modal, Descriptions, Image } from 'antd'
 import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
 import { adminApi, ShopInfo } from '@/services/shop'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 export default function Shops() {
   const [shops, setShops] = useState<ShopInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [detailVisible, setDetailVisible] = useState(false)
   const [selectedShop, setSelectedShop] = useState<ShopInfo | null>(null)
+  const isMobile = useIsMobile()
 
   const fetchShops = async () => {
     try {
@@ -126,20 +128,65 @@ export default function Shops() {
     },
   ]
 
+  const renderMobileShops = () => {
+    if (shops.length === 0) {
+      return <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无待审核店铺</div>
+    }
+    return shops.map((shop) => (
+      <div className="mobile-card" key={shop.id}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {shop.logo ? (
+            <Image src={shop.logo} width={48} height={48} style={{ borderRadius: 6, flexShrink: 0 }} />
+          ) : (
+            <div style={{
+              width: 48, height: 48, background: '#f0f0f0', borderRadius: 6,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, color: '#999', fontSize: 12,
+            }}>
+              店铺
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>{shop.name}</div>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>{shop.address}</div>
+            <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {getStatusText(shop.status)}
+              <span style={{ fontSize: 12, color: '#999' }}>评分: {shop.rating}</span>
+            </div>
+          </div>
+        </div>
+        <div className="card-actions">
+          <Button size="small" icon={<EyeOutlined />} onClick={() => {
+            setSelectedShop(shop)
+            setDetailVisible(true)
+          }}>查看</Button>
+          {shop.status === 0 && (
+            <>
+              <Button type="primary" size="small" icon={<CheckOutlined />} onClick={() => handleApprove(shop.id)}>通过</Button>
+              <Button danger size="small" icon={<CloseOutlined />} onClick={() => handleReject(shop.id)}>拒绝</Button>
+            </>
+          )}
+        </div>
+      </div>
+    ))
+  }
+
   return (
-    <Card title="店铺审核">
-      <Table
-        columns={columns}
-        dataSource={shops}
-        rowKey="id"
-        loading={loading}
-      />
+    <Card title={isMobile ? undefined : '店铺审核'}>
+      {isMobile ? renderMobileShops() : (
+        <Table
+          columns={columns}
+          dataSource={shops}
+          rowKey="id"
+          loading={loading}
+        />
+      )}
       <Modal
         title="店铺详情"
-        visible={detailVisible}
+        open={detailVisible}
         onCancel={() => setDetailVisible(false)}
         footer={null}
-        width={600}
+        width={isMobile ? undefined : 600}
       >
         {selectedShop && (
           <Descriptions column={1}>

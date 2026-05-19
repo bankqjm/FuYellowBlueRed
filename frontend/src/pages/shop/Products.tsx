@@ -15,6 +15,7 @@ import {
   Image,
   Tabs,
   Tag,
+  Upload,
 } from 'antd'
 import {
   PlusOutlined,
@@ -22,12 +23,14 @@ import {
   DeleteOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
+  UploadOutlined,
 } from '@ant-design/icons'
 import { shopApi, ShopInfo, CategoryInfo, ProductInfo } from '../../services/shop'
+import { uploadApi } from '../../services/upload'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { TextArea } = Input
 const { Option } = Select
-const { TabPane } = Tabs
 
 export default function Products() {
   const [shop, setShop] = useState<ShopInfo | null>(null)
@@ -39,9 +42,11 @@ export default function Products() {
   const [productModalVisible, setProductModalVisible] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryInfo | null>(null)
   const [editingProduct, setEditingProduct] = useState<ProductInfo | null>(null)
+  const [productImage, setProductImage] = useState<string>('')
 
   const [categoryForm] = Form.useForm()
   const [productForm] = Form.useForm()
+  const isMobile = useIsMobile()
 
   const fetchData = async () => {
     try {
@@ -81,7 +86,7 @@ export default function Products() {
 
   const handleSaveCategory = async (values: any) => {
     try {
-      if (!shop) return
+      if (!shop) {return}
 
       if (editingCategory) {
         await shopApi.updateCategory(editingCategory.id, values)
@@ -110,18 +115,42 @@ export default function Products() {
   const handleAddProduct = () => {
     setEditingProduct(null)
     productForm.resetFields()
+    setProductImage('')
     setProductModalVisible(true)
   }
 
   const handleEditProduct = (product: ProductInfo) => {
     setEditingProduct(product)
     productForm.setFieldsValue(product)
+    setProductImage(product.image || '')
     setProductModalVisible(true)
+  }
+
+  const handleImageUpload = async (file: File) => {
+    const isImage = file.type.startsWith('image/')
+    if (!isImage) {
+      message.error('只能上传图片文件')
+      return false
+    }
+    const isLt5M = file.size / 1024 / 1024 < 5
+    if (!isLt5M) {
+      message.error('图片大小不能超过 5MB')
+      return false
+    }
+    try {
+      const res = await uploadApi.upload(file)
+      setProductImage(res.data.url)
+      productForm.setFieldsValue({ image: res.data.url })
+      message.success('图片上传成功')
+    } catch {
+      message.error('图片上传失败')
+    }
+    return false
   }
 
   const handleSaveProduct = async (values: any) => {
     try {
-      if (!shop) return
+      if (!shop) {return}
 
       if (editingProduct) {
         await shopApi.updateProduct(editingProduct.id, values)
@@ -149,6 +178,12 @@ export default function Products() {
 
   const getStatusText = (status: number) => {
     return status === 1 ? <Tag color="green">上架</Tag> : <Tag color="gray">下架</Tag>
+  }
+
+  const getCategoryName = (categoryId?: number) => {
+    if (categoryId === undefined) {return '-'}
+    const category = categories.find((c) => c.id === categoryId)
+    return category?.name || '-'
   }
 
   const categoryColumns = [
@@ -201,10 +236,7 @@ export default function Products() {
       title: '分类',
       dataIndex: 'category_id',
       key: 'category_id',
-      render: (categoryId: number) => {
-        const category = categories.find(c => c.id === categoryId)
-        return category?.name || '-'
-      },
+      render: (categoryId: number) => getCategoryName(categoryId),
     },
     {
       title: '价格',
@@ -251,18 +283,110 @@ export default function Products() {
     },
   ]
 
-  return (
-    <Card>
-      <Tabs defaultActiveKey="products">
-        <TabPane
-          tab={
-            <span>
-              <ShoppingOutlined />
-              商品管理
-            </span>
-          }
-          key="products"
-        >
+  const renderMobileCategories = () => (
+    <div>
+      <div style={{ marginBottom: 12, textAlign: 'right' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCategory} size="small">
+          添加分类
+        </Button>
+      </div>
+      {categories.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无分类</div>
+      ) : (
+        categories.map((cat) => (
+          <div className="mobile-card" key={cat.id}>
+            <div className="card-row">
+              <span className="label">分类名称</span>
+              <span className="value">{cat.name}</span>
+            </div>
+            <div className="card-row">
+              <span className="label">排序</span>
+              <span className="value">{cat.sort_order}</span>
+            </div>
+            <div className="card-actions">
+              <Button size="small" icon={<EditOutlined />} onClick={() => handleEditCategory(cat)}>
+                编辑
+              </Button>
+              <Popconfirm
+                title="确定删除这个分类？"
+                onConfirm={() => handleDeleteCategory(cat.id)}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              </Popconfirm>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+
+  const renderMobileProducts = () => (
+    <div>
+      <div style={{ marginBottom: 12, textAlign: 'right' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProduct} size="small">
+          添加商品
+        </Button>
+      </div>
+      {products.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>暂无商品</div>
+      ) : (
+        products.map((product) => (
+          <div className="mobile-card" key={product.id}>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {product.image ? (
+                <Image src={product.image} width={60} height={60} style={{ borderRadius: 6, flexShrink: 0 }} />
+              ) : (
+                <div style={{
+                  width: 60, height: 60, background: '#f0f0f0', borderRadius: 6,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, color: '#999', fontSize: 12,
+                }}>
+                  商品
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{product.name}</div>
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 2 }}>
+                  {getCategoryName(product.category_id)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: '#f5222d', fontWeight: 700, fontSize: 16 }}>
+                    ¥{product.price.toFixed(2)}
+                  </span>
+                  {getStatusText(product.status)}
+                </div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                  库存: {product.stock} | 销量: {product.sales}
+                </div>
+              </div>
+            </div>
+            <div className="card-actions">
+              <Button size="small" icon={<EditOutlined />} onClick={() => handleEditProduct(product)}>
+                编辑
+              </Button>
+              <Popconfirm
+                title="确定删除这个商品？"
+                onConfirm={() => handleDeleteProduct(product.id)}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button size="small" danger icon={<DeleteOutlined />}>删除</Button>
+              </Popconfirm>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  )
+
+  const tabItemsConfig = [
+    {
+      key: 'products',
+      label: <span><ShoppingOutlined /> 商品管理</span>,
+      children: isMobile ? renderMobileProducts() : (
+        <>
           <div style={{ marginBottom: 16, textAlign: 'right' }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProduct}>
               添加商品
@@ -274,16 +398,14 @@ export default function Products() {
             rowKey="id"
             loading={loading}
           />
-        </TabPane>
-        <TabPane
-          tab={
-            <span>
-              <AppstoreOutlined />
-              分类管理
-            </span>
-          }
-          key="categories"
-        >
+        </>
+      ),
+    },
+    {
+      key: 'categories',
+      label: <span><AppstoreOutlined /> 分类管理</span>,
+      children: isMobile ? renderMobileCategories() : (
+        <>
           <div style={{ marginBottom: 16, textAlign: 'right' }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCategory}>
               添加分类
@@ -295,12 +417,18 @@ export default function Products() {
             rowKey="id"
             loading={loading}
           />
-        </TabPane>
-      </Tabs>
+        </>
+      ),
+    },
+  ]
+
+  return (
+    <Card>
+      <Tabs defaultActiveKey="products" items={tabItemsConfig} />
 
       <Modal
         title={editingCategory ? '编辑分类' : '添加分类'}
-        visible={categoryModalVisible}
+        open={categoryModalVisible}
         onCancel={() => setCategoryModalVisible(false)}
         footer={null}
       >
@@ -313,7 +441,7 @@ export default function Products() {
             <Input />
           </Form.Item>
           <Form.Item label="排序" name="sort_order" initialValue={0}>
-            <InputNumber />
+            <InputNumber style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item>
             <Space>
@@ -328,10 +456,10 @@ export default function Products() {
 
       <Modal
         title={editingProduct ? '编辑商品' : '添加商品'}
-        visible={productModalVisible}
+        open={productModalVisible}
         onCancel={() => setProductModalVisible(false)}
         footer={null}
-        width={600}
+        width={isMobile ? undefined : 600}
       >
         <Form form={productForm} onFinish={handleSaveProduct} layout="vertical">
           <Form.Item
@@ -343,15 +471,45 @@ export default function Products() {
           </Form.Item>
           <Form.Item label="商品分类" name="category_id">
             <Select placeholder="请选择分类">
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <Option key={cat.id} value={cat.id}>
                   {cat.name}
                 </Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item label="商品图片" name="image">
-            <Input placeholder="请输入图片链接" />
+          <Form.Item label="商品图片">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <div>
+                {productImage ? (
+                  <Image src={productImage} width={100} height={100} style={{ borderRadius: 8 }} />
+                ) : (
+                  <div style={{
+                    width: 100,
+                    height: 100,
+                    border: '1px dashed #d9d9d9',
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#999',
+                  }}>
+                    未上传
+                  </div>
+                )}
+              </div>
+              <div>
+                <Upload
+                  accept="image/*"
+                  showUploadList={false}
+                  beforeUpload={handleImageUpload}
+                >
+                  <Button icon={<UploadOutlined />}>上传图片</Button>
+                </Upload>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>支持 jpg/png/gif/webp</div>
+              </div>
+            </div>
+            <Input type="hidden" name="image" />
           </Form.Item>
           <Form.Item
             label="价格"
@@ -388,4 +546,3 @@ export default function Products() {
     </Card>
   )
 }
-

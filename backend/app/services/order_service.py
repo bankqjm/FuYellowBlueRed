@@ -1,9 +1,8 @@
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import List, Optional
+from typing import List
 from app.models.models import (
-    User,
     CartItem,
     Order,
     OrderItem,
@@ -22,8 +21,10 @@ from app.schemas.order import (
     OrderItemResponse,
     OrderQuery,
 )
-from app.core import BadRequestException, NotFoundException
+from app.core import BadRequestException, NotFoundException, get_logger
 from app.services.base import BaseService
+
+logger = get_logger("order_service")
 
 
 class OrderService(BaseService):
@@ -228,6 +229,9 @@ class OrderService(BaseService):
         order_data = OrderResponse.model_validate(order)
         order_data.shop_name = shop.name
 
+        items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        order_data.items = [OrderItemResponse.model_validate(item) for item in items_result.scalars().all()]
+
         return order_data
 
     async def pay_order(self, user_id: int, order_id: int) -> OrderResponse:
@@ -318,4 +322,48 @@ class OrderService(BaseService):
         await self.commit()
         await self.refresh(order)
 
+        return OrderResponse.model_validate(order)
+
+    async def cancel_order(
+        self,
+        order_id: int,
+        cancel_type: str = "user",
+        reason: str = None,
+    ) -> OrderResponse:
+        result = await self.db.execute(
+            select(Order).where(Order.id == order_id)
+        )
+        order = result.scalar_one_or_none()
+        if not order:
+            raise NotFoundException("订单不存在")
+        if order.status not in (OrderStatus.PENDING_PAYMENT, OrderStatus.PENDING_ACCEPT):
+            raise BadRequestException("当前订单状态不可取消")
+
+        if order.status == OrderStatus.PENDING_ACCEPT:
+            from app.services.finance import FinanceService
+            from app.models.models import User
+            user_result = await self.db.execute(select(User).where(User.id == order.user_id))
+            user = user_result.scalar_one_or_none()
+            if user:
+                await FinanceService.process_refund(
+                    db=self.db,
+                    order=order,
+                    user=user,
+                    refund_amount=order.total_amount,
+                    refund_type="AUTO_REFUND",
+                    reason=reason or "系统取消订单"
+                )
+
+        items_result = await self.db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
+        for item in items_result.scalars().all():
+            product_result = await self.db.execute(select(Product).where(Product.id == item.product_id))
+            product = product_result.scalar_one_or_none()
+            if product:
+                product.stock += item.quantity
+
+        order.status = OrderStatus.CANCELLED
+        await self.commit()
+        await self.refresh(order)
+
+        logger.info(f"Order {order_id} cancelled by system, type: {cancel_type}")
         return OrderResponse.model_validate(order)

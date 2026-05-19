@@ -1,4 +1,4 @@
-from pydantic import Field, ConfigDict
+from pydantic import Field
 from typing import Optional
 from datetime import datetime
 from app.schemas.base import BaseSchema

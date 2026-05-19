@@ -1,10 +1,12 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Modal, Form, Select, Input } from 'antd'
-import { MinusOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Modal, Form, Select, Input, Tag } from 'antd'
+import { MinusOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined, TagOutlined } from '@ant-design/icons'
 import { cartApi, CartItemInfo, orderApi } from '../../services/order'
 import { addressApi, AddressInfo } from '../../services/address'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import api from '@/services/api'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -12,6 +14,7 @@ const { TextArea } = Input
 
 export default function Cart() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(false)
   const [cart, setCart] = useState<CartItemInfo[]>([])
   const [addresses, setAddresses] = useState<AddressInfo[]>([])
@@ -19,6 +22,9 @@ export default function Cart() {
   const [selectedAddress, setSelectedAddress] = useState<number | undefined>()
   const [remark, setRemark] = useState('')
   const [form] = Form.useForm()
+  const [availableCoupons, setAvailableCoupons] = useState<any[]>([])
+  const [selectedCouponId, setSelectedCouponId] = useState<number | undefined>()
+  const [discountAmount, setDiscountAmount] = useState(0)
 
   const fetchCart = async () => {
     try {
@@ -37,7 +43,7 @@ export default function Cart() {
       const res = await addressApi.getAddresses()
       setAddresses(res.data)
       if (res.data.length > 0) {
-        const defaultAddr = res.data.find(a => a.is_default === 1)
+        const defaultAddr = res.data.find((a) => a.is_default === 1)
         setSelectedAddress(defaultAddr?.id || res.data[0].id)
       }
     } catch (error) {
@@ -49,6 +55,45 @@ export default function Cart() {
     fetchCart()
     fetchAddresses()
   }, [])
+
+  useEffect(() => {
+    if (checkoutModalVisible) {
+      fetchAvailableCoupons()
+    }
+  }, [checkoutModalVisible, cart])
+
+  const fetchAvailableCoupons = async () => {
+    try {
+      const res = await api.get('/coupons/my', { params: { status: 'UNUSED', page_size: 50 } })
+      const coupons = res.data.items || []
+      const subtotal = cartTotal.price
+      const validCoupons = coupons.filter((uc: any) => {
+        const coupon = uc.coupon
+        if (!coupon) return false
+        if (subtotal < coupon.min_order_amount) return false
+        const now = new Date()
+        const validUntil = new Date(coupon.valid_until)
+        return validUntil >= now
+      })
+      setAvailableCoupons(validCoupons)
+    } catch {
+      setAvailableCoupons([])
+    }
+  }
+
+  const handleCouponChange = async (couponId: number | undefined) => {
+    setSelectedCouponId(couponId)
+    if (!couponId) {
+      setDiscountAmount(0)
+      return
+    }
+    try {
+      const res = await api.post(`/coupons/apply?coupon_id=${couponId}&order_amount=${cartTotal.price}`)
+      setDiscountAmount(res.data.discount_amount || 0)
+    } catch {
+      setDiscountAmount(0)
+    }
+  }
 
   const updateCartItem = async (item: CartItemInfo, quantity: number) => {
     try {
@@ -74,6 +119,22 @@ export default function Cart() {
     }
   }
 
+  const handleClearShopCart = (shopId: number) => {
+    Modal.confirm({
+      title: '确认清空',
+      content: '确定要清空该店铺的购物车吗？',
+      onOk: async () => {
+        try {
+          await cartApi.clearShopCart(shopId)
+          message.success('购物车已清空')
+          fetchCart()
+        } catch (error) {
+          console.error('清空购物车失败', error)
+        }
+      },
+    })
+  }
+
   const handleCheckout = async () => {
     if (!selectedAddress) {
       message.error('请选择收货地址')
@@ -91,6 +152,7 @@ export default function Cart() {
         address_id: selectedAddress,
         shop_id: shopId,
         remark: remark,
+        coupon_id: selectedCouponId,
       })
       message.success('订单创建成功')
       setCheckoutModalVisible(false)
@@ -109,7 +171,6 @@ export default function Cart() {
 
   const cartTotal = getCartTotal()
 
-  // 按店铺分组
   const groupedCart = cart.reduce((acc, item) => {
     if (!acc[item.shop_id]) {
       acc[item.shop_id] = []
@@ -146,42 +207,47 @@ export default function Cart() {
       </Card>
 
       {Object.entries(groupedCart).map(([shopId, items]) => (
-        <Card key={shopId} style={{ marginTop: 16 }} title={items[0].shop_name}>
+        <Card key={shopId} style={{ marginTop: isMobile ? 8 : 16 }} title={items[0].shop_name} extra={<Button type="link" danger size="small" onClick={() => handleClearShopCart(parseInt(shopId))}>清空</Button>}>
           <List
             dataSource={items}
             renderItem={(item) => (
               <List.Item
-                actions={[
-                  <Space key="actions">
-                    <Button
-                      size="small"
-                      shape="circle"
-                      icon={<MinusOutlined />}
-                      onClick={() => updateCartItem(item, item.quantity - 1)}
-                    />
-                    <Text>{item.quantity}</Text>
-                    <Button
-                      size="small"
-                      shape="circle"
-                      icon={<PlusOutlined />}
-                      onClick={() => updateCartItem(item, item.quantity + 1)}
-                    />
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => deleteCartItem(item)}
-                    />
-                  </Space>
-                ]}
+                actions={
+                  isMobile ? undefined : [
+                    <Space key="actions">
+                      <Button
+                        size="small"
+                        shape="circle"
+                        icon={<MinusOutlined />}
+                        onClick={() => updateCartItem(item, item.quantity - 1)}
+                      />
+                      <Text>{item.quantity}</Text>
+                      <Button
+                        size="small"
+                        shape="circle"
+                        icon={<PlusOutlined />}
+                        onClick={() => updateCartItem(item, item.quantity + 1)}
+                      />
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteCartItem(item)}
+                      />
+                    </Space>,
+                  ]
+                }
               >
                 <List.Item.Meta
                   avatar={
                     item.product_image ? (
-                      <Image src={item.product_image} alt="" width={60} height={60} />
+                      <Image src={item.product_image} alt="" width={isMobile ? 48 : 60} height={isMobile ? 48 : 60} style={{ borderRadius: 6 }} />
                     ) : (
-                      <div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: '#999' }}>商品</span>
+                      <div style={{
+                        width: isMobile ? 48 : 60, height: isMobile ? 48 : 60, background: '#f0f0f0',
+                        borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <span style={{ color: '#999', fontSize: 12 }}>商品</span>
                       </div>
                     )
                   }
@@ -189,6 +255,19 @@ export default function Cart() {
                   description={
                     <div>
                       <Text type="danger">¥{item.product_price?.toFixed(2)}</Text>
+                      {isMobile && (
+                        <div style={{ marginTop: 4 }}>
+                          <Space size="small">
+                            <Button size="small" shape="circle" icon={<MinusOutlined />}
+                              onClick={() => updateCartItem(item, item.quantity - 1)} />
+                            <Text>{item.quantity}</Text>
+                            <Button size="small" shape="circle" icon={<PlusOutlined />}
+                              onClick={() => updateCartItem(item, item.quantity + 1)} />
+                            <Button type="text" danger size="small" icon={<DeleteOutlined />}
+                              onClick={() => deleteCartItem(item)} />
+                          </Space>
+                        </div>
+                      )}
                     </div>
                   }
                 />
@@ -201,13 +280,15 @@ export default function Cart() {
       <Card
         style={{
           position: 'fixed',
-          bottom: 0,
+          bottom: isMobile ? 56 : 0,
           left: 0,
           right: 0,
           boxShadow: '0 -2px 8px rgba(0,0,0,0.1)',
+          zIndex: 99,
+          borderRadius: 0,
         }}
       >
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
           <div>
             <Text>共</Text>
             <Text strong style={{ marginLeft: 4, marginRight: 4 }}>{cartTotal.quantity}</Text>
@@ -215,9 +296,11 @@ export default function Cart() {
             <Text type="danger" strong style={{ fontSize: 18 }}>¥{cartTotal.price.toFixed(2)}</Text>
           </div>
           <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/user/home')}>
-              继续购物
-            </Button>
+            {!isMobile && (
+              <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/user/home')}>
+                继续购物
+              </Button>
+            )}
             <Button type="primary" size="large" onClick={() => setCheckoutModalVisible(true)}>
               去结算
             </Button>
@@ -230,7 +313,7 @@ export default function Cart() {
         open={checkoutModalVisible}
         onCancel={() => setCheckoutModalVisible(false)}
         onOk={handleCheckout}
-        width={600}
+        width={isMobile ? undefined : 600}
       >
         <Form form={form} layout="vertical">
           <Form.Item label="收货地址" name="address" rules={[{ required: true, message: '请选择收货地址' }]}>
@@ -240,9 +323,28 @@ export default function Cart() {
               onChange={setSelectedAddress}
               style={{ width: '100%' }}
             >
-              {addresses.map(address => (
+              {addresses.map((address) => (
                 <Option key={address.id} value={address.id}>
                   {address.contact_name} {address.contact_phone} - {address.address}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item label={<><TagOutlined /> 优惠券</>}>
+            <Select
+              placeholder={availableCoupons.length > 0 ? '选择优惠券' : '暂无可用优惠券'}
+              value={selectedCouponId}
+              onChange={handleCouponChange}
+              allowClear
+              style={{ width: '100%' }}
+            >
+              {availableCoupons.map((uc: any) => (
+                <Option key={uc.id} value={uc.id}>
+                  <Space>
+                    <Tag color="orange">-{uc.coupon?.discount_amount}元</Tag>
+                    <span>{uc.coupon?.name}</span>
+                    <Text type="secondary" style={{ fontSize: 12 }}>满{uc.coupon?.min_order_amount}可用</Text>
+                  </Space>
                 </Option>
               ))}
             </Select>
@@ -259,12 +361,14 @@ export default function Cart() {
 
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text type="secondary">共{cartTotal.quantity}件商品，总计：</Text>
-            <Text type="danger" strong style={{ fontSize: 24 }}>¥{cartTotal.price.toFixed(2)}</Text>
+            <Text type="secondary">共{cartTotal.quantity}件商品，小计：¥{cartTotal.price.toFixed(2)}</Text>
+            {discountAmount > 0 && (
+              <Text type="success">优惠券抵扣：-¥{discountAmount.toFixed(2)}</Text>
+            )}
+            <Text type="danger" strong style={{ fontSize: 24 }}>实付：¥{(cartTotal.price - discountAmount).toFixed(2)}</Text>
           </Space>
         </div>
       </Modal>
     </div>
   )
 }
-

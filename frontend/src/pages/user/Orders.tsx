@@ -2,8 +2,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, Tabs, List, Empty, Typography, Button, Space, Spin, message, Tag, Image, Modal, Timeline } from 'antd'
-import { orderApi } from '../../services/order'
+import { RedoOutlined } from '@ant-design/icons'
+import { orderApi, cartApi } from '../../services/order'
 import type { OrderInfo } from '../../services/shop'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import CountdownTimer, { formatTime } from '@/components/CountdownTimer'
 
 const { Title, Text } = Typography
 
@@ -12,6 +15,7 @@ const POLLING_INTERVAL = 5000
 export default function Orders() {
   const navigate = useNavigate()
   const params = useParams() as { id?: string; pay?: string }
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(false)
   const [orders, setOrders] = useState<OrderInfo[]>([])
   const [status, setStatus] = useState<string>('')
@@ -41,10 +45,10 @@ export default function Orders() {
   }, [params.id, params.pay])
 
   useEffect(() => {
-    const hasActiveOrders = orders.some(order => 
-      ['PENDING_PAYMENT', 'PENDING_ACCEPT', 'ACCEPTED', 'READY', 'DELIVERING'].includes(order.status)
+    const hasActiveOrders = orders.some((order) =>
+      ['PENDING_PAYMENT', 'PENDING_ACCEPT', 'ACCEPTED', 'READY', 'DELIVERING'].includes(order.status),
     )
-    
+
     if (hasActiveOrders) {
       pollingRef.current = setInterval(() => {
         fetchOrders()
@@ -84,6 +88,31 @@ export default function Orders() {
     }
   }
 
+  const handleCancelOrder = async (order: OrderInfo) => {
+    try {
+      setLoading(true)
+      await orderApi.cancelOrder(order.id)
+      message.success('订单已取消')
+      setPayModalVisible(false)
+      fetchOrders()
+    } catch (error) {
+      console.error('取消订单失败', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getPaymentDeadline = (order: OrderInfo): Date => {
+    const createdTime = order.created_at ? new Date(order.created_at).getTime() : Date.now()
+    return new Date(createdTime + 15 * 60 * 1000)
+  }
+
+  const handleCountdownExpire = () => {
+    message.warning('订单支付超时，已自动取消')
+    setPayModalVisible(false)
+    fetchOrders()
+  }
+
   const handleConfirmReceive = async (order: OrderInfo) => {
     try {
       setLoading(true)
@@ -94,6 +123,27 @@ export default function Orders() {
       console.error('确认收货失败', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleReorder = async (order: OrderInfo) => {
+    try {
+      if (!order.items || order.items.length === 0) {
+        message.warning('该订单无商品信息')
+        return
+      }
+      for (const item of order.items) {
+        await cartApi.addToCart({
+          shop_id: order.shop_id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+        })
+      }
+      message.success('商品已加入购物车')
+      navigate('/user/cart')
+    } catch (error) {
+      console.error('再来一单失败', error)
+      message.error('操作失败，请重试')
     }
   }
 
@@ -124,31 +174,31 @@ export default function Orders() {
     const items = [
       { color: 'green', children: `订单创建 - ${order.created_at ? new Date(order.created_at).toLocaleString() : ''}` },
     ]
-    
+
     if (order.status !== 'PENDING_PAYMENT' && order.status !== 'CANCELLED') {
       items.push({ color: 'blue', children: '支付成功' })
     }
-    
+
     if (['ACCEPTED', 'READY', 'DELIVERING', 'COMPLETED'].includes(order.status)) {
       items.push({ color: 'cyan', children: '商家已接单' })
     }
-    
+
     if (['READY', 'DELIVERING', 'COMPLETED'].includes(order.status)) {
       items.push({ color: 'purple', children: '餐品已备好' })
     }
-    
+
     if (['DELIVERING', 'COMPLETED'].includes(order.status)) {
       items.push({ color: 'gold', children: '骑手配送中' })
     }
-    
+
     if (order.status === 'COMPLETED') {
       items.push({ color: 'green', children: '订单已完成' })
     }
-    
+
     if (order.status === 'CANCELLED') {
       items.push({ color: 'red', children: '订单已取消' })
     }
-    
+
     return items
   }
 
@@ -175,7 +225,7 @@ export default function Orders() {
         <Title level={4}>我的订单</Title>
       </Card>
 
-      <Card style={{ marginTop: 16 }}>
+      <Card style={{ marginTop: isMobile ? 8 : 16 }}>
         <Tabs
           activeKey={status}
           onChange={setStatus}
@@ -192,44 +242,65 @@ export default function Orders() {
               return (
                 <List.Item
                   key={order.id}
-                  style={{ borderBottom: '1px solid #f0f0f0', padding: '16px 0' }}
+                  style={{ borderBottom: '1px solid #f0f0f0', padding: isMobile ? '12px 0' : '16px 0' }}
                   actions={
-                    order.status === 'PENDING_PAYMENT'
-                      ? [
+                    isMobile ? undefined : (
+                      order.status === 'PENDING_PAYMENT'
+                        ? [
                           <Button key="pay" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                          <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>,
                           <Button type="primary" key="paybtn" onClick={() => {
                             setPayingOrder(order)
                             setPayModalVisible(true)
                           }}>
-                            立即支付
-                          </Button>
+                              立即支付
+                          </Button>,
                         ]
-                      : order.status === 'DELIVERING'
-                      ? [
-                          <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                          <Button type="primary" key="confirm" onClick={() => handleConfirmReceive(order)}>
-                            确认收货
-                          </Button>
-                        ]
-                      : order.status === 'COMPLETED'
-                      ? [
-                          <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
-                          <Button key="review" onClick={() => navigate(`/user/review/${order.id}`)}>
-                            去评价
-                          </Button>
-                        ]
-                      : [
-                          <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>
-                        ]
+                        : order.status === 'PENDING_ACCEPT'
+                          ? [
+                            <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                            <Button key="cancel" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>,
+                          ]
+                          : order.status === 'DELIVERING'
+                            ? [
+                              <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                              <Button type="primary" key="confirm" onClick={() => handleConfirmReceive(order)}>
+                              确认收货
+                              </Button>,
+                            ]
+                            : order.status === 'COMPLETED'
+                              ? [
+                                <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                                <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
+                              再来一单
+                                </Button>,
+                                <Button key="review" onClick={() => navigate(`/user/review/${order.id}`)}>
+                              去评价
+                                </Button>,
+                              ]
+                              : order.status === 'CANCELLED'
+                                ? [
+                                  <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                                  <Button key="reorder" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>
+                              再来一单
+                                  </Button>,
+                                ]
+                                : [
+                                  <Button key="detail" onClick={() => showOrderDetail(order)}>查看详情</Button>,
+                                ]
+                    )
                   }
                 >
                   <List.Item.Meta
                     avatar={
                       order.shop_image ? (
-                        <Image src={order.shop_image} alt="" width={60} height={60} />
+                        <Image src={order.shop_image} alt="" width={isMobile ? 48 : 60} height={isMobile ? 48 : 60} style={{ borderRadius: 6 }} />
                       ) : (
-                        <div style={{ width: 60, height: 60, background: '#f0f0f0', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ color: '#999' }}>店铺</span>
+                        <div style={{
+                          width: isMobile ? 48 : 60, height: isMobile ? 48 : 60, background: '#f0f0f0',
+                          borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ color: '#999', fontSize: 12 }}>店铺</span>
                         </div>
                       )
                     }
@@ -241,19 +312,44 @@ export default function Orders() {
                     }
                     description={
                       <div>
-                        <Text type="secondary">订单号：{order.order_no}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>订单号：{order.order_no}</Text>
                         <br />
                         {order.items && order.items.slice(0, 2).map((item) => (
-                          <Text key={item.id} type="secondary">
+                          <Text key={item.id} type="secondary" style={{ fontSize: 12 }}>
                             {item.product_name} × {item.quantity}
                             <br />
                           </Text>
                         ))}
                         {order.items && order.items.length > 2 && (
-                          <Text type="secondary">...等{order.items.length}件商品</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>...等{order.items.length}件商品</Text>
                         )}
                         <br />
                         <Text type="danger" strong>¥{order.total_amount.toFixed(2)}</Text>
+                        {isMobile && (
+                          <div style={{ marginTop: 6 }}>
+                            <Space size="small" wrap>
+                              <Button size="small" onClick={() => showOrderDetail(order)}>详情</Button>
+                              {order.status === 'PENDING_PAYMENT' && (
+                                <Button type="primary" size="small" onClick={() => {
+                                  setPayingOrder(order)
+                                  setPayModalVisible(true)
+                                }}>支付</Button>
+                              )}
+                              {(order.status === 'PENDING_PAYMENT' || order.status === 'PENDING_ACCEPT') && (
+                                <Button size="small" danger onClick={() => Modal.confirm({ title: '确认取消', content: '确定要取消该订单吗？', onOk: () => handleCancelOrder(order) })}>取消订单</Button>
+                              )}
+                              {order.status === 'DELIVERING' && (
+                                <Button type="primary" size="small" onClick={() => handleConfirmReceive(order)}>确认收货</Button>
+                              )}
+                              {(order.status === 'COMPLETED' || order.status === 'CANCELLED') && (
+                                <Button size="small" icon={<RedoOutlined />} onClick={() => handleReorder(order)}>再来一单</Button>
+                              )}
+                              {order.status === 'COMPLETED' && (
+                                <Button size="small" onClick={() => navigate(`/user/review/${order.id}`)}>评价</Button>
+                              )}
+                            </Space>
+                          </div>
+                        )}
                       </div>
                     }
                   />
@@ -269,10 +365,20 @@ export default function Orders() {
         open={payModalVisible}
         onCancel={() => setPayModalVisible(false)}
         footer={null}
-        width={400}
+        width={isMobile ? undefined : 400}
       >
         {payingOrder && (
           <div>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>剩余支付时间</Text>
+              <div style={{ marginTop: 4 }}>
+                <CountdownTimer
+                  endTime={getPaymentDeadline(payingOrder)}
+                  onExpire={handleCountdownExpire}
+                  warningThreshold={300}
+                />
+              </div>
+            </div>
             <Text>订单号：{payingOrder.order_no}</Text>
             <br />
             <br />
@@ -280,15 +386,29 @@ export default function Orders() {
             <Text type="danger" strong style={{ fontSize: 24 }}>¥{payingOrder.total_amount.toFixed(2)}</Text>
             <br />
             <br />
-            <Button
-              type="primary"
-              size="large"
-              style={{ width: '100%' }}
-              onClick={() => handlePay(payingOrder)}
-              loading={loading}
-            >
-              立即支付
-            </Button>
+            <Space style={{ width: '100%' }} direction="vertical">
+              <Button
+                type="primary"
+                size="large"
+                style={{ width: '100%' }}
+                onClick={() => handlePay(payingOrder)}
+                loading={loading}
+              >
+                立即支付
+              </Button>
+              <Button
+                danger
+                size="large"
+                style={{ width: '100%' }}
+                onClick={() => Modal.confirm({
+                  title: '确认取消',
+                  content: '确定要取消该订单吗？',
+                  onOk: () => handleCancelOrder(payingOrder),
+                })}
+              >
+                取消订单
+              </Button>
+            </Space>
           </div>
         )}
       </Modal>
@@ -298,7 +418,7 @@ export default function Orders() {
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={null}
-        width={500}
+        width={isMobile ? undefined : 500}
       >
         {detailOrder && (
           <div>
@@ -349,4 +469,3 @@ export default function Orders() {
     </div>
   )
 }
-

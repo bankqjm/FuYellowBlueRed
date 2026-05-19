@@ -11,6 +11,7 @@ export interface ReviewInfo {
   shop_rating: number
   rider_rating?: number
   content?: string
+  images?: string[]
   created_at?: string
   user_nickname?: string
 }
@@ -21,6 +22,7 @@ export const reviewApi = {
     shop_rating: number
     rider_rating?: number
     content?: string
+    images?: string[]
   }) => api.post<ReviewInfo>('/reviews', data),
 
   getShopReviews: (shopId: number, params?: {

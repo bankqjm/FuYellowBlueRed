@@ -22,3 +22,229 @@ body {
 #root {
   min-height: 100vh;
 }
+
+.mobile-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 6px 0;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-bottom-bar .bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-size: 10px;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 2px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-bottom-bar .bar-item .bar-icon {
+  font-size: 22px;
+  margin-bottom: 2px;
+}
+
+.mobile-bottom-bar .bar-item.active {
+  color: #1890ff;
+}
+
+.mobile-bottom-bar .bar-item.shop-active {
+  color: #fa8c16;
+}
+
+.mobile-bottom-bar .bar-item.rider-active {
+  color: #52c41a;
+}
+
+.mobile-bottom-bar .bar-item.admin-active {
+  color: #f5222d;
+}
+
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  background: #fff;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-header .header-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.mobile-header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-content {
+  padding: 12px;
+  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  background: #f5f5f5;
+  min-height: calc(100vh - 52px);
+}
+
+.mobile-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-card .card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mobile-card .card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.mobile-card .card-row .label {
+  color: #999;
+  font-size: 13px;
+}
+
+.mobile-card .card-row .value {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mobile-card .card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.mobile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobile-stats-grid .stat-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.mobile-stats-grid .stat-card .stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.mobile-stats-grid .stat-card .stat-label {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+@media (min-width: 768px) {
+  .mobile-bottom-bar {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px auto !important;
+    top: 32px !important;
+  }
+
+  .ant-modal .ant-modal-body {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  .ant-list-item-action {
+    flex-direction: column;
+    align-items: flex-end !important;
+  }
+}
+
+@keyframes cartBadgeBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.5); }
+  60% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+@keyframes addBtnPulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.85); }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes flyDot {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  80% {
+    opacity: 0.8;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(0);
+  }
+}
+
+.cart-badge-bounce {
+  animation: cartBadgeBounce 0.4s ease;
+}
+
+.add-btn-pulse {
+  animation: addBtnPulse 0.3s ease;
+}
+
+.fly-dot {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1890ff;
+  z-index: 9999;
+  pointer-events: none;
+  animation: flyDot 0.5s ease-in forwards;
+}

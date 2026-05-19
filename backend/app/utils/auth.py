@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
+from typing import Optional, Tuple
 import bcrypt
 from jose import JWTError, jwt
 from app.config import settings
+from app.utils.redis_client import redis_client
 
 
 def hash_password(password: str) -> str:
@@ -17,10 +18,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return encoded_jwt
+
+
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
@@ -31,3 +40,29 @@ def verify_token(token: str) -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+async def is_token_valid(token: str) -> bool:
+    if await redis_client.is_blacklisted(token):
+        return False
+    payload = verify_token(token)
+    if not payload:
+        return False
+    exp = payload.get("exp")
+    if exp and datetime.fromtimestamp(exp, timezone.utc) < datetime.now(timezone.utc):
+        return False
+    return True
+
+
+async def logout_token(token: str):
+    payload = verify_token(token)
+    if payload:
+        exp = payload.get("exp")
+        if exp:
+            await redis_client.add_to_blacklist(token, exp)
+
+
+def generate_tokens(user_id: int, role: str) -> Tuple[str, str]:
+    access_token = create_access_token({"sub": str(user_id), "role": role})
+    refresh_token = create_refresh_token({"sub": str(user_id), "role": role})
+    return access_token, refresh_token
