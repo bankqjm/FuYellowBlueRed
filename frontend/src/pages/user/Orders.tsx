@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Card, Tabs, List, Empty, Typography, Button, Space, Spin, message, Tag, Image, Modal, Timeline } from 'antd'
 import { RedoOutlined } from '@ant-design/icons'
@@ -11,6 +11,7 @@ import CountdownTimer, { formatTime } from '@/components/CountdownTimer'
 const { Title, Text } = Typography
 
 const POLLING_INTERVAL = 5000
+const PAYMENT_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
 
 export default function Orders() {
   const navigate = useNavigate()
@@ -104,14 +105,25 @@ export default function Orders() {
 
   const getPaymentDeadline = (order: OrderInfo): Date => {
     const createdTime = order.created_at ? new Date(order.created_at).getTime() : Date.now()
-    return new Date(createdTime + 15 * 60 * 1000)
+    return new Date(createdTime + PAYMENT_TIMEOUT_MS)
   }
 
-  const handleCountdownExpire = () => {
-    message.warning('订单支付超时，已自动取消')
+  const handleCountdownExpire = useCallback(async (order?: OrderInfo) => {
+    // When countdown expires, call cancel API for the specific order
+    const targetOrder = order || payingOrder
+    if (targetOrder) {
+      try {
+        await orderApi.cancelOrder(targetOrder.id)
+        message.warning('订单支付超时，已自动取消')
+      } catch {
+        message.warning('订单支付超时')
+      }
+    } else {
+      message.warning('订单支付超时，已自动取消')
+    }
     setPayModalVisible(false)
     fetchOrders()
-  }
+  }, [payingOrder])
 
   const handleConfirmReceive = async (order: OrderInfo) => {
     try {
@@ -202,6 +214,15 @@ export default function Orders() {
     return items
   }
 
+  /** Calculate remaining seconds for a PENDING_PAYMENT order */
+  const getRemainingSeconds = (order: OrderInfo): number => {
+    if (order.status !== 'PENDING_PAYMENT' || !order.created_at) return 0
+    const createdTime = new Date(order.created_at).getTime()
+    const deadline = createdTime + PAYMENT_TIMEOUT_MS
+    const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000))
+    return remaining
+  }
+
   const tabItems = [
     { key: '', label: '全部' },
     { key: 'PENDING_PAYMENT', label: '待支付' },
@@ -239,6 +260,9 @@ export default function Orders() {
             dataSource={orders}
             renderItem={(order) => {
               const statusInfo = getStatusText(order.status)
+              const remainingSeconds = getRemainingSeconds(order)
+              const isWarning = remainingSeconds > 0 && remainingSeconds <= 300
+              const isExpired = order.status === 'PENDING_PAYMENT' && remainingSeconds <= 0
               return (
                 <List.Item
                   key={order.id}
@@ -324,7 +348,22 @@ export default function Orders() {
                           <Text type="secondary" style={{ fontSize: 12 }}>...等{order.items.length}件商品</Text>
                         )}
                         <br />
-                        <Text type="danger" strong>¥{order.total_amount.toFixed(2)}</Text>
+                        <Text type="danger" strong>¥{Number(order.total_amount).toFixed(2)}</Text>
+                        {/* Countdown display for PENDING_PAYMENT orders (U-P0-02) */}
+                        {order.status === 'PENDING_PAYMENT' && remainingSeconds > 0 && (
+                          <div style={{ marginTop: 4 }}>
+                            <CountdownTimer
+                              endTime={getPaymentDeadline(order)}
+                              onExpire={() => handleCountdownExpire(order)}
+                              warningThreshold={300}
+                            />
+                          </div>
+                        )}
+                        {isExpired && (
+                          <div style={{ marginTop: 4 }}>
+                            <Text type="secondary" style={{ fontSize: 12 }}>已超时取消</Text>
+                          </div>
+                        )}
                         {isMobile && (
                           <div style={{ marginTop: 6 }}>
                             <Space size="small" wrap>
@@ -374,7 +413,7 @@ export default function Orders() {
               <div style={{ marginTop: 4 }}>
                 <CountdownTimer
                   endTime={getPaymentDeadline(payingOrder)}
-                  onExpire={handleCountdownExpire}
+                  onExpire={() => handleCountdownExpire(payingOrder)}
                   warningThreshold={300}
                 />
               </div>
@@ -383,7 +422,7 @@ export default function Orders() {
             <br />
             <br />
             <Text strong>支付金额：</Text>
-            <Text type="danger" strong style={{ fontSize: 24 }}>¥{payingOrder.total_amount.toFixed(2)}</Text>
+            <Text type="danger" strong style={{ fontSize: 24 }}>¥{Number(payingOrder.total_amount).toFixed(2)}</Text>
             <br />
             <br />
             <Space style={{ width: '100%' }} direction="vertical">
@@ -440,10 +479,10 @@ export default function Orders() {
               </p>
             )}
             <p>
-              <Text strong>订单金额：</Text>¥{detailOrder.total_amount.toFixed(2)}
+              <Text strong>订单金额：</Text>¥{Number(detailOrder.total_amount).toFixed(2)}
             </p>
             <p>
-              <Text strong>配送费：</Text>¥{detailOrder.delivery_fee.toFixed(2)}
+              <Text strong>配送费：</Text>¥{Number(detailOrder.delivery_fee).toFixed(2)}
             </p>
             {detailOrder.items && detailOrder.items.length > 0 && (
               <div style={{ marginTop: 16 }}>
@@ -451,7 +490,7 @@ export default function Orders() {
                 <ul>
                   {detailOrder.items.map((item) => (
                     <li key={item.id}>
-                      {item.product_name} × {item.quantity} - ¥{(item.price * item.quantity).toFixed(2)}
+                      {item.product_name} × {item.quantity} - ¥{(Number(item.price) * item.quantity).toFixed(2)}
                     </li>
                   ))}
                 </ul>

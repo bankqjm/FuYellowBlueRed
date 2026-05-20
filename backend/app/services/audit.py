@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.models import AuditLog, FinanceAuditLog
 from app.core import get_logger
+from app.utils.log_mask import mask_amount
 
 logger = get_logger("audit")
 
@@ -48,7 +49,7 @@ async def log_finance_audit(
 
     if amount and abs(amount) >= LARGE_AMOUNT_THRESHOLD:
         is_alert = 1
-        logger.warning(f"Large amount alert: user_id={user_id}, type={audit_type}, amount={amount}")
+        logger.warning(f"Large amount alert: user_id={user_id}, type={audit_type}, amount={mask_amount(amount)}")
 
     if audit_type == "WITHDRAWAL" and user_id:
         cutoff = datetime.now() - __import__("datetime").timedelta(hours=FREQUENT_WITHDRAWAL_WINDOW_HOURS)

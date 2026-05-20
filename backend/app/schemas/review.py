@@ -1,7 +1,8 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from app.schemas.base import BaseSchema
+from app.utils.sanitizer import strip_all_tags
 
 
 class ReviewCreate(BaseSchema):
@@ -10,6 +11,14 @@ class ReviewCreate(BaseSchema):
     rider_rating: Optional[int] = Field(None, ge=1, le=5)
     content: Optional[str] = None
     images: Optional[List[str]] = Field(default_factory=list)
+
+    @field_validator("content")
+    @classmethod
+    def sanitize_content(cls, v: Optional[str]) -> Optional[str]:
+        """Strip all HTML tags from review content (SEC-REFORM-07)."""
+        if v is not None:
+            return strip_all_tags(v)
+        return v
 
 
 class ReviewResponse(BaseSchema):

@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
-import { Card, Table, Tabs, Tag, Space, Button, Modal, Descriptions, Empty, Spin, Typography } from 'antd'
-import { EyeOutlined } from '@ant-design/icons'
+import { Card, Table, Tabs, Tag, Space, Button, Modal, Descriptions, Empty, Spin, Typography, Input, message } from 'antd'
+import { EyeOutlined, DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { adminApi } from '@/services/shop'
 import type { OrderInfo } from '@/services/shop'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -19,12 +19,20 @@ const statusOptions = [
   { label: '已取消', value: 'CANCELLED' },
 ]
 
+/** Mask phone number for display: 138****5678 */
+function maskPhone(phone: string): string {
+  if (!phone || phone.length < 7) return phone
+  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
+}
+
 export default function AdminOrders() {
   const [loading, setLoading] = useState(false)
   const [orders, setOrders] = useState<OrderInfo[]>([])
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [keyword, setKeyword] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [detailVisible, setDetailVisible] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<OrderInfo | null>(null)
   const isMobile = useIsMobile()
@@ -32,7 +40,12 @@ export default function AdminOrders() {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const res = await adminApi.listAdminOrders({ status: status || undefined, page, page_size: 20 })
+      const res = await adminApi.listAdminOrders({
+        status: status || undefined,
+        page,
+        page_size: 20,
+        keyword: keyword || undefined,
+      })
       setOrders(res.data.items)
       setTotal(res.data.total)
     } catch (error) {
@@ -44,7 +57,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders()
-  }, [status, page])
+  }, [status, page, keyword])
 
   const getStatusText = (status: string) => {
     const statusMap: Record<string, { text: string; color: string }> = {
@@ -57,6 +70,42 @@ export default function AdminOrders() {
       CANCELLED: { text: '已取消', color: 'default' },
     }
     return statusMap[status] || { text: status, color: 'default' }
+  }
+
+  const handleSearch = () => {
+    setKeyword(searchInput)
+    setPage(1)
+  }
+
+  const handleExportCSV = () => {
+    if (orders.length === 0) {
+      message.warning('暂无数据可导出')
+      return
+    }
+
+    const headers = ['订单号', '商家', '金额', '状态', '下单人', '创建时间']
+    const rows = orders.map((order) => [
+      order.order_no,
+      order.shop_name || '',
+      order.total_amount.toFixed(2),
+      getStatusText(order.status).text,
+      order.user_nickname || '',
+      order.created_at ? new Date(order.created_at).toLocaleString() : '',
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n')
+
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(link.href)
+    message.success('导出成功')
   }
 
   const columns = [
@@ -87,10 +136,15 @@ export default function AdminOrders() {
       },
     },
     {
+      title: '下单人',
+      key: 'user_nickname',
+      render: (_: any, record: OrderInfo) => record.user_nickname || '-',
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (time: string) => time ? new Date(time).toLocaleString() : '-',
+      render: (time: string) => (time ? new Date(time).toLocaleString() : '-'),
     },
     {
       title: '操作',
@@ -137,6 +191,26 @@ export default function AdminOrders() {
         style={{ marginBottom: 16 }}
       />
 
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input.Search
+          placeholder="搜索订单号/商家名"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onSearch={handleSearch}
+          enterButton={<SearchOutlined />}
+          style={{ width: isMobile ? '100%' : 300 }}
+          allowClear
+          onClear={() => {
+            setSearchInput('')
+            setKeyword('')
+            setPage(1)
+          }}
+        />
+        <Button icon={<DownloadOutlined />} onClick={handleExportCSV}>
+          导出 Excel
+        </Button>
+      </Space>
+
       {orders.length === 0 ? (
         <Empty description="暂无订单" />
       ) : (
@@ -146,6 +220,7 @@ export default function AdminOrders() {
             dataSource={orders}
             rowKey="id"
             loading={loading}
+            scroll={isMobile ? { x: 800 } : undefined}
             pagination={{
               current: page,
               total,
@@ -169,10 +244,18 @@ export default function AdminOrders() {
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="订单号">{selectedOrder.order_no}</Descriptions.Item>
             <Descriptions.Item label="商家">{selectedOrder.shop_name}</Descriptions.Item>
-            <Descriptions.Item label="订单金额">¥{selectedOrder.total_amount.toFixed(2)}</Descriptions.Item>
+            {selectedOrder.user_nickname && (
+              <Descriptions.Item label="下单用户">
+                {selectedOrder.user_nickname}
+                {selectedOrder.user_phone && ` (${maskPhone(selectedOrder.user_phone)})`}
+              </Descriptions.Item>
+            )}
+            <Descriptions.Item label="订单金额">
+              ¥{selectedOrder.total_amount.toFixed(2)}
+            </Descriptions.Item>
             <Descriptions.Item label="配送费">¥{selectedOrder.delivery_fee.toFixed(2)}</Descriptions.Item>
             <Descriptions.Item label="收货地址">{selectedOrder.address}</Descriptions.Item>
-            <Descriptions.Item label="联系电话">{selectedOrder.phone}</Descriptions.Item>
+            <Descriptions.Item label="联系电话">{maskPhone(selectedOrder.phone)}</Descriptions.Item>
             <Descriptions.Item label="订单状态">
               <Tag color={getStatusText(selectedOrder.status).color}>
                 {getStatusText(selectedOrder.status).text}
@@ -194,7 +277,8 @@ export default function AdminOrders() {
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   {selectedOrder.items.map((item) => (
                     <li key={item.id}>
-                      {item.product_name} × {item.quantity} - ¥{(item.price * item.quantity).toFixed(2)}
+                      {item.product_name} × {item.quantity} - ¥
+                      {(item.price * item.quantity).toFixed(2)}
                     </li>
                   ))}
                 </ul>

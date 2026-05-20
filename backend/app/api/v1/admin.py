@@ -11,6 +11,8 @@ from app.schemas.order import OrderResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import ForbiddenException, BadRequestException, get_logger
+from app.utils.cache import get_cached_dict, set_cached_dict, delete_cached, delete_cached_pattern, ADMIN_STATS_TTL
+from app.utils.log_mask import mask_phone
 
 router = APIRouter(prefix="/admin", tags=["管理员"])
 logger = get_logger("admin")
@@ -45,6 +47,11 @@ async def approve_shop(
     await db.commit()
     await db.refresh(shop)
 
+    # PERF-REFORM-02: Invalidate caches on shop status change
+    await delete_cached(f"shop:{shop_id}")
+    await delete_cached_pattern("shops:page:*")
+    await delete_cached("admin:stats")
+
     logger.info(f"Shop {shop_id} approved by admin {current_user.id}")
     return ResponseSchema(code=0, message="审核通过", data=ShopInfo.model_validate(shop))
 
@@ -66,6 +73,11 @@ async def reject_shop(
     shop.status = ShopStatus.REJECTED.value
     await db.commit()
     await db.refresh(shop)
+
+    # PERF-REFORM-02: Invalidate caches on shop status change
+    await delete_cached(f"shop:{shop_id}")
+    await delete_cached_pattern("shops:page:*")
+    await delete_cached("admin:stats")
 
     logger.info(f"Shop {shop_id} rejected by admin {current_user.id}")
     return ResponseSchema(code=0, message="已拒绝", data=ShopInfo.model_validate(shop))
@@ -186,6 +198,12 @@ async def get_platform_stats(
     if current_user.role != "ADMIN":
         raise ForbiddenException("无权限")
 
+    # PERF-REFORM-02: Try cache first for admin stats
+    cache_key = "admin:stats"
+    cached = await get_cached_dict(cache_key)
+    if cached:
+        return ResponseSchema(code=0, data=cached)
+
     user_count = await db.execute(select(func.count(User.id)))
     user_count = user_count.scalar()
 
@@ -207,13 +225,18 @@ async def get_platform_stats(
     )
     pending_order_count = pending_order_count.scalar()
 
-    return ResponseSchema(code=0, data={
+    stats_data = {
         "user_count": user_count,
         "shop_count": shop_count,
         "approved_shop_count": approved_shop_count,
         "order_count": order_count,
         "pending_order_count": pending_order_count,
-    })
+    }
+
+    # Cache the stats
+    await set_cached_dict(cache_key, stats_data, ADMIN_STATS_TTL)
+
+    return ResponseSchema(code=0, data=stats_data)
 
 
 @router.get("/stats/trend", response_model=ResponseSchema[list])
@@ -271,6 +294,7 @@ async def get_platform_trend(
 @router.get("/orders", response_model=ResponseSchema[PageResponse[OrderResponse]])
 async def list_all_orders(
     query: OrderQuery = Depends(),
+    keyword: Optional[str] = Query(None, description="搜索关键词(订单号/商家名)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -284,6 +308,18 @@ async def list_all_orders(
         stmt = stmt.where(Order.status == query.status)
         count_stmt = count_stmt.where(Order.status == query.status)
 
+    # UX-REFORM-02: Search by order_no or shop name
+    if keyword:
+        # Join with Shop for name search
+        stmt = stmt.join(Shop, Order.shop_id == Shop.id, isouter=True)
+        count_stmt = count_stmt.join(Shop, Order.shop_id == Shop.id, isouter=True)
+        stmt = stmt.where(
+            (Order.order_no.contains(keyword)) | (Shop.name.contains(keyword))
+        )
+        count_stmt = count_stmt.where(
+            (Order.order_no.contains(keyword)) | (Shop.name.contains(keyword))
+        )
+
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
 
@@ -291,13 +327,32 @@ async def list_all_orders(
     result = await db.execute(stmt)
     orders = result.scalars().all()
 
+    # PERF-REFORM-01: Batch IN queries for shop names and user info
+    shop_ids = list({o.shop_id for o in orders})
+    user_ids = list({o.user_id for o in orders})
+
+    if shop_ids:
+        shops_result = await db.execute(select(Shop).where(Shop.id.in_(shop_ids)))
+        shop_map = {s.id: s for s in shops_result.scalars().all()}
+    else:
+        shop_map = {}
+
+    if user_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        user_map = {u.id: u for u in users_result.scalars().all()}
+    else:
+        user_map = {}
+
     order_list = []
     for order in orders:
         order_data = OrderResponse.model_validate(order)
-        shop_result = await db.execute(select(Shop).where(Shop.id == order.shop_id))
-        shop = shop_result.scalar_one_or_none()
+        shop = shop_map.get(order.shop_id)
         if shop:
             order_data.shop_name = shop.name
+        user = user_map.get(order.user_id)
+        if user:
+            order_data.user_nickname = user.nickname
+            order_data.user_phone = mask_phone(user.phone)
         order_list.append(order_data)
 
     return ResponseSchema(
@@ -335,7 +390,7 @@ async def get_admin_order_detail(
     user_result = await db.execute(select(User).where(User.id == order.user_id))
     user = user_result.scalar_one_or_none()
     if user:
-        order_data.user_phone = user.phone
+        order_data.user_phone = mask_phone(user.phone)
         order_data.user_nickname = user.nickname
 
     return ResponseSchema(code=0, data=order_data)

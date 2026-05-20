@@ -342,7 +342,7 @@ async def test_reject_order_refunds(db, client):
     updated_wallet = (await db.execute(
         select(Wallet).where(Wallet.user_id == user.id)
     )).scalar_one()
-    assert updated_wallet.balance == original_balance + 80.0
+    assert float(updated_wallet.balance) == float(original_balance) + 80.0
 
 
 @pytest.mark.asyncio

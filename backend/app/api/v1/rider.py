@@ -1,4 +1,5 @@
 
+from decimal import Decimal
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -7,6 +8,7 @@ from app.models.models import (
     User, Order, Shop, OrderStatus, RiderEarning, WithdrawalRecord, WithdrawalStatus, Wallet,
 )
 from app.schemas.order import OrderResponse, OrderQuery
+from app.utils.log_mask import mask_amount
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, ForbiddenException, get_logger
@@ -165,7 +167,7 @@ async def deliver_order(
         order_id=order.id,
         amount=rider_income
     )
-    logger.info(f"Rider earning added: rider={current_user.id}, order={order_id}, amount={rider_income}")
+    logger.info(f"Rider earning added: rider={current_user.id}, order={order_id}, amount={mask_amount(rider_income)}")
 
     order.status = OrderStatus.DELIVERED
     await db.commit()
@@ -204,7 +206,7 @@ async def get_earnings(
             items=[{
                 "id": e.id,
                 "order_id": e.order_id,
-                "amount": e.amount,
+                "amount": float(e.amount),
                 "type": e.type,
                 "created_at": e.created_at.isoformat() if e.created_at else None,
             } for e in earnings],
@@ -226,21 +228,21 @@ async def get_earnings_summary(
     total_result = await db.execute(
         select(func.sum(RiderEarning.amount)).where(RiderEarning.rider_id == current_user.id)
     )
-    total_earnings = total_result.scalar() or 0.0
+    total_earnings = total_result.scalar() or Decimal("0.00")
 
     wallet_result = await db.execute(select(Wallet).where(Wallet.user_id == current_user.id))
     wallet = wallet_result.scalar_one_or_none()
-    balance = wallet.balance if wallet else 0.0
+    balance = wallet.balance if wallet else Decimal("0.00")
 
     return ResponseSchema(code=0, data={
-        "total_earnings": total_earnings,
-        "balance": balance,
+        "total_earnings": float(total_earnings),
+        "balance": float(balance),
     })
 
 
 @router.post("/withdraw", response_model=ResponseSchema[dict])
 async def withdraw(
-    amount: float,
+    amount: Decimal,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -266,11 +268,11 @@ async def withdraw(
     db.add(record)
     await db.commit()
 
-    logger.info(f"Rider {current_user.id} withdrew {amount}")
+    logger.info(f"Rider {current_user.id} withdrew {mask_amount(amount)}")
     return ResponseSchema(code=0, message="提现成功", data={
         "withdraw_id": record.id,
-        "amount": amount,
-        "balance_after": result["balance_after"],
+        "amount": float(amount),
+        "balance_after": float(result["balance_after"]),
     })
 
 
@@ -302,7 +304,7 @@ async def get_withdrawal_records(
         data=PageResponse(
             items=[{
                 "id": r.id,
-                "amount": r.amount,
+                "amount": float(r.amount),
                 "method": r.method,
                 "account": r.account,
                 "status": r.status,

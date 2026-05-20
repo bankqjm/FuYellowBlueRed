@@ -5,7 +5,7 @@ from typing import Optional
 from app.database import get_db
 from app.models.models import User
 from app.utils.auth import verify_token, is_token_valid
-from app.utils.exceptions import UnauthorizedException
+from app.utils.exceptions import UnauthorizedException, ForbiddenException
 
 ALGORITHM = "HS256"
 
@@ -57,7 +57,7 @@ async def get_current_user(
 def require_role(*roles: str):
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
-            raise UnauthorizedException("权限不足")
+            raise ForbiddenException("权限不足")
         return current_user
     return role_checker
 

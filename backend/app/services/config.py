@@ -35,6 +35,16 @@ class ConfigService:
         return default
 
     @staticmethod
+    async def get_config_int(db: AsyncSession, key: str, default: int = 0) -> int:
+        value = await ConfigService.get_config(db, key)
+        if value:
+            try:
+                return int(value)
+            except ValueError:
+                pass
+        return default
+
+    @staticmethod
     async def set_config(db: AsyncSession, key: str, value: str, description: str = None) -> PlatformConfig:
         result = await db.execute(
             select(PlatformConfig).where(PlatformConfig.key == key)

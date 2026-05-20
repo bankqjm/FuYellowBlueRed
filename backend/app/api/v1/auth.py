@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
+import secrets
 from app.database import get_db
 from app.models.models import User, Wallet
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserInfo
@@ -9,12 +10,14 @@ from app.schemas.base import ResponseSchema
 from app.utils.auth import hash_password, verify_password, generate_tokens, logout_token, verify_token
 from app.core import BadRequestException, UnauthorizedException, get_logger
 from app.config import settings
+from app.utils.log_mask import mask_phone
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 logger = get_logger("auth")
 
-MAX_LOGIN_ATTEMPTS = 5
-LOCK_DURATION_MINUTES = 15
+# Default values for rate limiting (overridden by PlatformConfig if available)
+DEFAULT_MAX_LOGIN_ATTEMPTS = 5
+DEFAULT_LOCK_DURATION_MINUTES = 15
 
 
 @router.post("/register", response_model=ResponseSchema[UserInfo])
@@ -55,6 +58,15 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
 async def login(request: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     logger.info(f"Login request for phone: {mask_phone(request.phone)}")
 
+    # Read rate limiting config from PlatformConfig with defaults
+    from app.services.config import ConfigService
+    max_login_attempts = await ConfigService.get_config_int(
+        db, "MAX_LOGIN_ATTEMPTS", DEFAULT_MAX_LOGIN_ATTEMPTS
+    )
+    lock_duration_minutes = await ConfigService.get_config_int(
+        db, "LOCK_DURATION_MINUTES", DEFAULT_LOCK_DURATION_MINUTES
+    )
+
     result = await db.execute(select(User).where(User.phone == request.phone))
     user = result.scalar_one_or_none()
 
@@ -75,14 +87,14 @@ async def login(request: LoginRequest, response: Response, db: AsyncSession = De
         user.failed_login_count = (user.failed_login_count or 0) + 1
         logger.warning(f"Invalid login attempt for user {user.id}, count: {user.failed_login_count}")
 
-        if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
-            user.locked_until = datetime.now() + timedelta(minutes=LOCK_DURATION_MINUTES)
+        if user.failed_login_count >= max_login_attempts:
+            user.locked_until = datetime.now() + timedelta(minutes=lock_duration_minutes)
             logger.warning(f"Account locked: {user.id}, until: {user.locked_until}")
             await db.commit()
-            raise BadRequestException(f"登录失败次数过多，账号已被锁定{LOCK_DURATION_MINUTES}分钟")
+            raise BadRequestException(f"登录失败次数过多，账号已被锁定{lock_duration_minutes}分钟")
 
         await db.commit()
-        remaining_attempts = MAX_LOGIN_ATTEMPTS - user.failed_login_count
+        remaining_attempts = max_login_attempts - user.failed_login_count
         raise BadRequestException(f"手机号或密码错误，还剩{remaining_attempts}次尝试机会")
 
     if user.status == 0:
@@ -112,6 +124,18 @@ async def login(request: LoginRequest, response: Response, db: AsyncSession = De
         secure=not settings.DEBUG,
         samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/",
+    )
+
+    # CSRF token: non-HttpOnly cookie so frontend JavaScript can read it
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
 
@@ -178,6 +202,18 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
         path="/",
     )
 
+    # Refresh CSRF token on token refresh
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
     logger.info(f"Token refreshed for user: {user.id}")
     return ResponseSchema(
         code=0,
@@ -205,12 +241,7 @@ async def logout(request: Request, response: Response):
 
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
+    response.delete_cookie(key="csrf_token", path="/")
 
     logger.info("User logged out")
     return ResponseSchema(code=0, message="退出成功")
-
-
-def mask_phone(phone: str) -> str:
-    if len(phone) >= 11:
-        return f"{phone[:3]}****{phone[7:]}"
-    return phone

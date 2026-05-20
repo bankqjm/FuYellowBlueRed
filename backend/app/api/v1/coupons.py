@@ -1,10 +1,11 @@
+from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from datetime import datetime
 from app.database import get_db
 from app.models.models import User, Coupon, UserCoupon
-from app.schemas.base import ResponseSchema, PageResponse, BaseSchema
+from app.schemas.base import ResponseSchema, PageResponse, BaseSchema, DecimalField
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, NotFoundException, get_logger
 from typing import Optional
@@ -18,8 +19,8 @@ class CouponResponse(BaseSchema):
     code: str
     name: str
     description: Optional[str] = None
-    discount_amount: float
-    min_order_amount: float
+    discount_amount: DecimalField
+    min_order_amount: DecimalField
     total_count: int
     remain_count: int
     valid_from: Optional[datetime] = None
@@ -73,7 +74,7 @@ async def claim_coupon(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    coupon_result = await db.execute(select(Coupon).where(Coupon.id == coupon_id))
+    coupon_result = await db.execute(select(Coupon).where(Coupon.id == coupon_id).with_for_update())
     coupon = coupon_result.scalar_one_or_none()
     if not coupon:
         raise NotFoundException("优惠券不存在")
@@ -167,7 +168,7 @@ async def list_my_coupons(
 @router.post("/apply", response_model=ResponseSchema)
 async def apply_coupon(
     coupon_id: int,
-    order_amount: float,
+    order_amount: Decimal,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -182,6 +183,6 @@ async def apply_coupon(
     discount = min(coupon.discount_amount, order_amount)
     return ResponseSchema(code=0, message="优惠券可用", data={
         "coupon_id": coupon_id,
-        "discount_amount": discount,
-        "final_amount": order_amount - discount,
+        "discount_amount": float(discount),
+        "final_amount": float(order_amount - discount),
     })

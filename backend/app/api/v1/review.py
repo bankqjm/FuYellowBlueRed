@@ -91,13 +91,20 @@ async def get_shop_reviews(
     result = await db.execute(stmt)
     reviews = result.scalars().all()
 
+    # PERF-REFORM-01: Batch IN query for user nicknames instead of N+1
+    user_ids = list({r.user_id for r in reviews})
+    if user_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        user_map = {u.id: u for u in users_result.scalars().all()}
+    else:
+        user_map = {}
+
     review_list = []
     for review in reviews:
         review_data = ReviewResponse.model_validate(review)
         if review_data.images and isinstance(review_data.images, str):
             review_data.images = json.loads(review_data.images)
-        user_result = await db.execute(select(User).where(User.id == review.user_id))
-        user = user_result.scalar_one_or_none()
+        user = user_map.get(review.user_id)
         if user:
             review_data.user_nickname = user.nickname
         review_list.append(review_data)

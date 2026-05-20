@@ -82,12 +82,16 @@ export interface OrderInfo {
   phone: string
   remark?: string
   total_amount: number
+  discount_amount?: number
   delivery_fee: number
   status: string
+  reject_reason?: string
   created_at?: string
   updated_at?: string
   shop_name?: string
   shop_image?: string
+  user_nickname?: string
+  user_phone?: string
   items?: OrderItemInfo[]
   address_info?: AddressInfo
 }
@@ -218,7 +222,7 @@ export const adminApi = {
   rejectShop: (shopId: number) => api.put<ShopInfo>(`/admin/shop/${shopId}/reject`),
   listPendingShops: (params?: { page?: number; page_size?: number; keyword?: string }) =>
     api.get<PageResponse<ShopInfo>>('/admin/shop/pending', { params }),
-  listAdminOrders: (params?: { page?: number; page_size?: number; status?: string }) =>
+  listAdminOrders: (params?: { page?: number; page_size?: number; status?: string; keyword?: string }) =>
     api.get<PageResponse<OrderInfo>>('/admin/orders', { params }),
   getAdminOrderDetail: (orderId: number) => api.get<OrderInfo>(`/admin/orders/${orderId}`),
   getStatsTrend: (days?: number) => api.get<AdminTrendItem[]>('/admin/stats/trend', { params: { days } }),

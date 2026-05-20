@@ -6,6 +6,7 @@ from app.schemas.base import ResponseSchema
 from app.deps.auth import get_current_user
 from app.core import ForbiddenException, BadRequestException, get_logger
 from app.services.config import ConfigService, DEFAULT_CONFIGS
+from app.utils.cache import delete_cached, CONFIG_TTL
 
 router = APIRouter(prefix="/admin/config", tags=["平台配置"])
 logger = get_logger("config")
@@ -79,6 +80,9 @@ async def update_config(
 
     await ConfigService.set_config(db, key, value, description)
     await db.commit()
+
+    # PERF-REFORM-02: Invalidate config cache on update
+    await delete_cached(f"config:{key}")
 
     logger.info(f"Config updated: {key} = {value}")
 

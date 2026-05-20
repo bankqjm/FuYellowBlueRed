@@ -1,27 +1,29 @@
-import uuid
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.models import (
-    Wallet, Order, User,
-    PaymentTransaction, ShopEarning, PlatformCommission,
-    FundFlow, RefundRecord,
-    TradeType, PayChannel, PaymentStatus,
-    AccountType, FlowType, BusinessType,
-    SettlementStatus, RefundType, RefundStatus
+    Order, User, Wallet, PaymentTransaction, FundFlow,
+    ShopEarning, PlatformCommission, RefundRecord,
+    PaymentStatus, TradeType, PayChannel, AccountType, FlowType,
+    BusinessType, RefundType, RefundStatus,
+    SettlementStatus, EarningType
 )
 from app.services.config import ConfigService
+from app.utils.snowflake import generate_trade_no
+from app.utils.log_mask import mask_amount
+from app.utils.decimal_utils import to_decimal, ZERO
 
-MAX_SINGLE_RECHARGE = 10000.0
-MAX_DAILY_RECHARGE = 50000.0
-MAX_SINGLE_PAYMENT = 100000.0
+MAX_SINGLE_RECHARGE = Decimal("10000.00")
+MAX_DAILY_RECHARGE = Decimal("50000.00")
+MAX_SINGLE_PAYMENT = Decimal("100000.00")
 
 
 class FinanceService:
 
     @staticmethod
     def generate_trade_no() -> str:
-        return f"TR{uuid.uuid4().hex[:28].upper()}"
+        return generate_trade_no()
 
     @staticmethod
     async def check_payment_idempotency(db: AsyncSession, order_id: int) -> PaymentTransaction | None:
@@ -42,13 +44,13 @@ class FinanceService:
         result = await db.execute(stmt)
         wallet = result.scalar_one_or_none()
         if not wallet:
-            wallet = Wallet(user_id=user_id, balance=0.0, frozen_balance=0.0)
+            wallet = Wallet(user_id=user_id, balance=ZERO, frozen_balance=ZERO)
             db.add(wallet)
             await db.flush()
         return wallet
 
     @staticmethod
-    async def check_daily_recharge_limit(db: AsyncSession, user_id: int, amount: float) -> tuple[bool, float]:
+    async def check_daily_recharge_limit(db: AsyncSession, user_id: int, amount: Decimal) -> tuple[bool, Decimal]:
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
 
@@ -61,7 +63,7 @@ class FinanceService:
                 FundFlow.created_at < today_end
             )
         )
-        daily_total = result.scalar() or 0.0
+        daily_total = result.scalar() or ZERO
 
         if daily_total + amount > MAX_DAILY_RECHARGE:
             remaining = MAX_DAILY_RECHARGE - daily_total
@@ -75,14 +77,17 @@ class FinanceService:
         user_id: int,
         account_type: str,
         flow_type: str,
-        amount: float,
+        amount: Decimal,
         business_type: str,
         related_id: int = None,
         description: str = None
     ) -> FundFlow:
         wallet = await FinanceService.ensure_wallet_exists(db, user_id, for_update=True)
-        balance_before = wallet.balance
-        balance_after = balance_before + amount if flow_type == FlowType.INCOME.value else balance_before - amount
+        balance_before = to_decimal(wallet.balance)
+        if flow_type == FlowType.INCOME.value:
+            balance_after = balance_before + amount
+        else:
+            balance_after = balance_before - amount
 
         fund_flow = FundFlow(
             user_id=user_id,
@@ -116,15 +121,16 @@ class FinanceService:
                 "idempotent": True
             }
 
-        if order.total_amount > MAX_SINGLE_PAYMENT:
+        if to_decimal(order.total_amount) > MAX_SINGLE_PAYMENT:
             raise ValueError(f"单笔支付金额不能超过 {MAX_SINGLE_PAYMENT:.2f} 元")
 
         wallet = await FinanceService.ensure_wallet_exists(db, user.id, for_update=True)
 
+        total_amount = to_decimal(order.total_amount)
         if channel == PayChannel.BALANCE.value:
-            if wallet.balance < order.total_amount:
-                raise ValueError(f"余额不足，当前余额: {wallet.balance:.2f}元")
-            wallet.balance -= order.total_amount
+            if to_decimal(wallet.balance) < total_amount:
+                raise ValueError(f"余额不足，当前余额: {to_decimal(wallet.balance):.2f}元")
+            wallet.balance = to_decimal(wallet.balance) - total_amount
 
         trade_no = FinanceService.generate_trade_no()
 
@@ -162,19 +168,23 @@ class FinanceService:
 
     @staticmethod
     async def calculate_order_commission(db: AsyncSession, order: Order) -> dict:
-        goods_amount = order.total_amount - order.delivery_fee
+        total_amount = to_decimal(order.total_amount)
+        delivery_fee = to_decimal(order.delivery_fee)
+        goods_amount = total_amount - delivery_fee
 
         commission_rate = await ConfigService.get_config_float(
             db, "SHOP_COMMISSION_RATE", 0.10
         )
-        shop_commission = round(goods_amount * commission_rate, 2)
-        net_amount = round(goods_amount - shop_commission, 2)
+        commission_rate = Decimal(str(commission_rate))
+        shop_commission = (goods_amount * commission_rate).quantize(ZERO, rounding=ROUND_HALF_UP)
+        net_amount = (goods_amount - shop_commission).quantize(ZERO, rounding=ROUND_HALF_UP)
 
         rider_service_rate = await ConfigService.get_config_float(
             db, "RIDER_SERVICE_FEE_RATE", 0.20
         )
-        rider_service_fee = round(order.delivery_fee * rider_service_rate, 2)
-        rider_income = round(order.delivery_fee - rider_service_fee, 2)
+        rider_service_rate = Decimal(str(rider_service_rate))
+        rider_service_fee = (delivery_fee * rider_service_rate).quantize(ZERO, rounding=ROUND_HALF_UP)
+        rider_income = (delivery_fee - rider_service_fee).quantize(ZERO, rounding=ROUND_HALF_UP)
 
         return {
             "goods_amount": goods_amount,
@@ -234,12 +244,12 @@ class FinanceService:
         db: AsyncSession,
         order: Order,
         user: User,
-        refund_amount: float = None,
+        refund_amount: Decimal = None,
         refund_type: str = RefundType.MANUAL.value,
         reason: str = None
     ) -> RefundRecord:
         if refund_amount is None:
-            refund_amount = order.total_amount
+            refund_amount = to_decimal(order.total_amount)
 
         payment_result = await db.execute(
             select(PaymentTransaction).where(
@@ -250,11 +260,12 @@ class FinanceService:
         )
         payment = payment_result.scalar_one_or_none()
 
-        if refund_amount > (payment.amount if payment else order.total_amount):
+        max_refund = to_decimal(payment.amount) if payment else to_decimal(order.total_amount)
+        if refund_amount > max_refund:
             raise ValueError("退款金额不能超过实际支付金额")
 
         wallet = await FinanceService.ensure_wallet_exists(db, user.id, for_update=True)
-        wallet.balance += refund_amount
+        wallet.balance = to_decimal(wallet.balance) + refund_amount
 
         refund_record = RefundRecord(
             order_id=order.id,
@@ -287,10 +298,10 @@ class FinanceService:
         db: AsyncSession,
         rider_id: int,
         order_id: int,
-        amount: float
+        amount: Decimal
     ) -> FundFlow:
         wallet = await FinanceService.ensure_wallet_exists(db, rider_id, for_update=True)
-        wallet.balance += amount
+        wallet.balance = to_decimal(wallet.balance) + amount
 
         fund_flow = await FinanceService.create_fund_flow(
             db=db,
@@ -309,21 +320,22 @@ class FinanceService:
     async def process_withdrawal(
         db: AsyncSession,
         user_id: int,
-        amount: float
+        amount: Decimal
     ) -> dict:
         min_withdrawal = await ConfigService.get_config_float(
             db, "MIN_WITHDRAWAL_AMOUNT", 10.0
         )
+        min_withdrawal = Decimal(str(min_withdrawal))
 
         if amount < min_withdrawal:
             raise ValueError(f"提现金额不能低于 {min_withdrawal:.2f} 元")
 
         wallet = await FinanceService.ensure_wallet_exists(db, user_id, for_update=True)
 
-        if wallet.balance < amount:
-            raise ValueError(f"余额不足，当前余额: {wallet.balance:.2f}元")
+        if to_decimal(wallet.balance) < amount:
+            raise ValueError(f"余额不足，当前余额: {to_decimal(wallet.balance):.2f}元")
 
-        wallet.balance -= amount
+        wallet.balance = to_decimal(wallet.balance) - amount
 
         await FinanceService.create_fund_flow(
             db=db,
@@ -341,9 +353,9 @@ class FinanceService:
     async def recharge_wallet(
         db: AsyncSession,
         user_id: int,
-        amount: float
+        amount: Decimal
     ) -> dict:
-        if amount <= 0:
+        if amount <= ZERO:
             raise ValueError("充值金额必须大于0")
 
         if amount > MAX_SINGLE_RECHARGE:
@@ -354,7 +366,7 @@ class FinanceService:
             raise ValueError(f"今日充值总额已达上限，剩余可用额度: {daily_total:.2f} 元")
 
         wallet = await FinanceService.ensure_wallet_exists(db, user_id, for_update=True)
-        wallet.balance += amount
+        wallet.balance = to_decimal(wallet.balance) + amount
 
         await FinanceService.create_fund_flow(
             db=db,

@@ -1,7 +1,15 @@
+from decimal import Decimal
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Generic, TypeVar, List
+from typing import Optional, Generic, TypeVar, List, Annotated
+from pydantic.functional_serializers import PlainSerializer
 
 T = TypeVar("T")
+
+# Serialize Decimal as float for JSON API compatibility
+DecimalField = Annotated[
+    Decimal,
+    PlainSerializer(lambda x: float(x), return_type=float, when_used="json"),
+]
 
 
 class BaseSchema(BaseModel):

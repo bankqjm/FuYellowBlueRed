@@ -1,7 +1,9 @@
-from pydantic import Field
+from decimal import Decimal
+from pydantic import Field, field_validator
 from typing import Optional, List
 from datetime import datetime
-from app.schemas.base import BaseSchema
+from app.schemas.base import BaseSchema, DecimalField
+from app.utils.sanitizer import strip_all_tags
 
 
 class CartItemCreate(BaseSchema):
@@ -23,7 +25,7 @@ class CartItemResponse(BaseSchema):
     created_at: Optional[datetime] = None
     product_name: Optional[str] = None
     product_image: Optional[str] = None
-    product_price: Optional[float] = None
+    product_price: Optional[DecimalField] = None
     shop_name: Optional[str] = None
 
 
@@ -33,7 +35,7 @@ class OrderItemResponse(BaseSchema):
     product_id: int
     product_name: str
     product_image: Optional[str] = None
-    price: float
+    price: DecimalField
     quantity: int
 
 
@@ -42,6 +44,14 @@ class OrderCreate(BaseSchema):
     shop_id: int
     remark: Optional[str] = None
     coupon_id: Optional[int] = None
+
+    @field_validator("remark")
+    @classmethod
+    def sanitize_remark(cls, v: Optional[str]) -> Optional[str]:
+        """Strip all HTML tags from order remark (SEC-REFORM-07)."""
+        if v is not None:
+            return strip_all_tags(v)
+        return v
 
 
 class AddressInfo(BaseSchema):
@@ -61,9 +71,9 @@ class OrderResponse(BaseSchema):
     longitude: Optional[float] = None
     phone: str
     remark: Optional[str] = None
-    total_amount: float
-    discount_amount: float = 0.0
-    delivery_fee: float
+    total_amount: DecimalField
+    discount_amount: DecimalField = Decimal("0.00")
+    delivery_fee: DecimalField
     status: str
     reject_reason: Optional[str] = None
     created_at: Optional[datetime] = None

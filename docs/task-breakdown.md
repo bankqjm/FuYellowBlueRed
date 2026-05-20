@@ -2,7 +2,16 @@
 
 ## 开发目标
 
-构建一个功能完整的外卖配送平台 MVP，采用 FastAPI + React + Ant Design 技术栈，覆盖消费者下单、商家接单、骑手配送的完整闭环。按 M1-M6 里程碑顺序开发，总计 92 项具体任务。
+构建一个功能完整的外卖配送平台 MVP，采用 FastAPI + React + Ant Design 技术栈，覆盖消费者下单、商家接单、骑手配送的完整闭环。按 M1-M6 里程碑顺序开发，总计 103 项具体任务。
+
+## 实现状态概览
+
+| 维度 | 当前状态 | 说明 |
+|------|----------|------|
+| 后端 API | 61 个已实现 | 覆盖认证、用户、商家、商品、订单、骑手、钱包、优惠券、收藏、审核日志等模块 |
+| 数据模型 | 18 个已实现 | User、Wallet、UserAddress、Favorite、Shop、Category、Product、Order、OrderItem、CartItem、Review、RiderEarning、WithdrawalRecord、PaymentTransaction、ShopEarning、PlatformCommission、FundFlow、RefundRecord、PlatformConfig、AuditLog、FinanceAuditLog、Coupon、UserCoupon |
+| 前端页面 | 22 个已实现 | 登录/注册、用户首页/订单/钱包/地址/评价、商家仪表盘/订单/商品、骑手订单/收入/提现、管理员仪表盘/用户/商家/订单 |
+| 测试覆盖 | 375 个测试用例 | 单元测试 + 集成测试 + 并发测试 + 边界测试 |
 
 ---
 
@@ -332,4 +341,193 @@ main              # 主分支，保护分支
 
 ---
 
-*文档版本：V1.0（2026-05-11）*
+## 已实现 API 清单
+
+### 认证模块（auth.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/auth/register` | 用户注册 |
+| POST | `/api/v1/auth/login` | 用户登录 |
+| POST | `/api/v1/auth/logout` | 用户登出 |
+| POST | `/api/v1/auth/refresh` | 刷新 Token |
+
+### 用户模块（users.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/users/me` | 获取当前用户信息 |
+| PUT | `/api/v1/users/me` | 更新用户信息 |
+| POST | `/api/v1/users/addresses` | 添加收货地址 |
+| GET | `/api/v1/users/addresses` | 获取地址列表 |
+| PUT | `/api/v1/users/addresses/{id}` | 更新地址 |
+| DELETE | `/api/v1/users/addresses/{id}` | 删除地址 |
+
+### 商家模块（shop.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/shop/apply` | 申请开店 |
+| GET | `/api/v1/shop/my` | 获取我的店铺 |
+| PUT | `/api/v1/shop/my` | 更新店铺信息 |
+| GET | `/api/v1/shop/list` | 商家列表 |
+| GET | `/api/v1/shop/{shop_id}` | 商家详情 |
+| POST | `/api/v1/shop/category` | 创建分类 |
+| GET | `/api/v1/shop/category/{shop_id}` | 分类列表 |
+| PUT | `/api/v1/shop/category/{category_id}` | 更新分类 |
+| DELETE | `/api/v1/shop/category/{category_id}` | 删除分类 |
+| POST | `/api/v1/shop/product` | 创建商品 |
+| GET | `/api/v1/shop/product/{shop_id}` | 商品列表 |
+| GET | `/api/v1/shop/product/detail/{product_id}` | 商品详情 |
+| PUT | `/api/v1/shop/product/{product_id}` | 更新商品 |
+| DELETE | `/api/v1/shop/product/{product_id}` | 删除商品 |
+| GET | `/api/v1/shop/search` | 商品搜索 |
+| GET | `/api/v1/shop/my/orders` | 商家订单列表 |
+| GET | `/api/v1/shop/my/orders/{order_id}` | 商家订单详情 |
+| PUT | `/api/v1/shop/my/orders/{order_id}/accept` | 接单 |
+| PUT | `/api/v1/shop/my/orders/{order_id}/reject` | 拒单 |
+| PUT | `/api/v1/shop/my/orders/{order_id}/ready` | 备餐完成 |
+| GET | `/api/v1/shop/my/stats` | 商家统计 |
+| GET | `/api/v1/shop/my/stats/trend` | 商家趋势 |
+
+### 订单模块（orders.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/orders` | 创建订单 |
+| GET | `/api/v1/orders` | 订单列表 |
+| GET | `/api/v1/orders/{order_id}` | 订单详情 |
+| POST | `/api/v1/orders/{order_id}/pay` | 支付订单 |
+| PUT | `/api/v1/orders/{order_id}/cancel` | 取消订单 |
+| PUT | `/api/v1/orders/{order_id}/confirm` | 确认收货 |
+
+### 骑手模块（rider.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/rider/orders` | 待接单列表 |
+| PUT | `/api/v1/rider/orders/{order_id}/accept` | 骑手接单 |
+| PUT | `/api/v1/rider/orders/{order_id}/pickup` | 取餐确认 |
+| PUT | `/api/v1/rider/orders/{order_id}/deliver` | 送达确认 |
+| GET | `/api/v1/rider/active` | 进行中订单 |
+| GET | `/api/v1/rider/earnings` | 收入明细 |
+| GET | `/api/v1/rider/earnings/summary` | 累计收入 |
+| POST | `/api/v1/rider/withdraw` | 提现申请 |
+| GET | `/api/v1/rider/withdraw/records` | 提现记录 |
+
+### 钱包模块（wallet.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/wallet/balance` | 查询余额 |
+| POST | `/api/v1/wallet/recharge` | 充值 |
+| GET | `/api/v1/wallet/transactions` | 交易记录 |
+
+### 管理员模块（admin.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/admin/users` | 用户列表 |
+| PUT | `/api/v1/admin/users/{user_id}/status` | 用户状态 |
+| GET | `/api/v1/admin/shop/pending` | 待审核商家 |
+| PUT | `/api/v1/admin/shop/{shop_id}/approve` | 审核通过 |
+| PUT | `/api/v1/admin/shop/{shop_id}/reject` | 审核拒绝 |
+| GET | `/api/v1/admin/orders` | 订单列表 |
+| GET | `/api/v1/admin/stats` | 平台统计 |
+
+### 评价模块（review.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/review` | 创建评价 |
+| GET | `/api/v1/review/shop/{shop_id}` | 店铺评价 |
+
+### 优惠券模块（coupons.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/coupons` | 创建优惠券 |
+| GET | `/api/v1/coupons` | 优惠券列表 |
+| POST | `/api/v1/coupons/{coupon_id}/claim` | 领取优惠券 |
+| GET | `/api/v1/coupons/my` | 我的优惠券 |
+
+### 收藏模块（favorites.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/favorites` | 添加收藏 |
+| DELETE | `/api/v1/favorites/{shop_id}` | 取消收藏 |
+| GET | `/api/v1/favorites` | 我的收藏 |
+
+### 审核日志模块（audit.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/audit/logs` | 操作日志 |
+| GET | `/api/v1/audit/finance` | 财务日志 |
+
+### 配置模块（config.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/v1/config` | 获取配置 |
+| PUT | `/api/v1/config` | 更新配置 |
+
+### 上传模块（upload.py）
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/v1/upload` | 文件上传 |
+
+---
+
+## 数据模型清单
+
+### 用户相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| User | users | 用户表 |
+| UserAddress | user_addresses | 收货地址 |
+| Wallet | wallets | 钱包 |
+| Favorite | favorites | 收藏 |
+
+### 商家相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| Shop | shops | 店铺 |
+| Category | categories | 分类 |
+| Product | products | 商品 |
+
+### 订单相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| Order | orders | 订单 |
+| OrderItem | order_items | 订单项 |
+| CartItem | cart_items | 购物车项 |
+
+### 评价相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| Review | reviews | 评价 |
+
+### 骑手相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| RiderEarning | rider_earnings | 骑手收入 |
+| WithdrawalRecord | withdrawal_records | 提现记录 |
+
+### 支付财务相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| PaymentTransaction | payment_transactions | 支付交易 |
+| ShopEarning | shop_earnings | 商家收益 |
+| PlatformCommission | platform_commissions | 平台佣金 |
+| FundFlow | fund_flows | 资金流水 |
+| RefundRecord | refund_records | 退款记录 |
+
+### 优惠券相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| Coupon | coupons | 优惠券 |
+| UserCoupon | user_coupons | 用户优惠券 |
+
+### 系统相关
+| 模型 | 表名 | 说明 |
+|------|------|------|
+| PlatformConfig | platform_configs | 平台配置 |
+| AuditLog | audit_logs | 操作日志 |
+| FinanceAuditLog | finance_audit_logs | 财务日志 |
+
+---
+
+*文档版本：V2.0（2026-05-20）*
+*更新说明：新增实现状态概览、完整API清单、数据模型清单*
+
+---

@@ -1,8 +1,10 @@
 
-from pydantic import Field
+from decimal import Decimal
+from pydantic import Field, field_validator
 from typing import Optional, List
 from datetime import datetime
-from app.schemas.base import BaseSchema
+from app.schemas.base import BaseSchema, DecimalField
+from app.utils.sanitizer import strip_all_tags, sanitize_limited_html, strip_dangerous_content
 
 
 class ShopCreate(BaseSchema):
@@ -14,6 +16,20 @@ class ShopCreate(BaseSchema):
     business_hours: Optional[str] = None
     notice: Optional[str] = None
 
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        """Strip dangerous HTML from shop name (SEC-REFORM-07)."""
+        return strip_dangerous_content(v)
+
+    @field_validator("notice")
+    @classmethod
+    def sanitize_notice(cls, v: Optional[str]) -> Optional[str]:
+        """Allow limited safe HTML in shop notice (SEC-REFORM-07)."""
+        if v is not None:
+            return sanitize_limited_html(v)
+        return v
+
 
 class ShopUpdate(BaseSchema):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
@@ -23,10 +39,26 @@ class ShopUpdate(BaseSchema):
     longitude: Optional[float] = None
     business_hours: Optional[str] = None
     notice: Optional[str] = None
-    min_order_amount: Optional[float] = None
-    delivery_fee: Optional[float] = None
+    min_order_amount: Optional[DecimalField] = None
+    delivery_fee: Optional[DecimalField] = None
     delivery_time: Optional[str] = None
     discounts: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: Optional[str]) -> Optional[str]:
+        """Strip dangerous HTML from shop name (SEC-REFORM-07)."""
+        if v is not None:
+            return strip_dangerous_content(v)
+        return v
+
+    @field_validator("notice")
+    @classmethod
+    def sanitize_notice(cls, v: Optional[str]) -> Optional[str]:
+        """Allow limited safe HTML in shop notice (SEC-REFORM-07)."""
+        if v is not None:
+            return sanitize_limited_html(v)
+        return v
 
 
 class ShopInfo(BaseSchema):
@@ -42,8 +74,8 @@ class ShopInfo(BaseSchema):
     rating: float
     status: int
     monthly_sales: int = 0
-    min_order_amount: float = 20.0
-    delivery_fee: float = 3.0
+    min_order_amount: DecimalField = Decimal("20.00")
+    delivery_fee: DecimalField = Decimal("3.00")
     delivery_time: str = "30分钟"
     discounts: Optional[str] = None
     created_at: datetime
@@ -63,8 +95,8 @@ class ShopDetail(BaseSchema):
     rating: float
     status: int
     monthly_sales: int = 0
-    min_order_amount: float = 20.0
-    delivery_fee: float = 3.0
+    min_order_amount: DecimalField = Decimal("20.00")
+    delivery_fee: DecimalField = Decimal("3.00")
     delivery_time: str = "30分钟"
     discounts: Optional[str] = None
     created_at: datetime
@@ -97,21 +129,51 @@ class ProductCreate(BaseSchema):
     category_id: Optional[int] = None
     name: str = Field(..., min_length=1, max_length=100)
     image: Optional[str] = None
-    price: float = Field(..., ge=0)
-    original_price: Optional[float] = None
+    price: DecimalField = Field(..., ge=0)
+    original_price: Optional[DecimalField] = None
     description: Optional[str] = None
     stock: int = Field(0, ge=0)
+
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: str) -> str:
+        """Strip dangerous HTML from product name (SEC-REFORM-07)."""
+        return strip_dangerous_content(v)
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_description(cls, v: Optional[str]) -> Optional[str]:
+        """Allow limited safe HTML in product description (SEC-REFORM-07)."""
+        if v is not None:
+            return sanitize_limited_html(v)
+        return v
 
 
 class ProductUpdate(BaseSchema):
     category_id: Optional[int] = None
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     image: Optional[str] = None
-    price: Optional[float] = Field(None, ge=0)
-    original_price: Optional[float] = None
+    price: Optional[DecimalField] = Field(None, ge=0)
+    original_price: Optional[DecimalField] = None
     description: Optional[str] = None
     stock: Optional[int] = Field(None, ge=0)
     status: Optional[int] = None
+
+    @field_validator("name")
+    @classmethod
+    def sanitize_name(cls, v: Optional[str]) -> Optional[str]:
+        """Strip dangerous HTML from product name (SEC-REFORM-07)."""
+        if v is not None:
+            return strip_dangerous_content(v)
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def sanitize_description(cls, v: Optional[str]) -> Optional[str]:
+        """Allow limited safe HTML in product description (SEC-REFORM-07)."""
+        if v is not None:
+            return sanitize_limited_html(v)
+        return v
 
 
 class ProductInfo(BaseSchema):
@@ -120,8 +182,8 @@ class ProductInfo(BaseSchema):
     category_id: Optional[int] = None
     name: str
     image: Optional[str] = None
-    price: float
-    original_price: Optional[float] = None
+    price: DecimalField
+    original_price: Optional[DecimalField] = None
     description: Optional[str] = None
     stock: int
     sales: int
@@ -147,4 +209,3 @@ class ProductListQuery(BaseSchema):
 
 class ShopReview(BaseSchema):
     pass
-

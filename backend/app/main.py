@@ -1,11 +1,10 @@
-from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, status, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
-from collections import defaultdict
 import os
 import asyncio
 import traceback
@@ -31,19 +30,20 @@ from app.api import (
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
 from app.core.security_middleware import SecurityHeadersMiddleware
+from app.core.csrf_middleware import CSRFMiddleware
 from app.core.metrics import ACTIVE_WEBSOCKET_CONNECTIONS
+from app.core.websocket_manager import websocket_manager
 from app.database import AsyncSessionLocal
 from app.services.config import ConfigService
 from app.tasks import run_order_timeout_task
 from app.utils.redis_client import redis_client
+from app.utils.auth import verify_token, is_token_valid
 from prometheus_fastapi_instrumentator import Instrumentator
 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 limiter = Limiter(key_func=get_remote_address)
 logger = get_logger("app")
-
-active_connections: dict[str, list[WebSocket]] = defaultdict(list)
 
 
 @asynccontextmanager
@@ -112,6 +112,7 @@ app.add_middleware(
 
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CSRFMiddleware)
 
 
 @app.exception_handler(BaseAPIException)
@@ -141,19 +142,60 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 async def broadcast_message(channel: str, message: dict):
-    message_str = json.dumps(message)
-    for connection in active_connections.get(channel, []):
-        try:
-            await connection.send_text(message_str)
-        except Exception as e:
-            logger.error(f"Failed to send message to connection: {e}")
+    await websocket_manager.send_to_channel(channel, message)
+
+
+async def send_to_user(user_id: int, message: dict):
+    await websocket_manager.send_to_user(user_id, message)
 
 
 @app.websocket("/ws/{channel}/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, channel: str, user_id: str):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    channel: str,
+    user_id: str,
+    token: str = Query(default=None),
+):
+    # SEC-REFORM-03: JWT authentication for WebSocket
+    if not token:
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning(f"WebSocket connection rejected: no token, channel={channel}, user_id={user_id}")
+        return
+
+    payload = verify_token(token)
+    if not payload:
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning(f"WebSocket connection rejected: invalid token, channel={channel}, user_id={user_id}")
+        return
+
+    if not await is_token_valid(token):
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning(f"WebSocket connection rejected: token expired/revoked, channel={channel}, user_id={user_id}")
+        return
+
+    token_type = payload.get("type")
+    if token_type != "access":
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning(f"WebSocket connection rejected: not access token, channel={channel}, user_id={user_id}")
+        return
+
+    token_user_id = payload.get("sub")
+    if str(token_user_id) != str(user_id):
+        await websocket.accept()
+        await websocket.close(code=4001, reason="Unauthorized")
+        logger.warning(
+            f"WebSocket connection rejected: user_id mismatch, "
+            f"token_user_id={token_user_id}, url_user_id={user_id}, channel={channel}"
+        )
+        return
+
     await websocket.accept()
-    connection_key = f"{channel}:{user_id}"
-    active_connections[channel].append(websocket)
+    int_user_id = int(user_id)
+    await websocket_manager.connect(websocket, int_user_id, channel)
     ACTIVE_WEBSOCKET_CONNECTIONS.inc()
 
     try:
@@ -162,18 +204,22 @@ async def websocket_endpoint(websocket: WebSocket, channel: str, user_id: str):
             try:
                 message = json.loads(data)
                 message["user_id"] = user_id
-                await broadcast_message(channel, message)
+                message["channel"] = channel
+                if "target_user_id" in message:
+                    target_user_id = int(message["target_user_id"])
+                    await websocket_manager.send_to_user(target_user_id, message)
+                else:
+                    await websocket_manager.send_to_channel(channel, message)
             except json.JSONDecodeError:
-                logger.warning(f"Invalid JSON message from {connection_key}")
+                logger.warning(f"Invalid JSON message from user {user_id}, channel {channel}")
     except WebSocketDisconnect:
-        active_connections[channel].remove(websocket)
+        websocket_manager.disconnect(websocket)
         ACTIVE_WEBSOCKET_CONNECTIONS.dec()
-        logger.info(f"WebSocket disconnected: {connection_key}")
+        logger.info(f"WebSocket disconnected: user_id={user_id}, channel={channel}")
     except Exception as e:
-        logger.error(f"WebSocket error for {connection_key}: {e}")
-        if websocket in active_connections[channel]:
-            active_connections[channel].remove(websocket)
-            ACTIVE_WEBSOCKET_CONNECTIONS.dec()
+        logger.error(f"WebSocket error for user {user_id}, channel {channel}: {e}")
+        websocket_manager.disconnect(websocket)
+        ACTIVE_WEBSOCKET_CONNECTIONS.dec()
 
 
 app.include_router(auth_router, prefix="/api/v1")

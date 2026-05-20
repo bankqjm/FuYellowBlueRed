@@ -1,40 +1,53 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, Spin } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import React, { Suspense } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+
+// PERF-REFORM-03: Layout components remain statically imported (framework, needed on first paint)
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import UserLayout from '@/layouts/UserLayout'
 import ShopLayout from '@/layouts/ShopLayout'
 import RiderLayout from '@/layouts/RiderLayout'
 import AdminLayout from '@/layouts/AdminLayout'
-import UserHome from '@/pages/user/Home'
-import ShopDetail from '@/pages/user/ShopDetail'
-import Cart from '@/pages/user/Cart'
-import Orders from '@/pages/user/Orders'
-import Profile from '@/pages/user/Profile'
-import Addresses from '@/pages/user/Addresses'
-import Wallet from '@/pages/user/Wallet'
-import ShopOrders from '@/pages/shop/Orders'
-import ShopInfo from '@/pages/shop/ShopInfo'
-import ShopDashboard from '@/pages/shop/Dashboard'
-import ShopProducts from '@/pages/shop/Products'
-import ShopEarnings from '@/pages/shop/Earnings'
-import RiderOrders from '@/pages/rider/Orders'
-import RiderEarnings from '@/pages/rider/Earnings'
-import RiderWithdraw from '@/pages/rider/Withdraw'
-import AdminDashboard from '@/pages/admin/Dashboard'
-import AdminShops from '@/pages/admin/Shops'
-import AdminUsers from '@/pages/admin/Users'
-import AdminOrders from '@/pages/admin/Orders'
-import AdminAuditLogs from '@/pages/admin/AuditLogs'
-import AdminConfig from '@/pages/admin/Config'
-import ReviewPage from '@/pages/user/Review'
-import Favorites from '@/pages/user/Favorites'
-import Coupons from '@/pages/user/Coupons'
-import Support from '@/pages/user/Support'
+
+// Page components lazy loaded for code splitting
+const UserHome = React.lazy(() => import('@/pages/user/Home'))
+const ShopDetail = React.lazy(() => import('@/pages/user/ShopDetail'))
+const Cart = React.lazy(() => import('@/pages/user/Cart'))
+const Orders = React.lazy(() => import('@/pages/user/Orders'))
+const Profile = React.lazy(() => import('@/pages/user/Profile'))
+const Addresses = React.lazy(() => import('@/pages/user/Addresses'))
+const Wallet = React.lazy(() => import('@/pages/user/Wallet'))
+const ShopOrders = React.lazy(() => import('@/pages/shop/Orders'))
+const ShopInfo = React.lazy(() => import('@/pages/shop/ShopInfo'))
+const ShopDashboard = React.lazy(() => import('@/pages/shop/Dashboard'))
+const ShopProducts = React.lazy(() => import('@/pages/shop/Products'))
+const ShopEarnings = React.lazy(() => import('@/pages/shop/Earnings'))
+const RiderOrders = React.lazy(() => import('@/pages/rider/Orders'))
+const RiderEarnings = React.lazy(() => import('@/pages/rider/Earnings'))
+const RiderWithdraw = React.lazy(() => import('@/pages/rider/Withdraw'))
+const AdminDashboard = React.lazy(() => import('@/pages/admin/Dashboard'))
+const AdminShops = React.lazy(() => import('@/pages/admin/Shops'))
+const AdminUsers = React.lazy(() => import('@/pages/admin/Users'))
+const AdminOrders = React.lazy(() => import('@/pages/admin/Orders'))
+const AdminAuditLogs = React.lazy(() => import('@/pages/admin/AuditLogs'))
+const AdminConfig = React.lazy(() => import('@/pages/admin/Config'))
+const ReviewPage = React.lazy(() => import('@/pages/user/Review'))
+const Favorites = React.lazy(() => import('@/pages/user/Favorites'))
+const Coupons = React.lazy(() => import('@/pages/user/Coupons'))
+const Support = React.lazy(() => import('@/pages/user/Support'))
+
 import './App.css'
+
+/** Suspense fallback shown while lazy-loaded chunks are being fetched */
+const LazyFallback = (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <Spin size="large" tip="加载中..." />
+  </div>
+)
 
 function AuthGuard({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
   const { isAuthenticated, role } = useAuthStore()
@@ -55,9 +68,10 @@ function App() {
     <ThemeProvider>
       <ConfigProvider locale={zhCN}>
         <BrowserRouter>
-          <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Suspense fallback={LazyFallback}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
           <Route
             path="/user"
             element={
@@ -127,6 +141,7 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </ConfigProvider>
     </ThemeProvider>

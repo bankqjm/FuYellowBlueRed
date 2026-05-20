@@ -44,6 +44,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // SEC-REFORM-05: Only persist non-sensitive user info, not tokens
+      // Tokens are now stored in HttpOnly cookies (server-managed)
       partialize: (state) => ({ isAuthenticated: state.isAuthenticated, userInfo: state.userInfo, role: state.role }),
     },
   ),

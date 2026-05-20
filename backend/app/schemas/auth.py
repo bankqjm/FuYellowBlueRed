@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 import re
 from datetime import datetime
+from app.utils.sanitizer import strip_all_tags
 
 
 class RegisterRequest(BaseModel):
@@ -36,6 +37,14 @@ class RegisterRequest(BaseModel):
     def validate_confirm_password(cls, v: str, info) -> str:
         if "password" in info.data and v != info.data["password"]:
             raise ValueError("两次输入的密码不一致")
+        return v
+
+    @field_validator("nickname")
+    @classmethod
+    def sanitize_nickname(cls, v: Optional[str]) -> Optional[str]:
+        """Strip all HTML tags from nickname (SEC-REFORM-07)."""
+        if v is not None:
+            return strip_all_tags(v)
         return v
 
 
@@ -76,3 +85,11 @@ class UserInfo(BaseModel):
 class UpdateUserRequest(BaseModel):
     nickname: Optional[str] = None
     avatar: Optional[str] = None
+
+    @field_validator("nickname")
+    @classmethod
+    def sanitize_nickname(cls, v: Optional[str]) -> Optional[str]:
+        """Strip all HTML tags from nickname (SEC-REFORM-07)."""
+        if v is not None:
+            return strip_all_tags(v)
+        return v

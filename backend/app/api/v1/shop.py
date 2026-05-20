@@ -18,6 +18,10 @@ from app.schemas.order import OrderResponse, OrderItemResponse, OrderQuery, Addr
 from app.schemas.base import ResponseSchema, PageResponse
 from app.deps.auth import get_current_user
 from app.core import BadRequestException, ForbiddenException, get_logger
+from app.utils.cache import (
+    get_cached_dict, set_cached_dict, delete_cached, delete_cached_pattern,
+    SHOP_DETAIL_TTL, PRODUCT_DETAIL_TTL, SHOP_LIST_TTL,
+)
 
 router = APIRouter(prefix="/shop", tags=["商家"])
 logger = get_logger("shop")
@@ -49,6 +53,9 @@ async def apply_shop(
     await db.commit()
     await db.refresh(shop)
     logger.info(f"Shop applied: {shop.id} by user {current_user.id}")
+
+    # PERF-REFORM-02: Invalidate shop list cache on new shop
+    await delete_cached_pattern("shops:page:*")
 
     return ResponseSchema(
         code=0,
@@ -86,6 +93,11 @@ async def update_my_shop(
 
     await db.commit()
     await db.refresh(shop)
+
+    # PERF-REFORM-02: Invalidate shop cache on update
+    await delete_cached(f"shop:{shop.id}")
+    await delete_cached_pattern("shops:page:*")
+
     return ResponseSchema(code=0, message="更新成功", data=ShopInfo.model_validate(shop))
 
 
@@ -119,6 +131,14 @@ async def list_shops(
     query: ShopListQuery = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
+    # PERF-REFORM-02: Try cache first for shop list (no keyword search)
+    cache_key = None
+    if not query.keyword:
+        cache_key = f"shops:page:{query.page}:{query.page_size}:{query.status}"
+        cached = await get_cached_dict(cache_key)
+        if cached:
+            return ResponseSchema(code=0, data=PageResponse.model_validate(cached))
+
     stmt = select(Shop)
     count_stmt = select(func.count(Shop.id))
 
@@ -136,19 +156,28 @@ async def list_shops(
     result = await db.execute(stmt)
     shops = result.scalars().all()
 
-    return ResponseSchema(
-        code=0,
-        data=PageResponse(
-            items=[ShopInfo.model_validate(shop) for shop in shops],
-            total=total,
-            page=query.page,
-            page_size=query.page_size
-        )
+    page_data = PageResponse(
+        items=[ShopInfo.model_validate(shop) for shop in shops],
+        total=total,
+        page=query.page,
+        page_size=query.page_size
     )
+
+    # Cache the result if no keyword search
+    if cache_key:
+        await set_cached_dict(cache_key, page_data.model_dump(), SHOP_LIST_TTL)
+
+    return ResponseSchema(code=0, data=page_data)
 
 
 @router.get("/{shop_id}", response_model=ResponseSchema[ShopDetail])
 async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
+    # PERF-REFORM-02: Try cache first for shop detail
+    cache_key = f"shop:{shop_id}"
+    cached = await get_cached_dict(cache_key)
+    if cached:
+        return ResponseSchema(code=0, data=ShopDetail.model_validate(cached))
+
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
@@ -194,6 +223,9 @@ async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
             cat_data.products.append(ProductInfo.model_validate(product))
         shop_data.categories.append(cat_data)
 
+    # PERF-REFORM-02: Cache the shop detail
+    await set_cached_dict(cache_key, shop_data.model_dump(), SHOP_DETAIL_TTL)
+
     return ResponseSchema(code=0, data=shop_data)
 
 
@@ -214,6 +246,9 @@ async def create_category(
     db.add(category)
     await db.commit()
     await db.refresh(category)
+
+    # PERF-REFORM-02: Invalidate shop detail cache on category change
+    await delete_cached(f"shop:{request.shop_id}")
 
     cat_data = CategoryInfo(
         id=category.id,
@@ -261,6 +296,10 @@ async def update_category(
 
     await db.commit()
     await db.refresh(category)
+
+    # PERF-REFORM-02: Invalidate shop detail cache on category update
+    await delete_cached(f"shop:{category.shop_id}")
+
     cat_data = CategoryInfo(
         id=category.id,
         shop_id=category.shop_id,
@@ -290,6 +329,10 @@ async def delete_category(
 
     await db.delete(category)
     await db.commit()
+
+    # PERF-REFORM-02: Invalidate shop detail cache on category delete
+    await delete_cached(f"shop:{category.shop_id}")
+
     return ResponseSchema(code=0, message="删除成功")
 
 
@@ -310,6 +353,9 @@ async def create_product(
     db.add(product)
     await db.commit()
     await db.refresh(product)
+
+    # PERF-REFORM-02: Invalidate shop cache (product list changed)
+    await delete_cached(f"shop:{request.shop_id}")
 
     return ResponseSchema(code=0, message="创建成功", data=ProductInfo.model_validate(product))
 
@@ -353,11 +399,20 @@ async def list_products(
 
 @router.get("/product/detail/{product_id}", response_model=ResponseSchema[ProductInfo])
 async def get_product_detail(product_id: int, db: AsyncSession = Depends(get_db)):
+    # PERF-REFORM-02: Try cache first for product detail
+    cache_key = f"product:{product_id}"
+    cached = await get_cached_dict(cache_key)
+    if cached:
+        return ResponseSchema(code=0, data=ProductInfo.model_validate(cached))
+
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise BadRequestException("商品不存在")
-    return ResponseSchema(code=0, data=ProductInfo.model_validate(product))
+
+    product_data = ProductInfo.model_validate(product)
+    await set_cached_dict(cache_key, product_data.model_dump(), PRODUCT_DETAIL_TTL)
+    return ResponseSchema(code=0, data=product_data)
 
 
 @router.put("/product/{product_id}", response_model=ResponseSchema[ProductInfo])
@@ -383,6 +438,11 @@ async def update_product(
 
     await db.commit()
     await db.refresh(product)
+
+    # PERF-REFORM-02: Invalidate product and shop cache on update
+    await delete_cached(f"product:{product_id}")
+    await delete_cached(f"shop:{product.shop_id}")
+
     return ResponseSchema(code=0, message="更新成功", data=ProductInfo.model_validate(product))
 
 
@@ -404,6 +464,11 @@ async def delete_product(
 
     await db.delete(product)
     await db.commit()
+
+    # PERF-REFORM-02: Invalidate product and shop cache on delete
+    await delete_cached(f"product:{product_id}")
+    await delete_cached(f"shop:{product.shop_id}")
+
     return ResponseSchema(code=0, message="删除成功")
 
 
@@ -549,15 +614,26 @@ async def reject_order(
         logger.info(f"Refund processed for rejected order: {order_id}")
 
     items_result = await db.execute(select(OrderItem).where(OrderItem.order_id == order.id))
-    for item in items_result.scalars().all():
-        product_result = await db.execute(select(Product).where(Product.id == item.product_id))
-        product = product_result.scalar_one_or_none()
-        if product:
-            product.stock += item.quantity
+    order_items = items_result.scalars().all()
+    product_ids = [item.product_id for item in order_items]
+
+    if product_ids:
+        products_result = await db.execute(
+            select(Product).where(Product.id.in_(product_ids)).with_for_update()
+        )
+        product_map = {p.id: p for p in products_result.scalars().all()}
+        for item in order_items:
+            product = product_map.get(item.product_id)
+            if product:
+                product.stock += item.quantity
 
     await db.commit()
     await db.refresh(order)
     logger.info(f"Order rejected: {order_id}, reason: {reason}")
+
+    # PERF-REFORM-02: Invalidate product caches for stock restore
+    for pid in product_ids:
+        await delete_cached(f"product:{pid}")
 
     return ResponseSchema(code=0, message="拒单成功", data=OrderResponse.model_validate(order))
 
@@ -612,7 +688,7 @@ async def get_shop_stats(
             Order.status == OrderStatus.COMPLETED,
         )
     )
-    total_revenue = today_revenue_result.scalar() or 0.0
+    total_revenue = float(today_revenue_result.scalar() or 0.0)
 
     pending_result = await db.execute(
         select(func.count(Order.id)).where(
@@ -675,3 +751,49 @@ async def get_shop_trend(
         })
 
     return ResponseSchema(code=0, data=result)
+
+
+@router.get("/search", response_model=ResponseSchema[PageResponse[ProductInfo]])
+async def search_products(
+    keyword: str = Query(..., description="搜索关键词"),
+    shop_id: int = Query(None, description="店铺ID筛选"),
+    category_id: int = Query(None, description="分类ID筛选"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Product).where(Product.status == ProductStatus.ON.value)
+    count_stmt = select(func.count(Product.id)).where(Product.status == ProductStatus.ON.value)
+
+    if keyword:
+        stmt = stmt.where(
+            Product.name.contains(keyword) | Product.description.contains(keyword)
+        )
+        count_stmt = count_stmt.where(
+            Product.name.contains(keyword) | Product.description.contains(keyword)
+        )
+    
+    if shop_id:
+        stmt = stmt.where(Product.shop_id == shop_id)
+        count_stmt = count_stmt.where(Product.shop_id == shop_id)
+    
+    if category_id:
+        stmt = stmt.where(Product.category_id == category_id)
+        count_stmt = count_stmt.where(Product.category_id == category_id)
+
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
+
+    stmt = stmt.order_by(Product.sales.desc()).offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(stmt)
+    products = result.scalars().all()
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=[ProductInfo.model_validate(p) for p in products],
+            total=total,
+            page=page,
+            page_size=page_size
+        )
+    )
