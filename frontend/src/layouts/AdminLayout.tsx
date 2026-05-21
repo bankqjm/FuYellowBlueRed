@@ -35,6 +35,14 @@ export default function AdminLayout() {
 
   const userMenuItems: MenuProps['items'] = [
     {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人中心',
+    },
+    {
+      type: 'divider',
+    },
+    {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
@@ -47,6 +55,8 @@ export default function AdminLayout() {
       try { await api.post('/auth/logout') } catch {}
       logout()
       navigate('/login')
+    } else if (key === 'profile') {
+      navigate('/admin/profile')
     }
   }
 

@@ -14,6 +14,7 @@ class ShopCreate(BaseSchema):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     business_hours: Optional[str] = None
+    business_days: Optional[str] = None
     notice: Optional[str] = None
 
     @field_validator("name")
@@ -38,6 +39,7 @@ class ShopUpdate(BaseSchema):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     business_hours: Optional[str] = None
+    business_days: Optional[str] = None
     notice: Optional[str] = None
     min_order_amount: Optional[DecimalField] = None
     delivery_fee: Optional[DecimalField] = None
@@ -70,6 +72,7 @@ class ShopInfo(BaseSchema):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     business_hours: Optional[str] = None
+    business_days: Optional[str] = None
     notice: Optional[str] = None
     rating: float
     status: int
@@ -91,6 +94,7 @@ class ShopDetail(BaseSchema):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     business_hours: Optional[str] = None
+    business_days: Optional[str] = None
     notice: Optional[str] = None
     rating: float
     status: int

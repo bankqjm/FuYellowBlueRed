@@ -91,7 +91,7 @@ async def create_order(
 @router.post("/{order_id}/pay", response_model=ResponseSchema[OrderResponse])
 async def pay_order(
     order_id: int,
-    channel: str = Body(default="BALANCE"),
+    channel: str = Body(default="BALANCE", embed=True),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

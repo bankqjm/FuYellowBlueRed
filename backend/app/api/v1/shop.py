@@ -45,6 +45,7 @@ async def apply_shop(
         latitude=request.latitude,
         longitude=request.longitude,
         business_hours=request.business_hours,
+        business_days=request.business_days,
         notice=request.notice,
         status=ShopStatus.PENDING.value,
         rating=5.0
@@ -72,7 +73,7 @@ async def get_my_shop(
     result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = result.scalar_one_or_none()
     if not shop:
-        raise BadRequestException("您还没有申请店铺")
+        raise BadRequestException("您还未创建店铺")
     return ResponseSchema(code=0, data=ShopInfo.model_validate(shop))
 
 
@@ -85,7 +86,7 @@ async def update_my_shop(
     result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = result.scalar_one_or_none()
     if not shop:
-        raise BadRequestException("您还没有申请店铺")
+        raise BadRequestException("您还未创建店铺")
 
     update_data = request.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -170,6 +171,52 @@ async def list_shops(
     return ResponseSchema(code=0, data=page_data)
 
 
+@router.get("/search", response_model=ResponseSchema[PageResponse[ProductInfo]])
+async def search_products(
+    keyword: str = Query(..., description="搜索关键词"),
+    shop_id: int = Query(None, description="店铺ID筛选"),
+    category_id: int = Query(None, description="分类ID筛选"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Product).where(Product.status == ProductStatus.ON.value)
+    count_stmt = select(func.count(Product.id)).where(Product.status == ProductStatus.ON.value)
+
+    if keyword:
+        stmt = stmt.where(
+            Product.name.contains(keyword) | Product.description.contains(keyword)
+        )
+        count_stmt = count_stmt.where(
+            Product.name.contains(keyword) | Product.description.contains(keyword)
+        )
+    
+    if shop_id:
+        stmt = stmt.where(Product.shop_id == shop_id)
+        count_stmt = count_stmt.where(Product.shop_id == shop_id)
+    
+    if category_id:
+        stmt = stmt.where(Product.category_id == category_id)
+        count_stmt = count_stmt.where(Product.category_id == category_id)
+
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
+
+    stmt = stmt.order_by(Product.sales.desc()).offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(stmt)
+    products = result.scalars().all()
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=[ProductInfo.model_validate(p) for p in products],
+            total=total,
+            page=page,
+            page_size=page_size
+        )
+    )
+
+
 @router.get("/{shop_id}", response_model=ResponseSchema[ShopDetail])
 async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
     # PERF-REFORM-02: Try cache first for shop detail
@@ -197,6 +244,7 @@ async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
         latitude=shop.latitude,
         longitude=shop.longitude,
         business_hours=shop.business_hours,
+        business_days=shop.business_days,
         notice=shop.notice,
         rating=shop.rating,
         status=shop.status,
@@ -269,7 +317,17 @@ async def list_categories(shop_id: int, db: AsyncSession = Depends(get_db)):
     categories = result.scalars().all()
     return ResponseSchema(
         code=0,
-        data=[CategoryInfo.model_validate(cat) for cat in categories]
+        data=[
+            CategoryInfo(
+                id=cat.id,
+                shop_id=cat.shop_id,
+                name=cat.name,
+                sort_order=cat.sort_order,
+                created_at=cat.created_at,
+                products=[],
+            )
+            for cat in categories
+        ]
     )
 
 
@@ -751,49 +809,3 @@ async def get_shop_trend(
         })
 
     return ResponseSchema(code=0, data=result)
-
-
-@router.get("/search", response_model=ResponseSchema[PageResponse[ProductInfo]])
-async def search_products(
-    keyword: str = Query(..., description="搜索关键词"),
-    shop_id: int = Query(None, description="店铺ID筛选"),
-    category_id: int = Query(None, description="分类ID筛选"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-):
-    stmt = select(Product).where(Product.status == ProductStatus.ON.value)
-    count_stmt = select(func.count(Product.id)).where(Product.status == ProductStatus.ON.value)
-
-    if keyword:
-        stmt = stmt.where(
-            Product.name.contains(keyword) | Product.description.contains(keyword)
-        )
-        count_stmt = count_stmt.where(
-            Product.name.contains(keyword) | Product.description.contains(keyword)
-        )
-    
-    if shop_id:
-        stmt = stmt.where(Product.shop_id == shop_id)
-        count_stmt = count_stmt.where(Product.shop_id == shop_id)
-    
-    if category_id:
-        stmt = stmt.where(Product.category_id == category_id)
-        count_stmt = count_stmt.where(Product.category_id == category_id)
-
-    total_result = await db.execute(count_stmt)
-    total = total_result.scalar()
-
-    stmt = stmt.order_by(Product.sales.desc()).offset((page - 1) * page_size).limit(page_size)
-    result = await db.execute(stmt)
-    products = result.scalars().all()
-
-    return ResponseSchema(
-        code=0,
-        data=PageResponse(
-            items=[ProductInfo.model_validate(p) for p in products],
-            total=total,
-            page=page,
-            page_size=page_size
-        )
-    )

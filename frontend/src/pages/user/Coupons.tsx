@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Typography, List, Spin, Empty, Button, message, Tag, Tabs, Badge } from 'antd'
-import { TicketOutlined, CheckCircleOutlined, GiftOutlined } from '@ant-design/icons'
+import { TagOutlined, CheckCircleOutlined, GiftOutlined } from '@ant-design/icons'
 import { couponsApi, CouponInfo, UserCouponInfo } from '../../services/coupons'
 import { useNavigate } from 'react-router-dom'
 
@@ -76,7 +76,7 @@ export default function Coupons() {
     <div>
       <Card>
         <Title level={4} style={{ margin: 0 }}>
-          <TicketOutlined style={{ marginRight: 8 }} />
+          <TagOutlined style={{ marginRight: 8 }} />
           优惠券
         </Title>
       </Card>

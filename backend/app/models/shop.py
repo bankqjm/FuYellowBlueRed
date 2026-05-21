@@ -22,6 +22,7 @@ class Shop(Base):
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
     business_hours: Mapped[str] = mapped_column(String(100), nullable=True)
+    business_days: Mapped[str] = mapped_column(String(100), nullable=True)
     notice: Mapped[str] = mapped_column(String(500), nullable=True)
     rating: Mapped[float] = mapped_column(default=5.0)
     status: Mapped[int] = mapped_column(default=ShopStatus.PENDING.value)

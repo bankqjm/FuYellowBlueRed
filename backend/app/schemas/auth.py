@@ -93,3 +93,21 @@ class UpdateUserRequest(BaseModel):
         if v is not None:
             return strip_all_tags(v)
         return v
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=50)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("密码长度至少8位")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("密码必须包含小写字母")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("密码必须包含大写字母")
+        if not re.search(r"\d", v):
+            raise ValueError("密码必须包含数字")
+        return v

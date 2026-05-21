@@ -53,6 +53,16 @@ api.interceptors.response.use(
       } else {
         message.error('权限不足，无法访问该资源')
       }
+    } else if (status === 422) {
+      const details = error.response?.data?.detail
+      if (Array.isArray(details) && details.length > 0) {
+        const firstError = details[0]
+        const field = firstError.loc?.slice(-1)[0] || ''
+        const msg = firstError.msg || '数据验证失败'
+        message.error(field ? `${field}: ${msg}` : msg)
+      } else {
+        message.error(error.response?.data?.message || '提交数据验证失败，请检查输入')
+      }
     } else {
       message.error(error.response?.data?.message || error.message || '网络错误')
     }

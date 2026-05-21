@@ -75,7 +75,7 @@ function App() {
           <Route
             path="/user"
             element={
-              <AuthGuard roles={['USER', 'SHOP_OWNER', 'RIDER']}>
+              <AuthGuard roles={['USER', 'SHOP_OWNER', 'RIDER', 'ADMIN']}>
                 <UserLayout />
               </AuthGuard>
             }
@@ -108,6 +108,7 @@ function App() {
             <Route path="products" element={<ShopProducts />} />
             <Route path="orders" element={<ShopOrders />} />
             <Route path="earnings" element={<ShopEarnings />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
           <Route
             path="/rider"
@@ -121,6 +122,7 @@ function App() {
             <Route path="orders" element={<RiderOrders />} />
             <Route path="earnings" element={<RiderEarnings />} />
             <Route path="withdraw" element={<RiderWithdraw />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
           <Route
             path="/admin"
@@ -137,6 +139,7 @@ function App() {
             <Route path="orders" element={<AdminOrders />} />
             <Route path="audit-logs" element={<AdminAuditLogs />} />
             <Route path="config" element={<AdminConfig />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />

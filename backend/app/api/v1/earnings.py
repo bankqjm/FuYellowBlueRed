@@ -21,7 +21,12 @@ async def get_shop_earnings_summary(
     shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = shop_result.scalar_one_or_none()
     if not shop:
-        raise ForbiddenException("商家不存在")
+        return ResponseSchema(code=0, data={
+            "total_earnings": 0,
+            "settled_amount": 0,
+            "unsettled_amount": 0,
+            "order_count": 0,
+        })
 
     total_result = await db.execute(
         select(func.sum(ShopEarning.net_amount)).where(
@@ -72,7 +77,10 @@ async def get_shop_earnings_list(
     shop_result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
     shop = shop_result.scalar_one_or_none()
     if not shop:
-        raise ForbiddenException("商家不存在")
+        return ResponseSchema(
+            code=0,
+            data=PageResponse(items=[], total=0, page=page, page_size=page_size),
+        )
 
     stmt = select(ShopEarning).where(ShopEarning.shop_id == shop.id)
     count_stmt = select(func.count(ShopEarning.id)).where(ShopEarning.shop_id == shop.id)

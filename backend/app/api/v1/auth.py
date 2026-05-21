@@ -5,10 +5,11 @@ from datetime import datetime, timedelta
 import secrets
 from app.database import get_db
 from app.models.models import User, Wallet
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserInfo
+from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserInfo, ChangePasswordRequest
 from app.schemas.base import ResponseSchema
 from app.utils.auth import hash_password, verify_password, generate_tokens, logout_token, verify_token
 from app.core import BadRequestException, UnauthorizedException, get_logger
+from app.deps.auth import get_current_user
 from app.config import settings
 from app.utils.log_mask import mask_phone
 
@@ -231,6 +232,7 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
 
 @router.post("/logout", response_model=ResponseSchema[None])
 async def logout(request: Request, response: Response):
+    # Blacklist Cookie tokens
     access_token = request.cookies.get("access_token")
     refresh_token = request.cookies.get("refresh_token")
 
@@ -239,9 +241,31 @@ async def logout(request: Request, response: Response):
     if refresh_token:
         await logout_token(refresh_token)
 
+    # Also blacklist Bearer token from Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        bearer_token = auth_header[7:]
+        await logout_token(bearer_token)
+
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
     response.delete_cookie(key="csrf_token", path="/")
 
     logger.info("User logged out")
     return ResponseSchema(code=0, message="退出成功")
+
+
+@router.post("/change-password", response_model=ResponseSchema[None])
+async def change_password(
+    request: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(request.old_password, current_user.password_hash):
+        raise BadRequestException("原密码不正确")
+
+    current_user.password_hash = hash_password(request.new_password)
+    await db.commit()
+
+    logger.info(f"Password changed for user: {current_user.id}")
+    return ResponseSchema(code=0, message="密码修改成功")

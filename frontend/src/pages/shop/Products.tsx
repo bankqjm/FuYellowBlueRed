@@ -16,6 +16,7 @@ import {
   Tabs,
   Tag,
   Upload,
+  Empty,
 } from 'antd'
 import {
   PlusOutlined,
@@ -24,19 +25,23 @@ import {
   AppstoreOutlined,
   ShoppingOutlined,
   UploadOutlined,
+  ShopOutlined,
 } from '@ant-design/icons'
 import { shopApi, ShopInfo, CategoryInfo, ProductInfo } from '../../services/shop'
 import { uploadApi } from '../../services/upload'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useNavigate } from 'react-router-dom'
 
 const { TextArea } = Input
 const { Option } = Select
 
 export default function Products() {
+  const navigate = useNavigate()
   const [shop, setShop] = useState<ShopInfo | null>(null)
   const [categories, setCategories] = useState<CategoryInfo[]>([])
   const [products, setProducts] = useState<ProductInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasShop, setHasShop] = useState<boolean | null>(null)
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false)
   const [productModalVisible, setProductModalVisible] = useState(false)
@@ -55,13 +60,17 @@ export default function Products() {
       setShop(shopRes.data)
 
       if (shopRes.data) {
+        setHasShop(true)
         const categoriesRes = await shopApi.listCategories(shopRes.data.id)
         setCategories(categoriesRes.data)
 
         const productsRes = await shopApi.listProducts(shopRes.data.id)
         setProducts(productsRes.data.items)
+      } else {
+        setHasShop(false)
       }
     } catch (error) {
+      setHasShop(false)
       console.error('获取数据失败:', error)
     } finally {
       setLoading(false)
@@ -421,6 +430,22 @@ export default function Products() {
       ),
     },
   ]
+
+  if (hasShop === false) {
+    return (
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <Empty
+          image={<ShopOutlined style={{ fontSize: 48, color: '#1890ff' }} />}
+          description={
+            <div>
+              <p style={{ color: '#8c8c8c' }}>欢迎入驻！创建店铺后即可管理商品</p>
+              <Button type="primary" onClick={() => navigate('/shop/info')}>创建我的店铺</Button>
+            </div>
+          }
+        />
+      </div>
+    )
+  }
 
   return (
     <Card>

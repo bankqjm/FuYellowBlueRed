@@ -1,7 +1,7 @@
 
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Menu, Avatar, Space, Dropdown } from 'antd'
-import { InboxOutlined, LogoutOutlined, WalletOutlined, DollarOutlined } from '@ant-design/icons'
+import { InboxOutlined, LogoutOutlined, WalletOutlined, DollarOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/authStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -29,6 +29,14 @@ export default function RiderLayout() {
 
   const userMenuItems: MenuProps['items'] = [
     {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: '个人中心',
+    },
+    {
+      type: 'divider',
+    },
+    {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
@@ -41,6 +49,8 @@ export default function RiderLayout() {
       try { await api.post('/auth/logout') } catch {}
       logout()
       navigate('/login')
+    } else if (key === 'profile') {
+      navigate('/rider/profile')
     }
   }
 

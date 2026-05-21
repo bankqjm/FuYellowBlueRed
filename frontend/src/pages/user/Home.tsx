@@ -381,14 +381,14 @@ export default function UserHome() {
             <Carousel autoplay dots={{ className: 'carousel-dots' }} style={{ borderRadius: 0 }}>
               <div style={{ height: 120, background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', padding: '0 24px' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, fontWeight: 700 }}>新人专享红包</div>
-                  <div style={{ fontSize: 14, marginTop: 4 }}>首单立减 最高减20元</div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>美食外卖</div>
+                  <div style={{ fontSize: 14, marginTop: 4 }}>附近好店 一键送达</div>
                 </div>
               </div>
               <div style={{ height: 120, background: 'linear-gradient(135deg, #1890ff, #0984e3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', padding: '0 24px' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 20, fontWeight: 700 }}>准时达保障</div>
-                  <div style={{ fontSize: 14, marginTop: 4 }}>超时赔付 放心下单</div>
+                  <div style={{ fontSize: 14, marginTop: 4 }}>专业骑手 准时配送</div>
                 </div>
               </div>
               <div style={{ height: 120, background: 'linear-gradient(135deg, #00b894, #00cec9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', padding: '0 24px' }}>
@@ -488,14 +488,14 @@ export default function UserHome() {
             <Carousel autoplay>
               <div style={{ height: 160, background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, fontWeight: 700 }}>新人专享红包</div>
-                  <div style={{ fontSize: 16, marginTop: 8 }}>首单立减 最高减20元</div>
+                  <div style={{ fontSize: 28, fontWeight: 700 }}>美食外卖</div>
+                  <div style={{ fontSize: 16, marginTop: 8 }}>附近好店 一键送达</div>
                 </div>
               </div>
               <div style={{ height: 160, background: 'linear-gradient(135deg, #1890ff, #0984e3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 28, fontWeight: 700 }}>准时达保障</div>
-                  <div style={{ fontSize: 16, marginTop: 8 }}>超时赔付 放心下单</div>
+                  <div style={{ fontSize: 16, marginTop: 8 }}>专业骑手 准时配送</div>
                 </div>
               </div>
               <div style={{ height: 160, background: 'linear-gradient(135deg, #00b894, #00cec9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>

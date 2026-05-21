@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Card, Typography, Row, Col, Statistic, Table, Tag, Spin } from 'antd'
+import { Card, Typography, Row, Col, Statistic, Table, Tag, Spin, Empty, Button } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DollarOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, ClockCircleOutlined, ShopOutlined } from '@ant-design/icons'
 import api from '@/services/api'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { useNavigate } from 'react-router-dom'
 
 const { Title, Text } = Typography
 
@@ -26,8 +27,10 @@ interface EarningItem {
 }
 
 export default function ShopEarnings() {
+  const navigate = useNavigate()
   const isMobile = useIsMobile()
   const [loading, setLoading] = useState(false)
+  const [hasShop, setHasShop] = useState<boolean | null>(null)
   const [summary, setSummary] = useState<EarningsSummary | null>(null)
   const [earnings, setEarnings] = useState<EarningItem[]>([])
   const [total, setTotal] = useState(0)
@@ -38,8 +41,13 @@ export default function ShopEarnings() {
     try {
       const res = await api.get('/shop/earnings/summary')
       setSummary(res.data)
-    } catch (error) {
-      console.error('获取收益汇总失败', error)
+      setHasShop(true)
+    } catch (error: any) {
+      if (error?.response?.data?.message?.includes('没有店铺')) {
+        setHasShop(false)
+      } else {
+        console.error('获取收益汇总失败', error)
+      }
     }
   }
 
@@ -74,6 +82,22 @@ export default function ShopEarnings() {
     { title: '状态', dataIndex: 'status', width: 80, render: (v) => v === 'SETTLED' ? <Tag color="green">已结算</Tag> : <Tag color="orange">未结算</Tag> },
     { title: '时间', dataIndex: 'created_at', width: 160, render: (v) => v ? new Date(v).toLocaleString() : '-' },
   ]
+
+  if (hasShop === false) {
+    return (
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <Empty
+          image={<ShopOutlined style={{ fontSize: 48, color: '#1890ff' }} />}
+          description={
+            <div>
+              <p style={{ color: '#8c8c8c' }}>欢迎入驻！创建店铺后即可查看收益</p>
+              <Button type="primary" onClick={() => navigate('/shop/info')}>创建我的店铺</Button>
+            </div>
+          }
+        />
+      </div>
+    )
+  }
 
   if (isMobile) {
     return (
@@ -126,10 +150,10 @@ export default function ShopEarnings() {
           <Card><Statistic title="总收益" value={summary?.total_earnings || 0} prefix="¥" valueStyle={{ color: '#52c41a' }} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="已结算" value={summary?.settled_amount || 0} prefix="¥" prefix={<CheckCircleOutlined />} valueStyle={{ color: '#1890ff' }} /></Card>
+          <Card><Statistic title="已结算" value={summary?.settled_amount || 0} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#1890ff' }} /></Card>
         </Col>
         <Col span={6}>
-          <Card><Statistic title="未结算" value={summary?.unsettled_amount || 0} prefix="¥" prefix={<ClockCircleOutlined />} valueStyle={{ color: '#faad14' }} /></Card>
+          <Card><Statistic title="未结算" value={summary?.unsettled_amount || 0} prefix={<ClockCircleOutlined />} valueStyle={{ color: '#faad14' }} /></Card>
         </Col>
         <Col span={6}>
           <Card><Statistic title="订单数" value={summary?.order_count || 0} /></Card>

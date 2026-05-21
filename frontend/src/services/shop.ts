@@ -10,6 +10,7 @@ export interface ShopInfo {
   latitude?: number
   longitude?: number
   business_hours?: string
+  business_days?: string
   notice?: string
   rating: number
   status: number
@@ -128,6 +129,7 @@ export const shopApi = {
     latitude?: number
     longitude?: number
     business_hours?: string
+    business_days?: string
     notice?: string
   }) => api.post<ShopInfo>('/shop/apply', data),
 
@@ -140,6 +142,7 @@ export const shopApi = {
     latitude?: number
     longitude?: number
     business_hours?: string
+    business_days?: string
     notice?: string
   }) => api.put<ShopInfo>('/shop/my', data),
 

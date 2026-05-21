@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Typography, Tabs, List, Empty, Button, Space, Tag, Spin, message, Modal, Input } from 'antd'
-import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, ShopOutlined } from '@ant-design/icons'
 import { shopApi, OrderInfo } from '../../services/shop'
+import { useNavigate } from 'react-router-dom'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -16,7 +17,9 @@ const rejectReasons = [
 ]
 
 export default function ShopOrders() {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [hasShop, setHasShop] = useState<boolean | null>(null)
   const [orders, setOrders] = useState<OrderInfo[]>([])
   const [status, setStatus] = useState<string>('')
   const [rejectModalVisible, setRejectModalVisible] = useState(false)
@@ -28,8 +31,13 @@ export default function ShopOrders() {
       setLoading(true)
       const res = await shopApi.getShopOrders({ status: status || undefined })
       setOrders(res.data.items)
-    } catch (error) {
-      console.error('获取订单失败', error)
+      setHasShop(true)
+    } catch (error: any) {
+      if (error?.response?.data?.message?.includes('没有店铺')) {
+        setHasShop(false)
+      } else {
+        console.error('获取订单失败', error)
+      }
     } finally {
       setLoading(false)
     }
@@ -105,6 +113,22 @@ export default function ShopOrders() {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" />
+      </div>
+    )
+  }
+
+  if (hasShop === false) {
+    return (
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <Empty
+          image={<ShopOutlined style={{ fontSize: 48, color: '#1890ff' }} />}
+          description={
+            <div>
+              <p style={{ color: '#8c8c8c' }}>欢迎入驻！创建店铺后即可管理订单</p>
+              <Button type="primary" onClick={() => navigate('/shop/info')}>创建我的店铺</Button>
+            </div>
+          }
+        />
       </div>
     )
   }
