@@ -2,6 +2,7 @@ from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
+from datetime import datetime, timezone
 from app.database import get_db
 from app.models.models import User
 from app.utils.auth import verify_token, is_token_valid
@@ -50,6 +51,14 @@ async def get_current_user(
 
     if user.status == 0:
         raise UnauthorizedException("账号已被禁用")
+
+    # Check if token was issued before password change
+    if user.password_changed_at:
+        iat = payload.get("iat")
+        if iat:
+            token_issued_at = datetime.fromtimestamp(iat, timezone.utc)
+            if token_issued_at < user.password_changed_at:
+                raise UnauthorizedException("密码已修改，请重新登录")
 
     return user
 

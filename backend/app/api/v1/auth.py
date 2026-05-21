@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 from app.database import get_db
 from app.models.models import User, Wallet
@@ -265,6 +265,7 @@ async def change_password(
         raise BadRequestException("原密码不正确")
 
     current_user.password_hash = hash_password(request.new_password)
+    current_user.password_changed_at = datetime.now(timezone.utc)
     await db.commit()
 
     logger.info(f"Password changed for user: {current_user.id}")

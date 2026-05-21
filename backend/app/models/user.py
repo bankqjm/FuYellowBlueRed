@@ -19,6 +19,7 @@ class User(Base):
     status: Mapped[int] = mapped_column(default=UserStatus.ACTIVE.value, index=True)
     failed_login_count: Mapped[int] = mapped_column(default=0)
     locked_until: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    password_changed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
