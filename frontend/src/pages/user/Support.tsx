@@ -1,6 +1,6 @@
 
 import { useState } from 'react'
-import { Card, Typography, List, Collapse, Input, Button, message, Space, Tag } from 'antd'
+import { Card, Typography, Collapse, Input, Button, message, Space, Tag } from 'antd'
 import {
   CustomerServiceOutlined,
   PhoneOutlined,

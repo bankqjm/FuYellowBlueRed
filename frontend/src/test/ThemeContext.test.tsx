@@ -23,7 +23,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     expect(screen.getByTestId('theme-value').textContent).toBe('light')
   })
@@ -32,7 +32,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     fireEvent.click(screen.getByTestId('toggle-btn'))
     expect(screen.getByTestId('theme-value').textContent).toBe('dark')
@@ -42,7 +42,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     fireEvent.click(screen.getByTestId('toggle-btn'))
     fireEvent.click(screen.getByTestId('toggle-btn'))
@@ -53,7 +53,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     fireEvent.click(screen.getByTestId('toggle-btn'))
     expect(localStorage.setItem).toHaveBeenCalledWith('theme', 'dark')
@@ -63,7 +63,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     expect(localStorage.getItem).toHaveBeenCalledWith('theme')
   })
@@ -72,7 +72,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     fireEvent.click(screen.getByTestId('toggle-btn'))
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
@@ -82,7 +82,7 @@ describe('ThemeContext', () => {
     render(
       <ThemeProvider>
         <ThemeTestComponent />
-      </ThemeProvider>
+      </ThemeProvider>,
     )
     fireEvent.click(screen.getByTestId('toggle-btn'))
     expect(document.body.classList.contains('dark-theme')).toBe(true)

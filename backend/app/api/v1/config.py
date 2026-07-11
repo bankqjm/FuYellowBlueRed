@@ -70,7 +70,7 @@ async def update_config(
     if key not in valid_keys:
         raise BadRequestException(f"无效的配置项: {key}")
 
-    if key in ["SHOP_COMMISSION_RATE", "RIDER_SERVICE_FEE_RATE"]:
+    if key in ["SHOP_COMMISSION_RATE", "RIDER_SERVICE_FEE_RATE", "RIDER_COMMISSION_RATE"]:
         try:
             rate = float(value)
             if not 0 <= rate <= 1:
@@ -96,6 +96,7 @@ def _get_config_description(key: str) -> str:
     descriptions = {
         "SHOP_COMMISSION_RATE": "商家抽成比例（商品金额）",
         "RIDER_SERVICE_FEE_RATE": "骑手服务费比例（配送费）",
+        "RIDER_COMMISSION_RATE": "骑手佣金比例（配送费）",
         "MIN_WITHDRAWAL_AMOUNT": "最低提现金额",
         "PLATFORM_NAME": "平台名称",
         "PLATFORM_CONTACT": "平台联系方式",

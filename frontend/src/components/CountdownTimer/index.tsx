@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Typography } from 'antd'
 
 const { Text } = Typography
@@ -22,39 +22,41 @@ export default function CountdownTimer({
   warningThreshold = 300,
   expiredText = '已过期',
 }: CountdownTimerProps) {
-  const [remainingSeconds, setRemainingSeconds] = useState(() => {
-    return Math.max(0, Math.floor((endTime.getTime() - Date.now()) / 1000))
-  })
+  const initialSeconds = Math.max(0, Math.floor((endTime.getTime() - Date.now()) / 1000))
 
-  const isWarning = remainingSeconds > 0 && remainingSeconds <= warningThreshold
-  const isExpired = remainingSeconds <= 0
+  const remainingRef = useRef(initialSeconds)
+  const [displaySeconds, setDisplaySeconds] = useState(initialSeconds)
+  const expiredRef = useRef(false)
 
-  const handleExpire = useCallback(() => {
-    if (onExpire) {
-      onExpire()
-    }
-  }, [onExpire])
+  const isWarning = displaySeconds > 0 && displaySeconds <= warningThreshold
+  const isExpired = displaySeconds <= 0
 
   useEffect(() => {
-    if (remainingSeconds <= 0) {
-      handleExpire()
+    if (initialSeconds <= 0) {
+      if (!expiredRef.current) {
+        expiredRef.current = true
+        onExpire?.()
+      }
       return
     }
 
-    const timer = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        const next = prev - 1
-        if (next <= 0) {
-          clearInterval(timer)
-          handleExpire()
-          return 0
+    const interval = setInterval(() => {
+      remainingRef.current -= 1
+      if (remainingRef.current <= 0) {
+        remainingRef.current = 0
+        setDisplaySeconds(0)
+        clearInterval(interval)
+        if (!expiredRef.current) {
+          expiredRef.current = true
+          onExpire?.()
         }
-        return next
-      })
+      } else {
+        setDisplaySeconds(remainingRef.current)
+      }
     }, 1000)
 
-    return () => clearInterval(timer)
-  }, [remainingSeconds, handleExpire])
+    return () => clearInterval(interval)
+  }, [initialSeconds, onExpire])
 
   if (isExpired) {
     return <Text type="secondary">{expiredText}</Text>
@@ -69,7 +71,7 @@ export default function CountdownTimer({
         fontFamily: 'monospace',
       }}
     >
-      {formatTime(remainingSeconds)}
+      {formatTime(displaySeconds)}
     </Text>
   )
 }

@@ -80,7 +80,7 @@ class OrderService(BaseService):
             select(Product).where(
                 Product.id == request.product_id,
                 Product.shop_id == request.shop_id,
-                Product.status == ProductStatus.ON,
+                Product.status == ProductStatus.ON.value,
             )
         )
         product = product_result.scalar_one_or_none()
@@ -201,7 +201,7 @@ class OrderService(BaseService):
                 select(Product).where(Product.id == cart_item.product_id).with_for_update()
             )
             product = product_result.scalar_one_or_none()
-            if not product or product.status != ProductStatus.ON:
+            if not product or product.status != ProductStatus.ON.value:
                 raise BadRequestException(f"商品 {cart_item.product_id} 不存在或已下架")
             # Re-check stock after lock (SEC-REFORM-04: "lock then check" pattern)
             if product.stock < cart_item.quantity:
@@ -213,6 +213,12 @@ class OrderService(BaseService):
             order_items.append((product, cart_item.quantity))
 
         delivery_fee = to_decimal(shop.delivery_fee) if shop.delivery_fee is not None else ZERO
+
+        # 最低消费校验
+        min_order_amount = to_decimal(shop.min_order_amount) if shop.min_order_amount is not None else ZERO
+        if min_order_amount > ZERO and total_amount < min_order_amount:
+            raise BadRequestException(f"订单金额未达到最低消费¥{min_order_amount}")
+
         discount_amount = ZERO
         user_coupon = None
 
@@ -255,6 +261,7 @@ class OrderService(BaseService):
             discount_amount=discount_amount,
             coupon_id=request.coupon_id,
             delivery_fee=delivery_fee,
+            dining_count=request.dining_count if hasattr(request, 'dining_count') else 1,
             status=OrderStatus.PENDING_PAYMENT,
         )
         self.db.add(order)
@@ -327,6 +334,8 @@ class OrderService(BaseService):
         await delay_queue.remove_order(order_id)
         logger.debug(f"Removed order {order_id} from delay queue")
 
+        order.pay_channel = channel
+        order.pay_time = datetime.now()
         order.status = OrderStatus.PENDING_ACCEPT
         await self.commit()
         await self.refresh(order)
@@ -351,6 +360,24 @@ class OrderService(BaseService):
         if query.status:
             stmt = stmt.where(Order.status == query.status)
             count_stmt = count_stmt.where(Order.status == query.status)
+        if hasattr(query, 'start_date') and query.start_date:
+            try:
+                start = datetime.strptime(query.start_date, "%Y-%m-%d")
+                stmt = stmt.where(Order.created_at >= start)
+                count_stmt = count_stmt.where(Order.created_at >= start)
+            except ValueError:
+                pass
+        if hasattr(query, 'end_date') and query.end_date:
+            try:
+                end = datetime.strptime(query.end_date, "%Y-%m-%d")
+                end = end.replace(hour=23, minute=59, second=59)
+                stmt = stmt.where(Order.created_at <= end)
+                count_stmt = count_stmt.where(Order.created_at <= end)
+            except ValueError:
+                pass
+        if hasattr(query, 'shop_id') and query.shop_id:
+            stmt = stmt.where(Order.shop_id == query.shop_id)
+            count_stmt = count_stmt.where(Order.shop_id == query.shop_id)
 
         total_result = await self.db.execute(count_stmt)
         total = total_result.scalar()
@@ -450,12 +477,16 @@ class OrderService(BaseService):
         order_id: int,
         cancel_type: str = "user",
         reason: str = None,
+        user_id: int = None,
     ) -> OrderResponse:
         from app.services.finance import FinanceService
         from app.models.models import User
 
+        conditions = [Order.id == order_id]
+        if user_id is not None:
+            conditions.append(Order.user_id == user_id)
         result = await self.db.execute(
-            select(Order).where(Order.id == order_id)
+            select(Order).where(*conditions)
         )
         order = result.scalar_one_or_none()
         if not order:

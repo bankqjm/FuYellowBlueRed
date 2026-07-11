@@ -1,4 +1,4 @@
-import { Card, Typography, List, Avatar, Space, Button, Tag, Divider, Switch, Modal, Form, Input, Upload, message, Descriptions } from 'antd'
+import { Card, Typography, Avatar, Button, Tag, Divider, Switch, Modal, Form, Input, Upload, message } from 'antd'
 import {
   UserOutlined,
   EditOutlined,
@@ -26,7 +26,7 @@ import api from '@/services/api'
 import { uploadApi } from '@/services/upload'
 import { useState, useMemo } from 'react'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface MenuItem {
   icon: React.ReactNode
@@ -56,9 +56,9 @@ export default function Profile() {
   // 根据当前路径前缀判断返回路径
   const basePath = useMemo(() => {
     const path = location.pathname
-    if (path.startsWith('/shop')) return '/shop'
-    if (path.startsWith('/rider')) return '/rider'
-    if (path.startsWith('/admin')) return '/admin'
+    if (path.startsWith('/shop')) {return '/shop'}
+    if (path.startsWith('/rider')) {return '/rider'}
+    if (path.startsWith('/admin')) {return '/admin'}
     return '/user'
   }, [location.pathname])
 

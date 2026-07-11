@@ -3,7 +3,7 @@ import { vi } from 'vitest'
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -15,12 +15,15 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-window.localStorage = {
+const localStorageMock = {
+  length: 0,
+  key: vi.fn(),
   getItem: vi.fn(),
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
 }
+window.localStorage = localStorageMock
 
 vi.mock('axios', () => {
   const mockAxios = {

@@ -159,7 +159,12 @@ activemq-data/
 *.sage.py
 
 # Environments
+# .env - 基础环境配置（不纳入版本控制）
+# .env.local - 本地开发专用配置，含数据库等敏感信息（不纳入版本控制）
+# .env.example - 配置模板（允许纳入版本控制，供新开发者参考）
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -242,3 +247,9 @@ backend/dist/
 backend/uploads/
 upload/
 **/__pycache__/
+
+# Test artifacts
+test_*.py
+test_results/
+*.test.js
+*.spec.js.bak

@@ -77,7 +77,7 @@ async def test_recharge_wallet_admin(db, client):
     user = await create_test_user(db, role="USER", phone="19940000021")
     headers = auth_headers(admin.id, role="ADMIN")
 
-    res = await client.post(f"/api/v1/wallet/recharge/{user.id}?amount=500.0", headers=headers)
+    res = await client.post(f"/api/v1/wallet/recharge/{user.id}", json={"amount": 500.0}, headers=headers)
     assert res.status_code == 200
     data = res.json()["data"]
     assert data["amount"] == 500.0
@@ -88,7 +88,7 @@ async def test_recharge_wallet_non_admin(db, client):
     user = await create_test_user(db, role="USER", phone="19940000003")
     headers = auth_headers(user.id, role="USER")
 
-    res = await client.post("/api/v1/wallet/recharge/1?amount=100.0", headers=headers)
+    res = await client.post("/api/v1/wallet/recharge/1", json={"amount": 100.0}, headers=headers)
     assert res.status_code == 403
 
 
@@ -98,7 +98,7 @@ async def test_admin_recharge_user_wallet(db, client):
     user = await create_test_user(db, role="USER", phone="19940000005")
     headers = auth_headers(admin.id, role="ADMIN")
 
-    res = await client.post(f"/api/v1/wallet/recharge/{user.id}?amount=200.0", headers=headers)
+    res = await client.post(f"/api/v1/wallet/recharge/{user.id}", json={"amount": 200.0}, headers=headers)
     assert res.status_code == 200
     data = res.json()["data"]
     assert data["user_id"] == user.id

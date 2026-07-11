@@ -41,9 +41,12 @@ class RedisClient:
     async def add_to_blacklist(self, token: str, expires_at: int):
         if not self.is_connected:
             return
+        ttl = int(expires_at - (await self.client.time())[0])
+        if ttl <= 0:
+            return  # Token已过期，无需加入黑名单
         await self.client.setex(
             f"token:blacklist:{token}",
-            expires_at - (await self.client.time())[0],
+            ttl,
             "1"
         )
 

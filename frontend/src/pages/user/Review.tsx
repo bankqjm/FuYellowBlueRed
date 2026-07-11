@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Card, Typography, Form, Rate, Input, Button, message, Spin, Upload, Image, Modal } from 'antd'
+import { Card, Typography, Form, Rate, Input, Button, message, Spin, Upload, Image } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { reviewApi } from '../../services/review'
 import { orderApi } from '../../services/order'
@@ -19,8 +19,6 @@ export default function ReviewPage() {
   const [form] = Form.useForm()
   const [shopRating, setShopRating] = useState(5)
   const [riderRating, setRiderRating] = useState(5)
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewImage, setPreviewImage] = useState('')
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
 
   useEffect(() => {
@@ -78,11 +76,6 @@ export default function ReviewPage() {
       message.error('图片上传失败')
     }
     return false
-  }
-
-  const handlePreview = (url: string) => {
-    setPreviewImage(url)
-    setPreviewOpen(true)
   }
 
   const handleRemove = (url: string) => {

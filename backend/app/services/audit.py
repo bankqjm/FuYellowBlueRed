@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.models import AuditLog, FinanceAuditLog
@@ -33,7 +33,7 @@ async def log_audit(
         user_agent=user_agent[:255] if user_agent else None,
     )
     db.add(audit)
-    await db.commit()
+    await db.flush()
     logger.info(f"Audit: action={action}, user_id={user_id}, resource={resource}/{resource_id}")
 
 
@@ -52,7 +52,7 @@ async def log_finance_audit(
         logger.warning(f"Large amount alert: user_id={user_id}, type={audit_type}, amount={mask_amount(amount)}")
 
     if audit_type == "WITHDRAWAL" and user_id:
-        cutoff = datetime.now() - __import__("datetime").timedelta(hours=FREQUENT_WITHDRAWAL_WINDOW_HOURS)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=FREQUENT_WITHDRAWAL_WINDOW_HOURS)
         result = await db.execute(
             select(func.count(FinanceAuditLog.id)).where(
                 FinanceAuditLog.user_id == user_id,
@@ -74,6 +74,6 @@ async def log_finance_audit(
         ip_address=ip_address,
     )
     db.add(audit)
-    await db.commit()
+    await db.flush()
 
     return is_alert == 1

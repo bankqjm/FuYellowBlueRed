@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Modal, Form, Select, Input, Tag } from 'antd'
+import { Card, Typography, List, Button, Space, Image, Empty, Spin, message, Modal, Form, Select, Input, InputNumber, Tag } from 'antd'
 import { MinusOutlined, PlusOutlined, DeleteOutlined, ArrowLeftOutlined, TagOutlined } from '@ant-design/icons'
 import { cartApi, CartItemInfo, orderApi } from '../../services/order'
 import { addressApi, AddressInfo } from '../../services/address'
@@ -25,12 +25,22 @@ export default function Cart() {
   const [availableCoupons, setAvailableCoupons] = useState<any[]>([])
   const [selectedCouponId, setSelectedCouponId] = useState<number | undefined>()
   const [discountAmount, setDiscountAmount] = useState(0)
+  const [diningCount, setDiningCount] = useState(1)
+  const [shopInfo, setShopInfo] = useState<{ delivery_fee: number; min_order_amount: number } | null>(null)
 
   const fetchCart = async () => {
     try {
       setLoading(true)
       const res = await cartApi.getCart()
       setCart(res.data)
+      if (res.data.length > 0) {
+        const shopId = res.data[0].shop_id
+        const shopRes = await api.get(`/shop/${shopId}`)
+        setShopInfo({
+          delivery_fee: shopRes.data.delivery_fee || 0,
+          min_order_amount: shopRes.data.min_order_amount || 0,
+        })
+      }
     } catch (error) {
       console.error('获取购物车失败', error)
     } finally {
@@ -69,8 +79,8 @@ export default function Cart() {
       const subtotal = cartTotal.price
       const validCoupons = coupons.filter((uc: any) => {
         const coupon = uc.coupon
-        if (!coupon) return false
-        if (subtotal < coupon.min_order_amount) return false
+        if (!coupon) {return false}
+        if (subtotal < coupon.min_order_amount) {return false}
         const now = new Date()
         const validUntil = new Date(coupon.valid_until)
         return validUntil >= now
@@ -146,6 +156,11 @@ export default function Cart() {
       return
     }
 
+    if (shopInfo && shopInfo.min_order_amount > 0 && cartTotal.price < shopInfo.min_order_amount) {
+      message.error(`订单金额未达到起送金额¥${shopInfo.min_order_amount.toFixed(0)}`)
+      return
+    }
+
     const shopId = cart[0].shop_id
     try {
       const res = await orderApi.createOrder({
@@ -153,6 +168,7 @@ export default function Cart() {
         shop_id: shopId,
         remark: remark,
         coupon_id: selectedCouponId,
+        dining_count: diningCount,
       })
       message.success('订单创建成功')
       setCheckoutModalVisible(false)
@@ -349,6 +365,15 @@ export default function Cart() {
               ))}
             </Select>
           </Form.Item>
+          <Form.Item label="用餐人数">
+            <InputNumber
+              min={1}
+              max={20}
+              value={diningCount}
+              onChange={(val) => setDiningCount(val || 1)}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
           <Form.Item label="订单备注">
             <TextArea
               value={remark}
@@ -362,10 +387,18 @@ export default function Cart() {
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text type="secondary">共{cartTotal.quantity}件商品，小计：¥{cartTotal.price.toFixed(2)}</Text>
+            {shopInfo && shopInfo.delivery_fee > 0 && (
+              <Text type="secondary">配送费：¥{shopInfo.delivery_fee.toFixed(2)}</Text>
+            )}
             {discountAmount > 0 && (
               <Text type="success">优惠券抵扣：-¥{discountAmount.toFixed(2)}</Text>
             )}
-            <Text type="danger" strong style={{ fontSize: 24 }}>实付：¥{(cartTotal.price - discountAmount).toFixed(2)}</Text>
+            {shopInfo && shopInfo.min_order_amount > 0 && cartTotal.price < shopInfo.min_order_amount && (
+              <Text type="warning">未达到起送金额¥{shopInfo.min_order_amount.toFixed(0)}，还差¥{(shopInfo.min_order_amount - cartTotal.price).toFixed(2)}</Text>
+            )}
+            <Text type="danger" strong style={{ fontSize: 24 }}>
+              实付：¥{(cartTotal.price + (shopInfo?.delivery_fee || 0) - discountAmount).toFixed(2)}
+            </Text>
           </Space>
         </div>
       </Modal>

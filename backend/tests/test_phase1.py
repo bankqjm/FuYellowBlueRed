@@ -468,7 +468,8 @@ class TestRequireRoleReturns403:
         # wallet/recharge/{user_id} requires ADMIN
         headers = auth_headers(test_user.id, role="USER")
         response = await client.post(
-            f"/api/v1/wallet/recharge/{test_user.id}?amount=100.0",
+            f"/api/v1/wallet/recharge/{test_user.id}",
+            json={"amount": 100.0},
             headers=headers,
         )
         assert response.status_code == 403, (
@@ -478,7 +479,8 @@ class TestRequireRoleReturns403:
     async def test_unauthenticated_request_returns_401(self, client, db_session):
         """Unauthenticated requests should still return 401."""
         response = await client.post(
-            "/api/v1/wallet/recharge/1?amount=100.0",
+            "/api/v1/wallet/recharge/1",
+            json={"amount": 100.0},
         )
         assert response.status_code == 401, (
             f"Expected 401 for unauthenticated request, got {response.status_code}"
@@ -1205,7 +1207,8 @@ class TestWalletWithdrawEndpoint:
 
         headers = auth_headers(test_user.id, role="USER")
         response = await client.post(
-            f"/api/v1/wallet/recharge/{test_user.id}?amount=100.0",
+            f"/api/v1/wallet/recharge/{test_user.id}",
+            json={"amount": 100.0},
             headers=headers,
         )
         assert response.status_code == 403

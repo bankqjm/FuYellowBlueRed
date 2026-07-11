@@ -2,11 +2,12 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 from app.database import get_db
 from app.models.models import User, Coupon, UserCoupon
 from app.schemas.base import ResponseSchema, PageResponse, BaseSchema, DecimalField
-from app.deps.auth import get_current_user
+from app.deps.auth import get_current_user, require_admin
 from app.core import BadRequestException, NotFoundException, get_logger
 from typing import Optional
 
@@ -97,8 +98,13 @@ async def claim_coupon(
         raise BadRequestException("您已领取过该优惠券")
 
     coupon.remain_count -= 1
-    user_coupon = UserCoupon(user_id=current_user.id, coupon_id=coupon_id)
-    db.add(user_coupon)
+    try:
+        user_coupon = UserCoupon(user_id=current_user.id, coupon_id=coupon_id)
+        db.add(user_coupon)
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise BadRequestException("您已领取过该优惠券")
     await db.commit()
     await db.refresh(user_coupon)
     await db.refresh(coupon)
@@ -177,6 +183,16 @@ async def apply_coupon(
     if not coupon:
         raise NotFoundException("优惠券不存在")
 
+    user_coupon = (await db.execute(
+        select(UserCoupon).where(
+            UserCoupon.user_id == current_user.id,
+            UserCoupon.coupon_id == coupon.id,
+            UserCoupon.status == "UNUSED"
+        )
+    )).scalar_one_or_none()
+    if not user_coupon:
+        raise BadRequestException("您未拥有该优惠券或已使用")
+
     if order_amount < coupon.min_order_amount:
         raise BadRequestException(f"订单金额需满{coupon.min_order_amount}元才可使用该优惠券")
 
@@ -186,3 +202,93 @@ async def apply_coupon(
         "discount_amount": float(discount),
         "final_amount": float(order_amount - discount),
     })
+
+
+class CreateCouponRequest(BaseSchema):
+    name: str
+    code: str
+    description: Optional[str] = None
+    discount_amount: DecimalField
+    min_order_amount: DecimalField = Decimal("0.00")
+    total_count: int
+    valid_from: datetime
+    valid_until: datetime
+
+
+@router.post("/admin/create", response_model=ResponseSchema[CouponResponse])
+async def create_coupon(
+    body: CreateCouponRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    existing = await db.execute(select(Coupon).where(Coupon.code == body.code))
+    if existing.scalar_one_or_none():
+        raise BadRequestException("优惠券代码已存在")
+
+    coupon = Coupon(
+        name=body.name,
+        code=body.code,
+        description=body.description,
+        discount_amount=body.discount_amount,
+        min_order_amount=body.min_order_amount,
+        total_count=body.total_count,
+        remain_count=body.total_count,
+        valid_from=body.valid_from,
+        valid_until=body.valid_until,
+        status="ACTIVE",
+    )
+    db.add(coupon)
+    await db.commit()
+    await db.refresh(coupon)
+
+    logger.info(f"Admin {current_user.id} created coupon {coupon.id}")
+    return ResponseSchema(code=0, message="创建成功", data=CouponResponse.model_validate(coupon))
+
+
+@router.get("/admin/list", response_model=ResponseSchema[PageResponse[CouponResponse]])
+async def admin_list_coupons(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None, description="ACTIVE, INACTIVE"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    stmt = select(Coupon)
+    count_stmt = select(func.count(Coupon.id))
+
+    if status:
+        stmt = stmt.where(Coupon.status == status)
+        count_stmt = count_stmt.where(Coupon.status == status)
+
+    total_result = await db.execute(count_stmt)
+    total = total_result.scalar()
+
+    stmt = stmt.order_by(Coupon.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(stmt)
+    coupons = result.scalars().all()
+
+    items = [CouponResponse.model_validate(c) for c in coupons]
+    return ResponseSchema(code=0, data=PageResponse(items=items, total=total, page=page, page_size=page_size))
+
+
+@router.put("/admin/{coupon_id}/status", response_model=ResponseSchema[CouponResponse])
+async def update_coupon_status(
+    coupon_id: int,
+    status: str = Query(..., description="ACTIVE 或 INACTIVE"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    if status not in ("ACTIVE", "INACTIVE"):
+        raise BadRequestException("状态值必须为 ACTIVE 或 INACTIVE")
+
+    result = await db.execute(select(Coupon).where(Coupon.id == coupon_id))
+    coupon = result.scalar_one_or_none()
+    if not coupon:
+        raise NotFoundException("优惠券不存在")
+
+    coupon.status = status
+    await db.commit()
+    await db.refresh(coupon)
+
+    logger.info(f"Admin {current_user.id} updated coupon {coupon_id} status to {status}")
+    return ResponseSchema(code=0, message="状态更新成功", data=CouponResponse.model_validate(coupon))

@@ -15,7 +15,6 @@ import {
   CrownOutlined,
   ThunderboltOutlined,
   DeleteOutlined,
-  CloseOutlined,
 } from '@ant-design/icons'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -165,7 +164,7 @@ export default function UserHome() {
   }
 
   const renderSearchHistory = () => {
-    if (!showHistory || searchHistory.length === 0) return null
+    if (!showHistory || searchHistory.length === 0) {return null}
     return (
       <div style={{
         position: 'absolute',
@@ -340,7 +339,7 @@ export default function UserHome() {
                 prefix={<SearchOutlined style={{ color: '#999' }} />}
                 value={searchText}
                 onChange={(e) => handleSearch(e.target.value)}
-                onFocus={() => { if (searchHistory.length > 0) setShowHistory(true) }}
+                onFocus={() => { if (searchHistory.length > 0) {setShowHistory(true)} }}
                 style={{ borderRadius: 20, borderColor: 'transparent' }}
                 allowClear
               />
@@ -453,7 +452,7 @@ export default function UserHome() {
                 value={searchText}
                 onChange={(e) => handleSearch(e.target.value)}
                 onSearch={handleSearch}
-                onFocus={() => { if (searchHistory.length > 0) setShowHistory(true) }}
+                onFocus={() => { if (searchHistory.length > 0) {setShowHistory(true)} }}
                 allowClear
               />
               {renderSearchHistory()}

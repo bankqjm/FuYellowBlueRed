@@ -1,10 +1,8 @@
-
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Typography, List, Spin, Empty, Image, Button, message, Tag } from 'antd'
 import { HeartOutlined, StarFilled, ShopOutlined } from '@ant-design/icons'
 import { favoritesApi, FavoriteShop } from '../../services/favorites'
-import { useIsMobile } from '@/hooks/useIsMobile'
 
 const { Title, Text } = Typography
 
@@ -14,7 +12,6 @@ export default function Favorites() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const navigate = useNavigate()
-  const isMobile = useIsMobile()
 
   const fetchFavorites = async () => {
     try {
@@ -43,7 +40,7 @@ export default function Favorites() {
     }
   }
 
-  if (loading) {
+  if (loading && page === 1) {
     return (
       <div style={{ textAlign: 'center', padding: 50 }}>
         <Spin size="large" />
@@ -78,12 +75,18 @@ export default function Favorites() {
             dataSource={favorites}
             renderItem={(item) => (
               <List.Item
+                key={item.shop_id}
+                onClick={() => navigate(`/user/shop/${item.shop_id}`)}
+                style={{ cursor: 'pointer' }}
                 actions={[
                   <Button
                     type="text"
                     danger
                     key="remove"
-                    onClick={() => handleRemove(item.shop_id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemove(item.shop_id)
+                    }}
                   >
                     取消收藏
                   </Button>,
@@ -136,8 +139,6 @@ export default function Favorites() {
                       </Text>
                     </div>
                   }
-                  onClick={() => navigate(`/user/shop/${item.shop_id}`)}
-                  style={{ cursor: 'pointer' }}
                 />
               </List.Item>
             )}

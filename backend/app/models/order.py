@@ -33,6 +33,9 @@ class Order(Base):
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
     status: Mapped[str] = mapped_column(String(20), default=OrderStatus.PENDING_PAYMENT.value)
     reject_reason: Mapped[str] = mapped_column(String(255), nullable=True)
+    dining_count: Mapped[int] = mapped_column(Integer, default=1, comment="用餐人数")
+    pay_channel: Mapped[str] = mapped_column(String(20), default="BALANCE", comment="支付渠道")
+    pay_time: Mapped[datetime] = mapped_column(DateTime, nullable=True, comment="支付时间")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -74,6 +77,7 @@ class CartItem(Base):
     shop_id: Mapped[int] = mapped_column(Integer, ForeignKey("shops.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
     quantity: Mapped[int] = mapped_column(default=1)
+    options: Mapped[str] = mapped_column(String(500), nullable=True, comment="定制选项JSON")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     user: Mapped["User"] = relationship("User", back_populates="cart_items")

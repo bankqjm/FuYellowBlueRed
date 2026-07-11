@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, act } from '@testing-library/react'
 import CountdownTimer, { formatTime } from '@/components/CountdownTimer'
 
 describe('CountdownTimer', () => {
@@ -39,22 +39,25 @@ describe('CountdownTimer', () => {
     })
 
     it('should call onExpire callback when time expires', () => {
-      vi.useRealTimers()
+      vi.useFakeTimers()
       const onExpire = vi.fn()
       const futureTime = new Date(Date.now() + 100)
       render(<CountdownTimer endTime={futureTime} onExpire={onExpire} />)
 
-      setTimeout(() => {
-        expect(onExpire).toHaveBeenCalled()
-      }, 200)
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(onExpire).toHaveBeenCalled()
     })
 
-    it('should update countdown every second', async () => {
-      vi.useRealTimers()
-      vi.spyOn(vi, 'useRealTimers').mockImplementation(() => {})
+    it('should update countdown every second', () => {
+      vi.useFakeTimers()
       const futureTime = new Date(Date.now() + 3 * 1000)
       render(<CountdownTimer endTime={futureTime} />)
-      
+
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
       const timeElement = screen.getByText(/00:0[23]/)
       expect(timeElement).toBeInTheDocument()
     })

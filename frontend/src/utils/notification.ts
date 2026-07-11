@@ -31,7 +31,7 @@ export function sendOrderNotification(orderNo: string, status: string, shopName?
   }
 
   const message = STATUS_MESSAGES[status]
-  if (!message) return
+  if (!message) {return}
 
   const title = shopName ? `${shopName} - 订单更新` : '订单状态更新'
 
@@ -52,8 +52,8 @@ export function sendOrderNotification(orderNo: string, status: string, shopName?
 }
 
 export function shouldRequestPermission(): boolean {
-  if (!('Notification' in window)) return false
-  if (Notification.permission !== 'default') return false
+  if (!('Notification' in window)) {return false}
+  if (Notification.permission !== 'default') {return false}
   return !sessionStorage.getItem(NOTIFICATION_PERMISSION_KEY)
 }
 

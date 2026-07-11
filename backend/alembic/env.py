@@ -14,7 +14,13 @@ from app.models import *
 from app.config import settings
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+aiosqlite", ""))
+# 处理不同数据库驱动的连接字符串转换
+db_url = settings.DATABASE_URL
+if "+aiomysql" in db_url:
+    db_url = db_url.replace("+aiomysql", "+pymysql")
+elif "+aiosqlite" in db_url:
+    db_url = db_url.replace("+aiosqlite", "")
+config.set_main_option("sqlalchemy.url", db_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

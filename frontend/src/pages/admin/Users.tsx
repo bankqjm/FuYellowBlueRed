@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
-import { Card, Typography, Table, Input, Select, Space, Button, Tag, message, Popconfirm } from 'antd'
-import { SearchOutlined, StopOutlined, CheckOutlined } from '@ant-design/icons'
+import { Card, Typography, Table, Input, Select, Space, Button, Tag, message, Popconfirm, Modal, InputNumber, Form } from 'antd'
+import { SearchOutlined, StopOutlined, CheckOutlined, DollarOutlined } from '@ant-design/icons'
 import api from '../../services/api'
 import type { ColumnsType } from 'antd/es/table'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -27,6 +27,10 @@ export default function AdminUsers() {
   const [pageSize, setPageSize] = useState(20)
   const [keyword, setKeyword] = useState('')
   const [role, setRole] = useState<string>('')
+  const [rechargeModalVisible, setRechargeModalVisible] = useState(false)
+  const [rechargeUser, setRechargeUser] = useState<UserRecord | null>(null)
+  const [rechargeAmount, setRechargeAmount] = useState<number | null>(null)
+  const [rechargeLoading, setRechargeLoading] = useState(false)
   const isMobile = useIsMobile()
 
   const fetchUsers = async () => {
@@ -56,6 +60,25 @@ export default function AdminUsers() {
       fetchUsers()
     } catch (error) {
       console.error('更新状态失败', error)
+    }
+  }
+
+  const handleRecharge = async () => {
+    if (!rechargeUser || !rechargeAmount || rechargeAmount <= 0) {
+      message.warning('请输入有效的充值金额')
+      return
+    }
+    try {
+      setRechargeLoading(true)
+      await api.post(`/wallet/recharge/${rechargeUser.id}`, { amount: rechargeAmount })
+      message.success(`已为用户 ${rechargeUser.nickname} 充值 ${rechargeAmount} 元`)
+      setRechargeModalVisible(false)
+      setRechargeUser(null)
+      setRechargeAmount(null)
+    } catch (error) {
+      console.error('充值失败', error)
+    } finally {
+      setRechargeLoading(false)
     }
   }
 
@@ -102,9 +125,20 @@ export default function AdminUsers() {
     },
     {
       title: '操作',
-      width: 150,
+      width: 200,
       render: (_, record) => (
         <Space>
+          <Button
+            size="small"
+            icon={<DollarOutlined />}
+            onClick={() => {
+              setRechargeUser(record)
+              setRechargeAmount(null)
+              setRechargeModalVisible(true)
+            }}
+          >
+            充值
+          </Button>
           {record.status === 1 ? (
             <Popconfirm
               title="确定禁用该用户？"
@@ -164,6 +198,17 @@ export default function AdminUsers() {
             </div>
           )}
           <div className="card-actions">
+            <Button
+              size="small"
+              icon={<DollarOutlined />}
+              onClick={() => {
+                setRechargeUser(user)
+                setRechargeAmount(null)
+                setRechargeModalVisible(true)
+              }}
+            >
+              充值
+            </Button>
             {user.status === 1 ? (
               <Popconfirm title="确定禁用该用户？" onConfirm={() => handleUpdateStatus(user.id, 0)}>
                 <Button size="small" danger icon={<StopOutlined />}>禁用</Button>
@@ -229,6 +274,38 @@ export default function AdminUsers() {
           />
         )}
       </Card>
+
+      <Modal
+        title="用户充值"
+        open={rechargeModalVisible}
+        onOk={handleRecharge}
+        onCancel={() => {
+          setRechargeModalVisible(false)
+          setRechargeUser(null)
+          setRechargeAmount(null)
+        }}
+        confirmLoading={rechargeLoading}
+        okText="确认充值"
+        cancelText="取消"
+      >
+        {rechargeUser && (
+          <Form layout="vertical">
+            <Form.Item label="用户信息">
+              <span>{rechargeUser.nickname}（{rechargeUser.phone}）</span>
+            </Form.Item>
+            <Form.Item label="充值金额">
+              <InputNumber
+                min={1}
+                max={10000}
+                value={rechargeAmount}
+                onChange={(val) => setRechargeAmount(val)}
+                style={{ width: '100%' }}
+                placeholder="请输入充值金额"
+              />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { orderApi } from '../services/order'
-import type { OrderInfo } from '../services/shop'
 import {
   requestNotificationPermission,
   sendOrderNotification,
@@ -24,7 +23,7 @@ export function useOrderNotification(isAuthenticated: boolean) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const checkOrderUpdates = useCallback(async () => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {return}
 
     try {
       const res = await orderApi.listOrders({ page: 1, page_size: 20 })

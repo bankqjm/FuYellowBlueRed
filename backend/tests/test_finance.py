@@ -255,7 +255,8 @@ class TestAdminRechargeAPI:
         token = login_response.json()["data"]["access_token"]
 
         response = await client.post(
-            f"/api/v1/wallet/recharge/{target_user.id}?amount=500.0",
+            f"/api/v1/wallet/recharge/{target_user.id}",
+            json={"amount": 500.0},
             headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 200
@@ -278,7 +279,8 @@ class TestAdminRechargeAPI:
         token = login_response.json()["data"]["access_token"]
 
         response = await client.post(
-            f"/api/v1/wallet/recharge/{test_user.id}?amount=100.0",
+            f"/api/v1/wallet/recharge/{test_user.id}",
+            json={"amount": 100.0},
             headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403
@@ -291,7 +293,8 @@ class TestAdminRechargeAPI:
         token = login_response.json()["data"]["access_token"]
 
         response = await client.post(
-            f"/api/v1/wallet/recharge/{test_user.id}?amount=100.0",
+            f"/api/v1/wallet/recharge/{test_user.id}",
+            json={"amount": 100.0},
             headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code == 403

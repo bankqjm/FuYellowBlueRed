@@ -10,6 +10,7 @@ class CartItemCreate(BaseSchema):
     shop_id: int
     product_id: int
     quantity: int = Field(..., ge=1)
+    options: Optional[str] = None
 
 
 class CartItemUpdate(BaseSchema):
@@ -27,6 +28,7 @@ class CartItemResponse(BaseSchema):
     product_image: Optional[str] = None
     product_price: Optional[DecimalField] = None
     shop_name: Optional[str] = None
+    options: Optional[str] = None
 
 
 class OrderItemResponse(BaseSchema):
@@ -44,6 +46,7 @@ class OrderCreate(BaseSchema):
     shop_id: int
     remark: Optional[str] = None
     coupon_id: Optional[int] = None
+    dining_count: int = Field(default=1, ge=1, le=20)
 
     @field_validator("remark")
     @classmethod
@@ -76,6 +79,9 @@ class OrderResponse(BaseSchema):
     delivery_fee: DecimalField
     status: str
     reject_reason: Optional[str] = None
+    dining_count: int = 1
+    pay_channel: Optional[str] = None
+    pay_time: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     shop_name: Optional[str] = None
@@ -90,3 +96,6 @@ class OrderQuery(BaseSchema):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
     status: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    shop_id: Optional[int] = None

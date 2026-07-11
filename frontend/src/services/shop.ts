@@ -43,6 +43,8 @@ export interface ProductInfo {
   description?: string
   stock: number
   sales: number
+  tags?: string
+  rating: number
   status: number
   created_at: string
   updated_at: string
@@ -95,6 +97,9 @@ export interface OrderInfo {
   user_phone?: string
   items?: OrderItemInfo[]
   address_info?: AddressInfo
+  dining_count?: number
+  pay_channel?: string
+  pay_time?: string
 }
 
 export interface ShopStats {
@@ -182,6 +187,9 @@ export const shopApi = {
     keyword?: string
     category_id?: number
     status?: number
+    min_price?: number
+    max_price?: number
+    sort_by?: string
   }) => api.get<PageResponse<ProductInfo>>(`/shop/product/${shopId}`, { params }),
 
   getProductDetail: (productId: number) => api.get<ProductInfo>(`/shop/product/detail/${productId}`),
@@ -225,6 +233,24 @@ export const adminApi = {
   rejectShop: (shopId: number) => api.put<ShopInfo>(`/admin/shop/${shopId}/reject`),
   listPendingShops: (params?: { page?: number; page_size?: number; keyword?: string }) =>
     api.get<PageResponse<ShopInfo>>('/admin/shop/pending', { params }),
+  listAllShops: (params?: { page?: number; page_size?: number; keyword?: string; status?: number }) =>
+    api.get<PageResponse<ShopInfo>>('/admin/shops', { params }),
+  getShopDetail: (shopId: number) => api.get<ShopInfo>(`/admin/shop/${shopId}`),
+  updateShop: (shopId: number, data: {
+    name?: string
+    logo?: string
+    address?: string
+    latitude?: number
+    longitude?: number
+    business_hours?: string
+    notice?: string
+    min_order_amount?: number
+    delivery_fee?: number
+    delivery_time?: string
+    discounts?: string
+  }) => api.put<ShopInfo>(`/admin/shop/${shopId}`, data),
+  disableShop: (shopId: number) => api.put<ShopInfo>(`/admin/shop/${shopId}/disable`),
+  enableShop: (shopId: number) => api.put<ShopInfo>(`/admin/shop/${shopId}/enable`),
   listAdminOrders: (params?: { page?: number; page_size?: number; status?: string; keyword?: string }) =>
     api.get<PageResponse<OrderInfo>>('/admin/orders', { params }),
   getAdminOrderDetail: (orderId: number) => api.get<OrderInfo>(`/admin/orders/${orderId}`),

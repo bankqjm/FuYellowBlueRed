@@ -12,6 +12,7 @@ export interface CartItemInfo {
   product_image?: string
   product_price?: number
   shop_name?: string
+  options?: string
 }
 
 export const cartApi = {
@@ -37,6 +38,7 @@ export const orderApi = {
     shop_id: number
     remark?: string
     coupon_id?: number
+    dining_count?: number
   }) => api.post<OrderInfo>('/orders/create', data),
 
   payOrder: (orderId: number) => api.post<OrderInfo>(`/orders/${orderId}/pay`),

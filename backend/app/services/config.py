@@ -6,6 +6,7 @@ from app.models.models import PlatformConfig, ConfigKey
 DEFAULT_CONFIGS = {
     ConfigKey.SHOP_COMMISSION_RATE.value: "0.10",
     ConfigKey.RIDER_SERVICE_FEE_RATE.value: "0.20",
+    ConfigKey.RIDER_COMMISSION_RATE.value: "0.05",
     ConfigKey.MIN_WITHDRAWAL_AMOUNT.value: "10.0",
     ConfigKey.PLATFORM_NAME.value: "FuYellowBlueRed",
     ConfigKey.PLATFORM_CONTACT.value: "400-888-8888",

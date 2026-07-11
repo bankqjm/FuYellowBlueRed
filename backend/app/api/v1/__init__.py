@@ -12,6 +12,7 @@ from app.api.v1.config import router as config_router
 from app.api.v1.favorites import router as favorites_router
 from app.api.v1.coupons import router as coupons_router
 from app.api.v1.audit import router as audit_router
+from app.api.v1.payment import router as payment_router
 
 __all__ = [
     "auth_router",
@@ -28,4 +29,5 @@ __all__ = [
     "favorites_router",
     "coupons_router",
     "audit_router",
+    "payment_router",
 ]

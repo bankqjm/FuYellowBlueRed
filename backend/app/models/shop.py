@@ -76,6 +76,8 @@ class Product(Base):
     description: Mapped[str] = mapped_column(String(500), nullable=True)
     stock: Mapped[int] = mapped_column(default=0)
     sales: Mapped[int] = mapped_column(default=0)
+    tags: Mapped[str] = mapped_column(String(500), nullable=True, comment="标签")
+    rating: Mapped[float] = mapped_column(default=0.0, comment="评分")
     status: Mapped[int] = mapped_column(default=ProductStatus.ON.value)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

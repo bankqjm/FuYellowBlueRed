@@ -1,23 +1,27 @@
-
 import asyncio
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from passlib.context import CryptContext
 from app.database import AsyncSessionLocal
 from app.models.models import (
     User, Wallet, Shop, Category, Product, UserRole, ShopStatus, UserAddress
 )
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.utils.auth import hash_password
 
 
 async def seed_data():
     async with AsyncSessionLocal() as db:
+        # 检查是否已存在种子数据
+        from sqlalchemy import select
+        existing = await db.execute(select(User).where(User.phone == "13800000000"))
+        if existing.scalar():
+            print("种子数据已存在，跳过创建。")
+            return
+
         admin = User(
             phone="13800000000",
-            password_hash=pwd_context.hash("admin123"),
+            password_hash=hash_password("Admin123!"),
             nickname="管理员",
             role=UserRole.ADMIN.value,
         )
@@ -29,7 +33,7 @@ async def seed_data():
 
         user = User(
             phone="13900000001",
-            password_hash=pwd_context.hash("user123"),
+            password_hash=hash_password("User123!"),
             nickname="张三",
             role=UserRole.USER.value,
         )
@@ -63,7 +67,7 @@ async def seed_data():
 
         shop_owner = User(
             phone="13900000002",
-            password_hash=pwd_context.hash("shop123"),
+            password_hash=hash_password("Shop123!"),
             nickname="李老板",
             role=UserRole.SHOP_OWNER.value,
         )
@@ -179,7 +183,7 @@ async def seed_data():
 
         rider = User(
             phone="13900000003",
-            password_hash=pwd_context.hash("rider123"),
+            password_hash=hash_password("Rider123!"),
             nickname="王师傅",
             role=UserRole.RIDER.value,
         )
@@ -190,14 +194,13 @@ async def seed_data():
         db.add(rider_wallet)
 
         await db.commit()
-        print("Seed data created successfully!")
-        print("\n=== Test Accounts ===")
-        print("Admin: 13800000000 / admin123")
-        print("User: 13900000001 / user123")
-        print("Shop Owner: 13900000002 / shop123")
-        print("Rider: 13900000003 / rider123")
+        print("种子数据创建成功！")
+        print("\n=== 测试账户 ===")
+        print("管理员: 13800000000 / Admin123!")
+        print("普通用户: 13900000001 / User123!")
+        print("商家: 13900000002 / Shop123!")
+        print("骑手: 13900000003 / Rider123!")
 
 
 if __name__ == "__main__":
     asyncio.run(seed_data())
-

@@ -57,7 +57,12 @@ async def get_current_user(
         iat = payload.get("iat")
         if iat:
             token_issued_at = datetime.fromtimestamp(iat, timezone.utc)
-            if token_issued_at < user.password_changed_at:
+            # password_changed_at may be naive (SQLite strips tz info),
+            # so treat it as UTC if it lacks tzinfo
+            pwd_changed = user.password_changed_at
+            if pwd_changed.tzinfo is None:
+                pwd_changed = pwd_changed.replace(tzinfo=timezone.utc)
+            if token_issued_at < pwd_changed:
                 raise UnauthorizedException("密码已修改，请重新登录")
 
     return user

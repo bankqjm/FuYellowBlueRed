@@ -424,6 +424,15 @@ class TestApplyCouponAPI:
         })
         token = login_response.json()["data"]["access_token"]
 
+        # 用户先领取优惠券
+        user_coupon = UserCoupon(
+            user_id=test_user.id,
+            coupon_id=coupon.id,
+            status="UNUSED",
+        )
+        db_session.add(user_coupon)
+        await db_session.commit()
+
         response = await client.post(
             f"/api/v1/coupons/apply?coupon_id={coupon.id}&order_amount=80.0",
             headers={"Authorization": f"Bearer {token}"}
@@ -450,12 +459,22 @@ class TestApplyCouponAPI:
         )
         db_session.add(coupon)
         await db_session.commit()
+        await db_session.refresh(coupon)
 
         login_response = await client.post("/api/v1/auth/login", json={
             "phone": "13800138000",
             "password": "Test123456"
         })
         token = login_response.json()["data"]["access_token"]
+
+        # 用户先领取优惠券
+        user_coupon = UserCoupon(
+            user_id=test_user.id,
+            coupon_id=coupon.id,
+            status="UNUSED",
+        )
+        db_session.add(user_coupon)
+        await db_session.commit()
 
         response = await client.post(
             f"/api/v1/coupons/apply?coupon_id={coupon.id}&order_amount=50.0",
@@ -499,6 +518,15 @@ class TestApplyCouponAPI:
             "password": "Test123456"
         })
         token = login_response.json()["data"]["access_token"]
+
+        # 用户先领取优惠券
+        user_coupon = UserCoupon(
+            user_id=test_user.id,
+            coupon_id=coupon.id,
+            status="UNUSED",
+        )
+        db_session.add(user_coupon)
+        await db_session.commit()
 
         response = await client.post(
             f"/api/v1/coupons/apply?coupon_id={coupon.id}&order_amount=30.0",

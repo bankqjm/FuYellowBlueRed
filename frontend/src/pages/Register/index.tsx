@@ -16,14 +16,14 @@ const roleOptions = [
 
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
   let score = 0
-  if (password.length >= 8) score++
-  if (/[a-z]/.test(password)) score++
-  if (/[A-Z]/.test(password)) score++
-  if (/\d/.test(password)) score++
-  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score++
+  if (password.length >= 8) {score++}
+  if (/[a-z]/.test(password)) {score++}
+  if (/[A-Z]/.test(password)) {score++}
+  if (/\d/.test(password)) {score++}
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) {score++}
 
-  if (score <= 2) return { score: 20 * score, label: '弱', color: '#ff4d4f' }
-  if (score <= 3) return { score: 20 * score, label: '中', color: '#faad14' }
+  if (score <= 2) {return { score: 20 * score, label: '弱', color: '#ff4d4f' }}
+  if (score <= 3) {return { score: 20 * score, label: '中', color: '#faad14' }}
   return { score: 20 * score, label: '强', color: '#52c41a' }
 }
 
@@ -124,7 +124,7 @@ export default function Register() {
                 { pattern: /\d/, message: '密码必须包含数字' },
               ]}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="密码（8位以上，含大小写字母和数字）" onChange={e => setPassword(e.target.value)} />
+              <Input.Password prefix={<LockOutlined />} placeholder="密码（8位以上，含大小写字母和数字）" onChange={(e) => setPassword(e.target.value)} />
             </Form.Item>
             {password && (
               <div style={{ marginTop: -16, marginBottom: 16 }}>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Typography, Form, Input, InputNumber, Button, message, Spin, Space, Divider } from 'antd'
+import { Card, Typography, Form, Input, InputNumber, Button, message, Spin } from 'antd'
 import api from '@/services/api'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -21,8 +21,8 @@ export default function AdminConfig() {
   const fetchConfigs = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/config')
-      const items = res.data || []
+      const res = await api.get('/admin/config')
+      const items = res.data?.configs || []
       setConfigs(items)
       const formValues: Record<string, string | number> = {}
       for (const item of items) {
@@ -48,7 +48,7 @@ export default function AdminConfig() {
       for (const item of configs) {
         const newValue = String(values[item.key] ?? item.value)
         if (newValue !== item.value) {
-          await api.put(`/config/${item.key}`, { value: newValue })
+          await api.put(`/admin/config/${item.key}`, { value: newValue })
         }
       }
       message.success('配置已保存')

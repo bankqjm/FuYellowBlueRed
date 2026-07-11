@@ -39,6 +39,6 @@ export const couponsApi = {
   applyCoupon: (couponId: number, orderAmount: number) =>
     api.post<{ coupon_id: number; discount_amount: number; final_amount: number }>(
       '/coupons/apply',
-      { coupon_id: couponId, order_amount: orderAmount }
+      { coupon_id: couponId, order_amount: orderAmount },
     ),
 }

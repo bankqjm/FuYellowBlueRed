@@ -28,6 +28,7 @@ from app.api import (
     favorites_router,
     coupons_router,
     audit_router,
+    payment_router,
 )
 from app.core import BaseAPIException, RequestLoggingMiddleware, get_logger
 from app.core.security_middleware import SecurityHeadersMiddleware
@@ -237,6 +238,7 @@ app.include_router(config_router, prefix="/api/v1")
 app.include_router(favorites_router, prefix="/api/v1")
 app.include_router(coupons_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")
+app.include_router(payment_router, prefix="/api/v1")
 
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 

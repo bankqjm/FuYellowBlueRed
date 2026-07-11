@@ -480,7 +480,8 @@ class TestWalletPaymentFullChain:
         # Admin recharges user wallet
         admin_headers = auth_headers(admin.id, role="ADMIN")
         resp = await client.post(
-            f"/api/v1/wallet/recharge/{customer.id}?amount=500.00",
+            f"/api/v1/wallet/recharge/{customer.id}",
+            json={"amount": 500.00},
             headers=admin_headers,
         )
         assert resp.status_code == 200
@@ -749,7 +750,8 @@ class TestPermission401vs403:
         user = await _create_user(db_session, role="USER", phone="13900000501")
         headers = auth_headers(user.id, role="USER")
         resp = await client.post(
-            f"/api/v1/wallet/recharge/{user.id}?amount=100.0",
+            f"/api/v1/wallet/recharge/{user.id}",
+            json={"amount": 100.0},
             headers=headers,
         )
         assert resp.status_code == 403
@@ -772,7 +774,8 @@ class TestPermission401vs403:
 
         headers = auth_headers(admin.id, role="ADMIN")
         resp = await client.post(
-            f"/api/v1/wallet/recharge/{user.id}?amount=100.0",
+            f"/api/v1/wallet/recharge/{user.id}",
+            json={"amount": 100.0},
             headers=headers,
         )
         assert resp.status_code == 200

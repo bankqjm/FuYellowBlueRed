@@ -70,8 +70,8 @@ async def get_my_shop(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
-    shop = result.scalar_one_or_none()
+    result = await db.execute(select(Shop).where(Shop.user_id == current_user.id).limit(1))
+    shop = result.scalars().first()
     if not shop:
         raise BadRequestException("您还未创建店铺")
     return ResponseSchema(code=0, data=ShopInfo.model_validate(shop))
@@ -83,8 +83,8 @@ async def update_my_shop(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Shop).where(Shop.user_id == current_user.id))
-    shop = result.scalar_one_or_none()
+    result = await db.execute(select(Shop).where(Shop.user_id == current_user.id).limit(1))
+    shop = result.scalars().first()
     if not shop:
         raise BadRequestException("您还未创建店铺")
 
@@ -107,20 +107,30 @@ async def list_all_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Category).order_by(Category.sort_order))
     categories = result.scalars().all()
 
+    if not categories:
+        return ResponseSchema(code=0, data=[])
+
+    # Batch query products for all categories
+    cat_ids = [cat.id for cat in categories]
+    products_result = await db.execute(
+        select(Product).where(
+            Product.category_id.in_(cat_ids),
+            Product.status == ProductStatus.ON.value,
+        )
+    )
+    products_by_cat: dict[int, list[Product]] = {}
+    for p in products_result.scalars().all():
+        products_by_cat.setdefault(p.category_id, []).append(p)
+
     category_list = []
     for cat in categories:
-        products_result = await db.execute(
-            select(Product).where(Product.category_id == cat.id, Product.status == ProductStatus.ON.value)
-        )
-        products = products_result.scalars().all()
-
         cat_data = CategoryInfo(
             id=cat.id,
             shop_id=cat.shop_id,
             name=cat.name,
             sort_order=cat.sort_order,
             created_at=cat.created_at,
-            products=[ProductInfo.model_validate(p) for p in products]
+            products=[ProductInfo.model_validate(p) for p in products_by_cat.get(cat.id, [])]
         )
         category_list.append(cat_data)
 
@@ -173,9 +183,12 @@ async def list_shops(
 
 @router.get("/search", response_model=ResponseSchema[PageResponse[ProductInfo]])
 async def search_products(
-    keyword: str = Query(..., description="搜索关键词"),
+    keyword: str = Query("", description="搜索关键词"),
     shop_id: int = Query(None, description="店铺ID筛选"),
     category_id: int = Query(None, description="分类ID筛选"),
+    min_price: float = Query(None, description="最低价格"),
+    max_price: float = Query(None, description="最高价格"),
+    sort_by: str = Query(None, description="排序方式: price/sales/rating"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -199,10 +212,25 @@ async def search_products(
         stmt = stmt.where(Product.category_id == category_id)
         count_stmt = count_stmt.where(Product.category_id == category_id)
 
+    if min_price is not None:
+        stmt = stmt.where(Product.price >= min_price)
+        count_stmt = count_stmt.where(Product.price >= min_price)
+
+    if max_price is not None:
+        stmt = stmt.where(Product.price <= max_price)
+        count_stmt = count_stmt.where(Product.price <= max_price)
+
     total_result = await db.execute(count_stmt)
     total = total_result.scalar()
 
-    stmt = stmt.order_by(Product.sales.desc()).offset((page - 1) * page_size).limit(page_size)
+    sort_mapping = {
+        "price": Product.price.asc(),
+        "price_desc": Product.price.desc(),
+        "sales": Product.sales.desc(),
+        "rating": Product.rating.desc() if hasattr(Product, 'rating') else Product.sales.desc(),
+    }
+    order_clause = sort_mapping.get(sort_by, Product.sales.desc())
+    stmt = stmt.order_by(order_clause).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
     products = result.scalars().all()
 
@@ -235,6 +263,19 @@ async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
     )
     categories = categories_result.scalars().all()
 
+    # Batch query products for all categories
+    cat_ids = [cat.id for cat in categories]
+    products_by_cat: dict[int, list[Product]] = {}
+    if cat_ids:
+        products_result = await db.execute(
+            select(Product).where(
+                Product.category_id.in_(cat_ids),
+                Product.status == ProductStatus.ON.value,
+            )
+        )
+        for p in products_result.scalars().all():
+            products_by_cat.setdefault(p.category_id, []).append(p)
+
     shop_data = ShopDetail(
         id=shop.id,
         user_id=shop.user_id,
@@ -248,27 +289,25 @@ async def get_shop_detail(shop_id: int, db: AsyncSession = Depends(get_db)):
         notice=shop.notice,
         rating=shop.rating,
         status=shop.status,
+        monthly_sales=shop.monthly_sales,
+        min_order_amount=shop.min_order_amount,
+        delivery_fee=shop.delivery_fee,
+        delivery_time=shop.delivery_time,
+        discounts=shop.discounts,
         created_at=shop.created_at,
         updated_at=shop.updated_at,
         categories=[]
     )
 
     for cat in categories:
-        products_result = await db.execute(
-            select(Product).where(Product.category_id == cat.id, Product.status == ProductStatus.ON.value)
-        )
-        products = products_result.scalars().all()
-
         cat_data = CategoryInfo(
             id=cat.id,
             shop_id=cat.shop_id,
             name=cat.name,
             sort_order=cat.sort_order,
             created_at=cat.created_at,
-            products=[]
+            products=[ProductInfo.model_validate(p) for p in products_by_cat.get(cat.id, [])]
         )
-        for product in products:
-            cat_data.products.append(ProductInfo.model_validate(product))
         shop_data.categories.append(cat_data)
 
     # PERF-REFORM-02: Cache the shop detail
@@ -436,9 +475,26 @@ async def list_products(
     if query.status is not None:
         stmt = stmt.where(Product.status == query.status)
         count_stmt = count_stmt.where(Product.status == query.status)
+    if hasattr(query, 'min_price') and query.min_price is not None:
+        stmt = stmt.where(Product.price >= query.min_price)
+        count_stmt = count_stmt.where(Product.price >= query.min_price)
+    if hasattr(query, 'max_price') and query.max_price is not None:
+        stmt = stmt.where(Product.price <= query.max_price)
+        count_stmt = count_stmt.where(Product.price <= query.max_price)
 
     total = await db.execute(count_stmt)
     total = total.scalar()
+
+    sort_mapping = {
+        "price": Product.price.asc(),
+        "price_desc": Product.price.desc(),
+        "sales": Product.sales.desc(),
+        "rating": Product.rating.desc() if hasattr(Product, 'rating') else Product.sales.desc(),
+    }
+    if hasattr(query, 'sort_by') and query.sort_by in sort_mapping:
+        stmt = stmt.order_by(sort_mapping[query.sort_by])
+    else:
+        stmt = stmt.order_by(Product.created_at.desc())
 
     stmt = stmt.offset((query.page - 1) * query.page_size).limit(query.page_size)
     result = await db.execute(stmt)

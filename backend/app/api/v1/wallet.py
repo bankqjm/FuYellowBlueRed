@@ -1,5 +1,6 @@
 from decimal import Decimal
 from fastapi import APIRouter, Depends, Query, Body
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Optional
@@ -13,6 +14,10 @@ from app.utils.log_mask import mask_amount
 
 router = APIRouter(prefix="/wallet", tags=["钱包"])
 logger = get_logger("wallet")
+
+
+class AdminRechargeRequest(BaseModel):
+    amount: Decimal
 
 
 @router.get("", response_model=ResponseSchema[dict])
@@ -50,7 +55,7 @@ async def get_wallet(
 @router.post("/recharge/{user_id}", response_model=ResponseSchema[dict])
 async def admin_recharge_user_wallet(
     user_id: int,
-    amount: Decimal = Query(...),
+    request: AdminRechargeRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -61,9 +66,12 @@ async def admin_recharge_user_wallet(
         raise BadRequestException("管理员不能给自己充值")
 
     try:
-        result = await FinanceService.recharge_wallet(db, user_id, amount)
+        result = await FinanceService.recharge_wallet(db, user_id, request.amount)
         await db.commit()
-        logger.info(f"Admin {current_user.id} recharged user wallet: target_user_id={user_id}, amount={mask_amount(amount)}")
+        logger.info(f"Admin {current_user.id} recharged user wallet: target_user_id={user_id}, amount={mask_amount(request.amount)}")
+        from app.services.audit import log_audit, log_finance_audit
+        await log_audit(db, action="ADMIN_RECHARGE", user_id=current_user.id, resource="wallet", resource_id=str(user_id), details={"target_user_id": user_id, "amount": float(request.amount)})
+        await log_finance_audit(db, audit_type="ADMIN_RECHARGE", user_id=user_id, amount=float(request.amount), description=f"管理员{current_user.id}为用户{user_id}充值{request.amount}元")
         return ResponseSchema(code=0, message="用户充值成功", data={
             "user_id": user_id,
             "amount": float(result["amount"]),
@@ -89,6 +97,8 @@ async def request_recharge(
         result = await FinanceService.recharge_wallet(db, current_user.id, amount)
         await db.commit()
         logger.info(f"User {current_user.id} recharged wallet: amount={mask_amount(amount)}")
+        from app.services.audit import log_finance_audit
+        await log_finance_audit(db, audit_type="RECHARGE", user_id=current_user.id, amount=float(amount), description=f"用户充值{amount}元")
         return ResponseSchema(code=0, message="充值成功", data={
             "amount": float(result["amount"]),
             "balance": float(result["balance"]),
@@ -107,6 +117,10 @@ async def request_withdraw(
     db: AsyncSession = Depends(get_db),
 ):
     """User withdrawal request for SHOP_OWNER and RIDER roles."""
+    VALID_WITHDRAW_METHODS = ["ALIPAY", "WECHAT", "BANK_CARD"]
+    if method not in VALID_WITHDRAW_METHODS:
+        raise BadRequestException(f"不支持的提现方式，可选: {', '.join(VALID_WITHDRAW_METHODS)}")
+
     if current_user.role not in ("SHOP_OWNER", "RIDER"):
         raise ForbiddenException("仅商家和骑手可申请提现")
 
@@ -132,6 +146,9 @@ async def request_withdraw(
         await db.commit()
 
         logger.info(f"User {current_user.id} withdrew {mask_amount(amount)}")
+        from app.services.audit import log_audit, log_finance_audit
+        await log_audit(db, action="WITHDRAW", user_id=current_user.id, resource="wallet", resource_id=str(current_user.id), details={"amount": float(amount), "method": method})
+        await log_finance_audit(db, audit_type="WITHDRAWAL", user_id=current_user.id, amount=float(amount), description=f"用户提现{amount}元，方式:{method}")
         return ResponseSchema(code=0, message="提现申请已提交", data={
             "withdraw_id": record.id,
             "amount": float(amount),

@@ -1,16 +1,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Card, Tabs, List, Empty, Typography, Button, Space, Spin, message, Tag, Image, Modal, Timeline } from 'antd'
-import { RedoOutlined } from '@ant-design/icons'
+import { Card, Tabs, List, Empty, Typography, Button, Space, Spin, message, Tag, Image, Modal, Timeline, Rate, Input } from 'antd'
+import { RedoOutlined, SearchOutlined } from '@ant-design/icons'
 import { orderApi, cartApi } from '../../services/order'
+import { reviewApi } from '../../services/review'
+import type { ReviewInfo } from '../../services/review'
 import type { OrderInfo } from '../../services/shop'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import CountdownTimer, { formatTime } from '@/components/CountdownTimer'
+import CountdownTimer from '@/components/CountdownTimer'
 
 const { Title, Text } = Typography
 
-const POLLING_INTERVAL = 5000
+const POLLING_INTERVAL = 10000
 const PAYMENT_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
 
 export default function Orders() {
@@ -20,16 +22,23 @@ export default function Orders() {
   const [loading, setLoading] = useState(false)
   const [orders, setOrders] = useState<OrderInfo[]>([])
   const [status, setStatus] = useState<string>('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const pageSize = 10
+  const [searchKeyword, setSearchKeyword] = useState('')
   const [payModalVisible, setPayModalVisible] = useState(false)
   const [payingOrder, setPayingOrder] = useState<OrderInfo | null>(null)
   const [detailModalVisible, setDetailModalVisible] = useState(false)
   const [detailOrder, setDetailOrder] = useState<OrderInfo | null>(null)
+  const [orderReview, setOrderReview] = useState<ReviewInfo | null>(null)
+  const [reviewLoading, setReviewLoading] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchOrders = async () => {
     try {
-      const res = await orderApi.listOrders({ status: status || undefined })
+      const res = await orderApi.listOrders({ status: status || undefined, page, page_size: pageSize })
       setOrders(res.data.items)
+      setTotal(res.data.total)
     } catch (error) {
       console.error('获取订单失败', error)
     }
@@ -37,7 +46,7 @@ export default function Orders() {
 
   useEffect(() => {
     fetchOrders()
-  }, [status])
+  }, [status, page])
 
   useEffect(() => {
     if (params.id && params.pay) {
@@ -62,6 +71,18 @@ export default function Orders() {
       }
     }
   }, [orders, status])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOrders()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   const loadOrderAndShowPay = async (orderId: string) => {
     try {
@@ -163,6 +184,18 @@ export default function Orders() {
     try {
       const res = await orderApi.getOrderDetail(order.id)
       setDetailOrder(res.data)
+      setOrderReview(null)
+      if (res.data.status === 'COMPLETED') {
+        try {
+          setReviewLoading(true)
+          const reviewRes = await reviewApi.getOrderReview(order.id)
+          setOrderReview(reviewRes.data)
+        } catch {
+          // 没有评价或获取失败，忽略
+        } finally {
+          setReviewLoading(false)
+        }
+      }
       setDetailModalVisible(true)
     } catch (error) {
       console.error('获取订单详情失败', error)
@@ -216,7 +249,7 @@ export default function Orders() {
 
   /** Calculate remaining seconds for a PENDING_PAYMENT order */
   const getRemainingSeconds = (order: OrderInfo): number => {
-    if (order.status !== 'PENDING_PAYMENT' || !order.created_at) return 0
+    if (order.status !== 'PENDING_PAYMENT' || !order.created_at) {return 0}
     const createdTime = new Date(order.created_at).getTime()
     const deadline = createdTime + PAYMENT_TIMEOUT_MS
     const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000))
@@ -247,6 +280,14 @@ export default function Orders() {
       </Card>
 
       <Card style={{ marginTop: isMobile ? 8 : 16 }}>
+        <Input
+          prefix={<SearchOutlined />}
+          placeholder="搜索订单号或商家名"
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+          allowClear
+          style={{ marginBottom: 12 }}
+        />
         <Tabs
           activeKey={status}
           onChange={setStatus}
@@ -256,12 +297,26 @@ export default function Orders() {
         {orders.length === 0 ? (
           <Empty description="暂无订单" style={{ marginTop: 50 }} />
         ) : (
-          <List
-            dataSource={orders}
-            renderItem={(order) => {
+          (() => {
+            const filteredOrders = orders.filter(order => {
+              if (!searchKeyword) return true
+              const keyword = searchKeyword.toLowerCase()
+              return (order.order_no && order.order_no.toLowerCase().includes(keyword)) ||
+                (order.shop_name && order.shop_name.toLowerCase().includes(keyword))
+            })
+            return (
+              <List
+                dataSource={filteredOrders}
+                pagination={total > pageSize ? {
+                  current: page,
+                  total,
+                  pageSize,
+                  onChange: (p) => setPage(p),
+                  showTotal: (t) => `共${t}条`,
+                } : undefined}
+                renderItem={(order) => {
               const statusInfo = getStatusText(order.status)
               const remainingSeconds = getRemainingSeconds(order)
-              const isWarning = remainingSeconds > 0 && remainingSeconds <= 300
               const isExpired = order.status === 'PENDING_PAYMENT' && remainingSeconds <= 0
               return (
                 <List.Item
@@ -396,6 +451,8 @@ export default function Orders() {
               )
             }}
           />
+            )
+          })()
         )}
       </Card>
 
@@ -455,7 +512,7 @@ export default function Orders() {
       <Modal
         title="订单详情"
         open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
+        onCancel={() => { setDetailModalVisible(false); setOrderReview(null) }}
         footer={null}
         width={isMobile ? undefined : 500}
       >
@@ -476,6 +533,18 @@ export default function Orders() {
             {detailOrder.remark && (
               <p>
                 <Text strong>备注：</Text>{detailOrder.remark}
+              </p>
+            )}
+            {detailOrder.dining_count && detailOrder.dining_count > 1 && (
+              <p>
+                <Text strong>用餐人数：</Text>{detailOrder.dining_count}人
+              </p>
+            )}
+            {detailOrder.pay_channel && (
+              <p>
+                <Text strong>支付方式：</Text>{
+                  { BALANCE: '余额支付', ALIPAY: '支付宝', WECHAT: '微信支付', UNIONPAY: '银联支付' }[detailOrder.pay_channel] || detailOrder.pay_channel
+                }
               </p>
             )}
             <p>
@@ -502,6 +571,47 @@ export default function Orders() {
                 <Timeline items={getOrderTimeline(detailOrder)} />
               </div>
             </div>
+            {reviewLoading && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <Spin size="small" />
+              </div>
+            )}
+            {orderReview && (
+              <div style={{ marginTop: 24, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                <Text strong style={{ fontSize: 15 }}>订单评价</Text>
+                <div style={{ marginTop: 12 }}>
+                  <Text type="secondary">商家评分：</Text>
+                  <Rate disabled value={orderReview.shop_rating} style={{ fontSize: 14 }} />
+                </div>
+                {orderReview.rider_rating != null && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="secondary">骑手评分：</Text>
+                    <Rate disabled value={orderReview.rider_rating} style={{ fontSize: 14 }} />
+                  </div>
+                )}
+                {orderReview.content && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="secondary">评价内容：</Text>
+                    <div style={{ marginTop: 4 }}>{orderReview.content}</div>
+                  </div>
+                )}
+                {orderReview.images && orderReview.images.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="secondary">评价图片：</Text>
+                    <div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {orderReview.images.map((img: string, idx: number) => (
+                        <Image key={idx} src={img} width={80} height={80} style={{ borderRadius: 4, objectFit: 'cover' }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {orderReview.created_at && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text type="secondary">评价时间：</Text>{new Date(orderReview.created_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>

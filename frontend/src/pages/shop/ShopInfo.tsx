@@ -147,9 +147,9 @@ export default function ShopInfo() {
   }
 
   const getBusinessDaysText = (days?: string) => {
-    if (!days) return '未设置'
+    if (!days) {return '未设置'}
     const dayMap: Record<string, string> = { '1': '周一', '2': '周二', '3': '周三', '4': '周四', '5': '周五', '6': '周六', '7': '周日' }
-    return days.split(',').map(d => dayMap[d] || d).join('、')
+    return days.split(',').map((d) => dayMap[d] || d).join('、')
   }
 
   if (loading) {

@@ -85,6 +85,8 @@ async def create_order(
     service = OrderService(db)
     order_data = await service.create_order(current_user.id, request)
     logger.info(f"Order created: {order_data.id} by user {current_user.id}")
+    from app.services.audit import log_audit
+    await log_audit(db, action="CREATE_ORDER", user_id=current_user.id, resource="order", resource_id=str(order_data.id), details={"shop_id": request.shop_id, "total_amount": float(order_data.total_amount) if hasattr(order_data, 'total_amount') else None})
     return ResponseSchema(code=0, message="创建订单成功", data=order_data)
 
 
@@ -98,6 +100,9 @@ async def pay_order(
     service = OrderService(db)
     order_data = await service.pay_order(current_user.id, order_id, channel=channel)
     logger.info(f"Order paid: {order_id}")
+    from app.services.audit import log_audit, log_finance_audit
+    await log_audit(db, action="PAY_ORDER", user_id=current_user.id, resource="order", resource_id=str(order_id), details={"channel": channel})
+    await log_finance_audit(db, audit_type="ORDER_PAY", user_id=current_user.id, amount=float(order_data.total_amount) if hasattr(order_data, 'total_amount') else 0, description=f"订单{order_id}支付，渠道:{channel}")
     return ResponseSchema(code=0, message="支付成功", data=order_data)
 
 
@@ -140,6 +145,8 @@ async def confirm_receipt(
     service = OrderService(db)
     order_data = await service.confirm_receipt(current_user.id, order_id)
     logger.info(f"Order confirmed: {order_id}")
+    from app.services.audit import log_audit
+    await log_audit(db, action="CONFIRM_RECEIPT", user_id=current_user.id, resource="order", resource_id=str(order_id))
     return ResponseSchema(code=0, message="确认收货成功", data=order_data)
 
 
@@ -150,6 +157,8 @@ async def cancel_order(
     db: AsyncSession = Depends(get_db),
 ):
     service = OrderService(db)
-    order_data = await service.cancel_order(order_id, cancel_type="user", reason="用户取消订单")
+    order_data = await service.cancel_order(order_id, cancel_type="user", reason="用户取消订单", user_id=current_user.id)
     logger.info(f"Order cancelled: {order_id} by user {current_user.id}")
+    from app.services.audit import log_audit
+    await log_audit(db, action="CANCEL_ORDER", user_id=current_user.id, resource="order", resource_id=str(order_id), details={"cancel_type": "user", "reason": "用户取消订单"})
     return ResponseSchema(code=0, message="取消订单成功", data=order_data)

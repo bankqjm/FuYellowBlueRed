@@ -12,6 +12,13 @@ class RegisterRequest(BaseModel):
     nickname: Optional[str] = None
     role: str = "USER"
 
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v != "USER":
+            raise ValueError("注册时角色必须为USER")
+        return v
+
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str) -> str:

@@ -6,11 +6,11 @@ from typing import Optional
 from datetime import datetime, timedelta
 from app.database import get_db
 from app.models.models import Shop, ShopStatus, User, Order
-from app.schemas.shop import ShopInfo, ShopListQuery
+from app.schemas.shop import ShopInfo, ShopListQuery, ShopUpdate
 from app.schemas.order import OrderResponse, OrderQuery
 from app.schemas.base import ResponseSchema, PageResponse
-from app.deps.auth import get_current_user
-from app.core import ForbiddenException, BadRequestException, get_logger
+from app.deps.auth import get_current_user, require_admin
+from app.core import BadRequestException, get_logger
 from app.utils.cache import get_cached_dict, set_cached_dict, delete_cached, delete_cached_pattern, ADMIN_STATS_TTL
 from app.utils.log_mask import mask_phone
 
@@ -33,11 +33,8 @@ class UserInfo:
 async def approve_shop(
     shop_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
@@ -60,11 +57,8 @@ async def approve_shop(
 async def reject_shop(
     shop_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
@@ -87,11 +81,8 @@ async def reject_shop(
 async def list_pending_shops(
     query: ShopListQuery = Depends(),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     stmt = select(Shop).where(Shop.status == ShopStatus.PENDING.value)
     count_stmt = select(func.count(Shop.id)).where(Shop.status == ShopStatus.PENDING.value)
 
@@ -117,6 +108,138 @@ async def list_pending_shops(
     )
 
 
+@router.get("/shops", response_model=ResponseSchema[PageResponse[ShopInfo]])
+async def list_all_shops(
+    query: ShopListQuery = Depends(),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """管理员获取所有店铺列表，支持按状态筛选"""
+    stmt = select(Shop)
+    count_stmt = select(func.count(Shop.id))
+
+    if query.status is not None:
+        stmt = stmt.where(Shop.status == query.status)
+        count_stmt = count_stmt.where(Shop.status == query.status)
+
+    if query.keyword:
+        stmt = stmt.where(Shop.name.contains(query.keyword))
+        count_stmt = count_stmt.where(Shop.name.contains(query.keyword))
+
+    total = await db.execute(count_stmt)
+    total = total.scalar()
+
+    stmt = stmt.order_by(Shop.created_at.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size)
+    result = await db.execute(stmt)
+    shops = result.scalars().all()
+
+    return ResponseSchema(
+        code=0,
+        data=PageResponse(
+            items=[ShopInfo.model_validate(shop) for shop in shops],
+            total=total,
+            page=query.page,
+            page_size=query.page_size
+        )
+    )
+
+
+@router.get("/shop/{shop_id}", response_model=ResponseSchema[ShopInfo])
+async def get_shop_detail(
+    shop_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """管理员查看店铺详情"""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+
+    return ResponseSchema(code=0, data=ShopInfo.model_validate(shop))
+
+
+@router.put("/shop/{shop_id}", response_model=ResponseSchema[ShopInfo])
+async def update_shop(
+    shop_id: int,
+    data: ShopUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """管理员编辑店铺信息"""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(shop, field, value)
+
+    await db.commit()
+    await db.refresh(shop)
+
+    await delete_cached(f"shop:{shop_id}")
+    await delete_cached_pattern("shops:page:*")
+
+    logger.info(f"Shop {shop_id} updated by admin {current_user.id}")
+    return ResponseSchema(code=0, message="更新成功", data=ShopInfo.model_validate(shop))
+
+
+@router.put("/shop/{shop_id}/disable", response_model=ResponseSchema[ShopInfo])
+async def disable_shop(
+    shop_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """管理员禁用店铺"""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+
+    if shop.status == ShopStatus.REST.value:
+        raise BadRequestException("店铺已被禁用")
+
+    shop.status = ShopStatus.REST.value
+    await db.commit()
+    await db.refresh(shop)
+
+    await delete_cached(f"shop:{shop_id}")
+    await delete_cached_pattern("shops:page:*")
+    await delete_cached("admin:stats")
+
+    logger.info(f"Shop {shop_id} disabled by admin {current_user.id}")
+    return ResponseSchema(code=0, message="店铺已禁用", data=ShopInfo.model_validate(shop))
+
+
+@router.put("/shop/{shop_id}/enable", response_model=ResponseSchema[ShopInfo])
+async def enable_shop(
+    shop_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """管理员启用店铺（将禁用或拒绝的店铺设为已通过）"""
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    if not shop:
+        raise BadRequestException("店铺不存在")
+
+    if shop.status == ShopStatus.APPROVED.value:
+        raise BadRequestException("店铺已处于营业状态")
+
+    shop.status = ShopStatus.APPROVED.value
+    await db.commit()
+    await db.refresh(shop)
+
+    await delete_cached(f"shop:{shop_id}")
+    await delete_cached_pattern("shops:page:*")
+    await delete_cached("admin:stats")
+
+    logger.info(f"Shop {shop_id} enabled by admin {current_user.id}")
+    return ResponseSchema(code=0, message="店铺已启用", data=ShopInfo.model_validate(shop))
+
+
 @router.get("/users", response_model=ResponseSchema[PageResponse[dict]])
 async def list_users(
     page: int = Query(1, ge=1),
@@ -124,11 +247,8 @@ async def list_users(
     keyword: Optional[str] = None,
     role: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     stmt = select(User)
     count_stmt = select(func.count(User.id))
 
@@ -170,11 +290,8 @@ async def update_user_status(
     user_id: int,
     status: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -193,11 +310,8 @@ async def update_user_status(
 @router.get("/stats", response_model=ResponseSchema[dict])
 async def get_platform_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     # PERF-REFORM-02: Try cache first for admin stats
     cache_key = "admin:stats"
     cached = await get_cached_dict(cache_key)
@@ -243,11 +357,8 @@ async def get_platform_stats(
 async def get_platform_trend(
     days: int = Query(7, ge=1, le=30),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     result = []
     today = datetime.now().date()
 
@@ -296,11 +407,8 @@ async def list_all_orders(
     query: OrderQuery = Depends(),
     keyword: Optional[str] = Query(None, description="搜索关键词(订单号/商家名)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     stmt = select(Order)
     count_stmt = select(func.count(Order.id))
 
@@ -370,11 +478,8 @@ async def list_all_orders(
 async def get_admin_order_detail(
     order_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_admin)
 ):
-    if current_user.role != "ADMIN":
-        raise ForbiddenException("无权限")
-
     result = await db.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:

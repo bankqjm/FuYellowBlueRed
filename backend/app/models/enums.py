@@ -52,18 +52,21 @@ class PaymentStatus(str, PyEnum):
     PENDING = "PENDING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
     CLOSED = "CLOSED"
 
 
 class TradeType(str, PyEnum):
     PAY = "PAY"
     REFUND = "REFUND"
+    RECHARGE = "RECHARGE"
 
 
 class PayChannel(str, PyEnum):
     BALANCE = "BALANCE"
     ALIPAY = "ALIPAY"
     WECHAT = "WECHAT"
+    UNIONPAY = "UNIONPAY"
 
 
 class AccountType(str, PyEnum):
@@ -110,6 +113,7 @@ class SettlementStatus(str, PyEnum):
 class ConfigKey(str, PyEnum):
     SHOP_COMMISSION_RATE = "SHOP_COMMISSION_RATE"
     RIDER_SERVICE_FEE_RATE = "RIDER_SERVICE_FEE_RATE"
+    RIDER_COMMISSION_RATE = "RIDER_COMMISSION_RATE"
     MIN_WITHDRAWAL_AMOUNT = "MIN_WITHDRAWAL_AMOUNT"
     PLATFORM_NAME = "PLATFORM_NAME"
     PLATFORM_CONTACT = "PLATFORM_CONTACT"

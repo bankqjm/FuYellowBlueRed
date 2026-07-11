@@ -56,7 +56,7 @@ export default function AdminAuditLogs() {
     try {
       setLoading(true)
       const params: any = { page, page_size: pageSize }
-      if (financeAlertFilter) params.is_alert = financeAlertFilter
+      if (financeAlertFilter) {params.is_alert = financeAlertFilter}
       const res = await api.get('/audit/finance', { params })
       setFinanceLogs(res.data.items || [])
       setTotal(res.data.total || 0)
@@ -68,11 +68,11 @@ export default function AdminAuditLogs() {
   }
 
   useEffect(() => {
-    if (activeTab === 'operation') fetchOperationLogs()
-    else fetchFinanceLogs()
+    if (activeTab === 'operation') {fetchOperationLogs()}
+    else {fetchFinanceLogs()}
   }, [activeTab, page, financeAlertFilter])
 
-  const operationColumns: ColumnsType<AuditLog> = [
+  const operationColumns: ColumnsType<any> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: '用户ID', dataIndex: 'user_id', width: 80 },
     { title: '操作', dataIndex: 'action', width: 120, render: (v) => <Tag color="blue">{v}</Tag> },
@@ -83,11 +83,11 @@ export default function AdminAuditLogs() {
     { title: '时间', dataIndex: 'created_at', width: 160, render: (v) => v ? new Date(v).toLocaleString() : '-' },
   ]
 
-  const financeColumns: ColumnsType<FinanceAuditLog> = [
+  const financeColumns: ColumnsType<any> = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: '用户ID', dataIndex: 'user_id', width: 80 },
     { title: '类型', dataIndex: 'audit_type', width: 120, render: (v) => <Tag color="green">{v}</Tag> },
-    { title: '金额', dataIndex: 'amount', width: 100, render: (v) => v != null ? `¥${v.toFixed(2)}` : '-' },
+    { title: '金额', dataIndex: 'amount', width: 100, render: (v) => v != null ? `¥${Number(v).toFixed(2)}` : '-' },
     { title: '描述', dataIndex: 'description', ellipsis: true },
     { title: '告警', dataIndex: 'is_alert', width: 60, render: (v) => v ? <Tag color="red">是</Tag> : <Tag>否</Tag> },
     { title: 'IP', dataIndex: 'ip_address', width: 120 },
@@ -150,7 +150,7 @@ export default function AdminAuditLogs() {
       <Card style={{ marginTop: 16 }}>
         <Table
           columns={activeTab === 'operation' ? operationColumns : financeColumns}
-          dataSource={activeTab === 'operation' ? operationLogs : financeLogs}
+          dataSource={activeTab === 'operation' ? operationLogs : financeLogs as any}
           rowKey="id"
           loading={loading}
           pagination={{ current: page, pageSize, total, onChange: setPage }}

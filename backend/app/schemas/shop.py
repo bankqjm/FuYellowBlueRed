@@ -191,6 +191,8 @@ class ProductInfo(BaseSchema):
     description: Optional[str] = None
     stock: int
     sales: int
+    tags: Optional[str] = None
+    rating: float = 0.0
     status: int
     created_at: datetime
     updated_at: datetime
@@ -209,6 +211,9 @@ class ProductListQuery(BaseSchema):
     keyword: Optional[str] = None
     category_id: Optional[int] = None
     status: Optional[int] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    sort_by: Optional[str] = None  # price, sales, rating
 
 
 class ShopReview(BaseSchema):

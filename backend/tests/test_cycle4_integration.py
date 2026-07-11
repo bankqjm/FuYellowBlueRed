@@ -219,7 +219,7 @@ async def test_wallet_and_transactions_flow(db, client):
     assert wallet_res.status_code == 200
     assert wallet_res.json()["data"]["balance"] == 1000.0
 
-    recharge_res = await client.post(f"/api/v1/wallet/recharge/{user.id}?amount=500", headers=admin_h)
+    recharge_res = await client.post(f"/api/v1/wallet/recharge/{user.id}", json={"amount": 500}, headers=admin_h)
     assert recharge_res.status_code == 200
 
     wallet_after = await client.get("/api/v1/wallet", headers=user_h)

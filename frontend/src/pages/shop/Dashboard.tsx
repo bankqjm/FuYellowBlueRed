@@ -44,13 +44,13 @@ export default function ShopDashboard() {
       setHasShop(true)
       try {
         const statsRes = await shopApi.getMyStats()
-        setStats(statsRes.data)
+        setStats(statsRes.data as unknown as ShopStats)
       } catch {
         // Stats may fail, show zeros
       }
       try {
         const trendRes = await shopApi.getMyStatsTrend(7)
-        setTrendData(trendRes.data)
+        setTrendData(trendRes.data as unknown as TrendItem[])
       } catch {
         // Trend may fail, show empty
       }
